@@ -28,27 +28,27 @@ import {
 // Menu items.
 const items = [
   {
-    title: "Dashboard",
+    title: "[Dashboard]",
     url: "/dashboard",
     icon: LayoutDashboard,
   },
   {
-    title: "Branches",
+    title: "[Branches]",
     url: "/branches",
     icon: Home,
   },
   {
-    title: "Units",
+    title: "[Units]",
     url: "/units",
     icon: Computer,
   },
   {
-    title: "Contacts",
+    title: "[Contacts]",
     url: "/contacts",
     icon: BookUser,
   },
   {
-    title: "Settings",
+    title: "[Settings]",
     url: "/settings",
     icon: Settings,
   },
@@ -68,7 +68,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <a href={item.url}>
-                      <item.icon />
+                      {/* <item.icon /> */}
                       <span>{item.title}</span>
                     </a>
                   </SidebarMenuButton>
