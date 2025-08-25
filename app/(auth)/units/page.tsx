@@ -1,7 +1,7 @@
 import React from "react";
 
-function page() {
+function Dashboard() {
   return <div>Units Page</div>;
 }
 
-export default page;
+export default Dashboard;

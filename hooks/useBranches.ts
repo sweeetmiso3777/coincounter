@@ -5,15 +5,39 @@ import { collection, onSnapshot, query, orderBy } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import type { Branch, BranchData } from "@/types/branch"
 
+// Simple in-memory cache
+let cachedBranches: BranchData[] | null = null
+let cacheTimestamp: number | null = null
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
 export function useBranches() {
-  const [branches, setBranches] = useState<BranchData[]>([])
-  const [loading, setLoading] = useState(true)
+  const [branches, setBranches] = useState<BranchData[]>(() => {
+    // Initialize with cached data if available and fresh
+    if (cachedBranches && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_DURATION) {
+      return cachedBranches
+    }
+    return []
+  })
+  const [loading, setLoading] = useState(() => {
+    // Don't show loading if we have fresh cached data
+    const hasFreshCache = cachedBranches && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_DURATION
+    return !hasFreshCache
+  })
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchBranches = () => {
       try {
-        setLoading(true)
+        const hasFreshCache = cachedBranches && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_DURATION
+
+        if (hasFreshCache) {
+          setBranches(cachedBranches!)
+          setLoading(false)
+          // Don't return early - still set up the listener for real-time updates
+        } else {
+          setLoading(true)
+        }
+
         const branchesRef = collection(db, "Branches")
         const q = query(branchesRef, orderBy("created_at", "desc"))
 
@@ -32,6 +56,11 @@ export function useBranches() {
                 share: data.share,
               }
             })
+
+            // Update cache
+            cachedBranches = branchesData
+            cacheTimestamp = Date.now()
+
             setBranches(branchesData)
             setLoading(false)
           },
@@ -45,13 +74,11 @@ export function useBranches() {
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred")
         setLoading(false)
-        return () => {} // Return empty function if error
+        return () => {}
       }
     }
 
     const unsubscribe = fetchBranches()
-
-    // Cleanup subscription on unmount
     return () => {
       unsubscribe()
     }
