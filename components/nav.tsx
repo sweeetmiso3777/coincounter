@@ -1,3 +1,5 @@
+"use client";
+
 import {
   NavigationMenu,
   NavigationMenuIndicator,
@@ -26,8 +28,28 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export function Nav() {
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setLoggingOut(true);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await signOut(auth);
+      console.log("User logged out");
+      router.push("/"); // redirect back to login/home
+    } catch (error) {
+      console.error("Logout failed:", error);
+      setLoggingOut(false);
+    }
+  };
+
   return (
     <div className="w-full border-b bg-white px-6 py-3 shadow-sm justify-start">
       <div className="flex items-center justify-between">
@@ -165,7 +187,10 @@ export function Nav() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer">
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={handleLogout}
+                >
                   <Link href="/" className="flex items-center cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Logout</span>
@@ -176,6 +201,13 @@ export function Nav() {
           </div>
         </div>
       </div>
+      {/* Fullscreen "Logging Out..." overlay */}
+      {loggingOut && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
+          <div className="h-8 w-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+          <p className="ml-4 text-3xl font-bold text-white">Logging Out...</p>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,15 +2,31 @@
 import Image from "next/image";
 import { signInWithGoogle, auth } from "../lib/firebase";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function Home() {
   const router = useRouter();
 
+  // ✅ check if user is already logged in
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // if logged in → redirect to dashboard
+        router.push("/dashboard");
+      } else {
+        // if not logged in → stay on /
+        router.push("/");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
   const handleGoogleLogin = async () => {
     try {
-      const { user, token } = await signInWithGoogle();
+      const { user } = await signInWithGoogle();
       console.log("Logged in user:", user);
-      // maybe redirect or update UI here
       router.push("/dashboard");
     } catch (error) {
       console.error("Login failed:", error);
@@ -19,7 +35,7 @@ export default function Home() {
 
   return (
     <div className="font-sans flex items-center justify-center min-h-screen p-8 bg-gray-50">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center  sm:items-center bg-white px-8 border border-gray-200 shadow-lg rounded-xl pb-20 p-8  w-full ">
+      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-center bg-white px-8 border border-gray-200 shadow-lg rounded-xl pb-20 p-8 w-full">
         <Image
           className="rounded-lg"
           src="/gapuz.png"
@@ -28,8 +44,8 @@ export default function Home() {
           height={36}
           priority
         />
-        <ol className="font-mono  text-sm/6 text-center sm:text-center">
-          <li className="mb-2 tracking-[-.01em] ">
+        <ol className="font-mono text-sm/6 text-center sm:text-center">
+          <li className="mb-2 tracking-[-.01em]">
             Welcome to the Coin Slot Tracking System
           </li>
           <li className="mb-2 tracking-[-.01em]">Get started by Logging In</li>

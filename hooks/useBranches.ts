@@ -1,7 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore"
+import {
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  setDoc,
+  getDoc,
+  serverTimestamp,
+  doc,
+  updateDoc,
+} from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import type { Branch, BranchData } from "@/types/branch"
 
@@ -9,6 +19,28 @@ import type { Branch, BranchData } from "@/types/branch"
 let cachedBranches: BranchData[] | null = null
 let cacheTimestamp: number | null = null
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
+export async function updateBranch(id: string, data: any) {
+  const ref = doc(db, "Branches", id)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) throw new Error(`Branch with ID "${id}" does not exist`)
+  await updateDoc(ref, data)
+}
+
+export async function createBranchWithId(id: string, data: any) {
+  const branchRef = doc(db, "Branches", id)
+
+  // Check if this ID already exists
+  const existing = await getDoc(branchRef)
+  if (existing.exists()) {
+    throw new Error("Branch ID already exists. Please choose another.")
+  }
+
+  await setDoc(branchRef, {
+    ...data,
+    created_at: serverTimestamp(),
+  })
+}
 
 export function useBranches() {
   const [branches, setBranches] = useState<BranchData[]>(() => {

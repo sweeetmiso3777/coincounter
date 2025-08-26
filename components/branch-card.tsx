@@ -18,19 +18,23 @@ export function BranchCard({ branch }: BranchCardProps) {
   return (
     <div className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow">
       <div className="p-6 h-full flex flex-col min-h-[280px]">
-        {/* Header with Menu */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <MapPin className="h-5 w-5 text-blue-600 flex-shrink-0" />
-            <h3 className="text-lg font-semibold text-gray-900 truncate">
-              {branch.location}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-xl font-bold text-gray-900 truncate mb-1">
+              {branch.id}
             </h3>
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-gray-500 flex-shrink-0" />
+              <span className="text-sm text-gray-600 truncate">
+                {branch.location}
+              </span>
+            </div>
           </div>
-          <CardMenu />
+          <CardMenu branchId={branch.id} branchData={branch} />
         </div>
 
         {/* Content */}
-        <div className="flex-1 space-y-3">
+        <div className="flex-1 space-y-3 mt-4">
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
             <span className="text-sm font-medium text-gray-700">Manager:</span>
