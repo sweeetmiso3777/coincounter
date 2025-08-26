@@ -47,7 +47,7 @@ export default function Branches() {
             Branch Management Dashboard
           </h1>
           <p className="text-gray-600 mt-2">
-            Manage and monitor all your agricultural branches
+            Manage and monitor all your PISONET branches
           </p>
         </div>
 

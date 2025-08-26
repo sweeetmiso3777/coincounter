@@ -4,6 +4,7 @@ import type React from "react";
 
 import { useState, useEffect } from "react";
 import { updateBranch } from "@/hooks/useBranches";
+import { Timestamp } from "firebase/firestore";
 
 interface EditBranchModalProps {
   open: boolean;
@@ -12,7 +13,7 @@ interface EditBranchModalProps {
     id: string;
     branch_manager: string;
     location: string;
-    date_of_harvest: any;
+    date_of_harvest: Date | Timestamp | string;
     share: number;
   };
 }
@@ -38,7 +39,7 @@ export default function EditBranchModal({
       if (existingBranch.date_of_harvest) {
         let date: Date;
 
-        if (existingBranch.date_of_harvest.toDate) {
+        if (existingBranch.date_of_harvest instanceof Timestamp) {
           date = existingBranch.date_of_harvest.toDate();
         } else if (existingBranch.date_of_harvest instanceof Date) {
           date = existingBranch.date_of_harvest;

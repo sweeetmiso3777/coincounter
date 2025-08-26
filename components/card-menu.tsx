@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { MoreVertical, Edit, Trash2 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { doc, deleteDoc } from "firebase/firestore";
+import type { Timestamp } from "firebase/firestore";
 import EditBranchModal from "./EditBranchModal";
 
 interface CardMenuProps {
@@ -11,7 +12,7 @@ interface CardMenuProps {
   branchData: {
     branch_manager: string;
     location: string;
-    date_of_harvest: any;
+    date_of_harvest: Date | Timestamp | string;
     share: number;
   };
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createBranchWithId } from "@/hooks/useBranches"; // ✅ your helper
+import { Timestamp } from "firebase/firestore";
 
 interface AddBranchModalProps {
   open: boolean;
@@ -11,7 +12,7 @@ interface AddBranchModalProps {
     id: string;
     branch_manager: string;
     location: string;
-    date_of_harvest: any; // could be Date | string | Firestore timestamp
+    date_of_harvest: Timestamp | Date | string; // could be Date | string | Firestore timestamp
     share: number;
   };
 }
@@ -29,7 +30,7 @@ export default function AddBranchModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 🔹 Autofill if editing
+  // Autofill if editing
   useEffect(() => {
     if (existingBranch) {
       setBranchId(existingBranch.id);
@@ -40,13 +41,11 @@ export default function AddBranchModal({
       if (existingBranch.date_of_harvest) {
         let date: Date;
 
-        if (existingBranch.date_of_harvest.toDate) {
-          // Firestore Timestamp
+        if (existingBranch.date_of_harvest instanceof Timestamp) {
           date = existingBranch.date_of_harvest.toDate();
         } else if (existingBranch.date_of_harvest instanceof Date) {
           date = existingBranch.date_of_harvest;
         } else {
-          // already string
           date = new Date(existingBranch.date_of_harvest);
         }
 
