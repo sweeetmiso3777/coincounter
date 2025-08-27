@@ -53,15 +53,15 @@ export function CardMenu({ branchId, branchData }: CardMenuProps) {
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+        className="p-1 rounded-full hover:bg-accent transition-colors"
         aria-label="More options"
       >
-        <MoreVertical className="h-5 w-5 text-gray-500 cursor-pointer" />
+        <MoreVertical className="h-5 w-5 text-muted-foreground cursor-pointer" />
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 top-8 w-32 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-10">
+        <div className="absolute right-0 top-8 w-32 bg-popover rounded-md shadow-lg border border-border py-1 z-10">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -69,7 +69,7 @@ export function CardMenu({ branchId, branchData }: CardMenuProps) {
               console.log("Editing branch with ID:", branchId);
               setEditing(true); // Open modal
             }}
-            className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
+            className="w-full px-3 py-2 text-left text-sm text-popover-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
           >
             <Edit className="h-4 w-4" />
             Edit
@@ -80,7 +80,7 @@ export function CardMenu({ branchId, branchData }: CardMenuProps) {
               setIsOpen(false);
               handleDelete();
             }}
-            className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
+            className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2 cursor-pointer"
           >
             <Trash2 className="h-4 w-4" />
             Remove

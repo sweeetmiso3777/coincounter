@@ -25,29 +25,29 @@ export function DashboardStats({ branches }: DashboardStatsProps) {
       name: "Total Branches",
       value: totalBranches,
       icon: Building2,
-      color: "text-blue-600",
-      bgColor: "bg-blue-100",
+      color: "text-blue-600 dark:text-blue-400",
+      bgColor: "bg-blue-100 dark:bg-blue-900/20",
     },
     {
       name: "Branch Managers",
       value: uniqueManagers,
       icon: Users,
-      color: "text-green-600",
-      bgColor: "bg-green-100",
+      color: "text-green-600 dark:text-green-400",
+      bgColor: "bg-green-100 dark:bg-green-900/20",
     },
     {
       name: "Average Share",
       value: `${averageShare}%`,
       icon: TrendingUp,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100",
+      color: "text-purple-600 dark:text-purple-400",
+      bgColor: "bg-purple-100 dark:bg-purple-900/20",
     },
     {
       name: "Upcoming Harvests",
       value: upcomingHarvests,
       icon: Calendar,
-      color: "text-orange-600",
-      bgColor: "bg-orange-100",
+      color: "text-orange-600 dark:text-orange-400",
+      bgColor: "bg-orange-100 dark:bg-orange-900/20",
     },
   ];
 
@@ -56,15 +56,17 @@ export function DashboardStats({ branches }: DashboardStatsProps) {
       {stats.map((stat) => (
         <div
           key={stat.name}
-          className="bg-white rounded-lg border shadow-sm p-6"
+          className="bg-card rounded-lg border border-border shadow-sm p-6"
         >
           <div className="flex items-center">
             <div className={`p-2 rounded-lg ${stat.bgColor}`}>
               <stat.icon className={`h-6 w-6 ${stat.color}`} />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-              <p className="text-2xl font-semibold text-gray-900">
+              <p className="text-sm font-medium text-muted-foreground">
+                {stat.name}
+              </p>
+              <p className="text-2xl font-semibold text-foreground">
                 {stat.value}
               </p>
             </div>

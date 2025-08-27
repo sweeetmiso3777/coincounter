@@ -80,80 +80,92 @@ export default function EditBranchModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-        <h2 className="text-xl font-semibold mb-4">Edit Branch</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+      <div className="bg-card rounded-lg shadow-lg w-full max-w-md p-6 border border-border">
+        <h2 className="text-xl font-semibold mb-4 text-foreground">
+          Edit Branch
+        </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Branch ID (locked) */}
           <div>
-            <label className="block text-sm font-medium">Branch ID</label>
+            <label className="block text-sm font-medium text-foreground">
+              Branch ID
+            </label>
             <input
               type="text"
               value={existingBranch.id}
               disabled
-              className="mt-1 w-full border rounded-md p-2 bg-gray-100"
+              className="mt-1 w-full border border-input rounded-md p-2 bg-muted text-muted-foreground"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium">Branch Manager</label>
+            <label className="block text-sm font-medium text-foreground">
+              Branch Manager
+            </label>
             <input
               type="text"
               value={branchManager}
               onChange={(e) => setBranchManager(e.target.value)}
               required
-              className="mt-1 w-full border rounded-md p-2"
+              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium">Location</label>
+            <label className="block text-sm font-medium text-foreground">
+              Location
+            </label>
             <input
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               required
-              className="mt-1 w-full border rounded-md p-2"
+              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium">Date of Harvest</label>
+            <label className="block text-sm font-medium text-foreground">
+              Date of Harvest
+            </label>
             <input
               type="date"
               value={dateOfHarvest}
               onChange={(e) => setDateOfHarvest(e.target.value)}
               required
-              className="mt-1 w-full border rounded-md p-2"
+              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium">Share (%)</label>
+            <label className="block text-sm font-medium text-foreground">
+              Share (%)
+            </label>
             <input
               type="number"
               value={share}
               onChange={(e) => setShare(e.target.value)}
               required
-              className="mt-1 w-full border rounded-md p-2"
+              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
             />
           </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-destructive text-sm">{error}</p>}
 
           <div className="flex justify-end space-x-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-md border"
+              className="px-4 py-2 rounded-md border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 rounded-md bg-blue-600 text-white"
+              className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {loading ? "Updating..." : "Update"}
             </button>

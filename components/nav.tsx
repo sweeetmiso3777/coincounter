@@ -32,6 +32,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ModeToggle } from "./ui/ModeToggle";
 
 export function Nav() {
   const router = useRouter();
@@ -51,7 +52,7 @@ export function Nav() {
   };
 
   return (
-    <div className="w-full border-b bg-white px-6 py-3 shadow-sm justify-start">
+    <div className="w-full border-b border-border bg-background px-6 py-3 shadow-sm">
       <div className="flex items-center justify-between">
         {/* Company Logo */}
         <div className="flex items-center">
@@ -59,23 +60,25 @@ export function Nav() {
             <div className="flex items-center">
               <Avatar className="h-9 w-9">
                 <AvatarImage src="/gapuz.png" alt="Profile" />
-                <AvatarFallback>JD</AvatarFallback>
+                <AvatarFallback className="bg-muted text-muted-foreground">
+                  JD
+                </AvatarFallback>
               </Avatar>
             </div>
-            <span className="text-md font-semibold text-gray-900">
+            <span className="text-md font-semibold text-foreground">
               Gapuz Tracking System
             </span>
           </div>
         </div>
 
-        {/* Navigation Menu - Removed Contacts and Settings */}
+        {/* Navigation Menu */}
         <div className="flex-1 flex items-center ml-8">
           <NavigationMenu>
             <NavigationMenuList className="flex gap-6">
               <NavigationMenuItem>
                 <NavigationMenuLink
                   href="/dashboard"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
                 >
                   Dashboard
                 </NavigationMenuLink>
@@ -83,7 +86,7 @@ export function Nav() {
               <NavigationMenuItem>
                 <NavigationMenuLink
                   href="/branches"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
                 >
                   Branches
                 </NavigationMenuLink>
@@ -91,7 +94,7 @@ export function Nav() {
               <NavigationMenuItem>
                 <NavigationMenuLink
                   href="/units"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
                 >
                   Units
                 </NavigationMenuLink>
@@ -104,39 +107,54 @@ export function Nav() {
 
         {/* Right Side Actions */}
         <div className="flex items-center space-x-4 ml-auto">
-          <Button variant="ghost" size="sm" className="h-9 w-9 p-0 ">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground hover:bg-accent"
+          >
             <Search className="h-4 w-4" />
             <span className="sr-only">Search</span>
           </Button>
-          <Button variant="ghost" size="sm" className="h-9 w-9 p-0 ">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground hover:bg-accent"
+          >
             <Bell className="h-4 w-4" />
             <span className="sr-only">Notifications</span>
           </Button>
+          <ModeToggle />
           <div className="flex items-center">
             <Avatar className="h-9 w-9">
               <AvatarImage
                 src="/placeholder.svg?height=36&width=36"
                 alt="Profile"
               />
-              <AvatarFallback>JD</AvatarFallback>
+              <AvatarFallback className="bg-muted text-muted-foreground">
+                JD
+              </AvatarFallback>
             </Avatar>
 
-            {/* //dropdown */}
+            {/* Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="cursor-pointer h-9 w-9 p-0 ml-1"
+                  className="cursor-pointer h-9 w-9 p-0 ml-1 text-muted-foreground hover:text-foreground hover:bg-accent"
                 >
                   <ChevronDown className="h-4 w-4" />
                   <span className="sr-only">Open menu</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuContent
+                className="w-56 bg-popover border-border"
+                align="end"
+                forceMount
+              >
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
+                    <p className="text-sm font-medium leading-none text-popover-foreground">
                       sigma lord
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
@@ -144,33 +162,23 @@ export function Nav() {
                     </p>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="bg-border" />
                 <DropdownMenuItem asChild>
                   <Link
                     href="/profile"
-                    className="flex items-center cursor-pointer"
+                    className="flex items-center cursor-pointer text-popover-foreground hover:bg-accent"
                   >
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                   </Link>
                 </DropdownMenuItem>
 
-                {/* <DropdownMenuItem asChild>
-                  <Link
-                    href="/notifications"
-                    className="flex items-center cursor-pointer"
-                  >
-                    <Bell className="mr-2 h-4 w-4" />
-                    <span>Notifications</span>
-                  </Link>
-                </DropdownMenuItem> */}
-
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="bg-border" />
 
                 <DropdownMenuItem asChild>
                   <Link
                     href="/contacts"
-                    className="flex items-center cursor-pointer"
+                    className="flex items-center cursor-pointer text-popover-foreground hover:bg-accent"
                   >
                     <Contact className="mr-2 h-4 w-4" />
                     <span>Contacts</span>
@@ -180,21 +188,21 @@ export function Nav() {
                 <DropdownMenuItem asChild>
                   <Link
                     href="/settings"
-                    className="flex items-center cursor-pointer"
+                    className="flex items-center cursor-pointer text-popover-foreground hover:bg-accent"
                   >
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="bg-border" />
                 <DropdownMenuItem
-                  className="cursor-pointer"
+                  className="cursor-pointer text-popover-foreground hover:bg-accent"
                   onClick={handleLogout}
                 >
-                  <Link href="/" className="flex items-center cursor-pointer">
+                  <div className="flex items-center cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Logout</span>
-                  </Link>
+                  </div>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -203,9 +211,11 @@ export function Nav() {
       </div>
       {/* Fullscreen "Logging Out..." overlay */}
       {loggingOut && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
-          <div className="h-8 w-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-          <p className="ml-4 text-3xl font-bold text-white">Logging Out...</p>
+        <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50">
+          <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="ml-4 text-3xl font-bold text-foreground">
+            Logging Out...
+          </p>
         </div>
       )}
     </div>

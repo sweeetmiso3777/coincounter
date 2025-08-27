@@ -16,16 +16,16 @@ export function BranchCard({ branch }: BranchCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-card rounded-lg border border-border shadow-sm hover:shadow-md transition-shadow">
       <div className="p-6 h-full flex flex-col min-h-[280px]">
         <div className="flex items-center justify-between mb-3">
           <div className="flex-1 min-w-0">
-            <h3 className="text-xl font-bold text-gray-900 truncate mb-1">
+            <h3 className="text-xl font-bold text-foreground truncate mb-1">
               {branch.id}
             </h3>
             <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-gray-500 flex-shrink-0" />
-              <span className="text-sm text-gray-600 truncate">
+              <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm text-muted-foreground truncate">
                 {branch.location}
               </span>
             </div>
@@ -36,38 +36,40 @@ export function BranchCard({ branch }: BranchCardProps) {
         {/* Content */}
         <div className="flex-1 space-y-3 mt-4">
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
-            <span className="text-sm font-medium text-gray-700">Manager:</span>
-            <span className="text-sm text-gray-600 truncate">
+            <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm font-medium text-foreground">
+              Manager:
+            </span>
+            <span className="text-sm text-muted-foreground truncate">
               {branch.branch_manager}
             </span>
           </div>
 
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-green-500 flex-shrink-0" />
-            <span className="text-sm font-medium text-gray-700">Share:</span>
-            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">
+            <span className="text-sm font-medium text-foreground">Share:</span>
+            <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/20 px-2.5 py-0.5 text-xs font-semibold text-green-800 dark:text-green-400">
               {branch.share}%
             </span>
           </div>
 
-          <div className="space-y-2 pt-2 border-t border-gray-100">
+          <div className="space-y-2 pt-2 border-t border-border">
             <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-gray-500 flex-shrink-0" />
-              <span className="text-sm font-medium text-gray-700">
+              <CalendarDays className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm font-medium text-foreground">
                 Created:
               </span>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-muted-foreground">
                 {formatDate(branch.created_at)}
               </span>
             </div>
 
             <div className="flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-orange-500 flex-shrink-0" />
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-foreground">
                 Harvest:
               </span>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-muted-foreground">
                 {formatDate(branch.date_of_harvest)}
               </span>
             </div>
