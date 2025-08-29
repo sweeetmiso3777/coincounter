@@ -32,14 +32,13 @@ export default function AddBranchModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Autofill if editing
+  // Autofill edit
   useEffect(() => {
     if (existingBranch) {
       setBranchId(existingBranch.id);
       setBranchManager(existingBranch.branch_manager);
       setLocation(existingBranch.location);
 
-      // Convert date into YYYY-MM-DD string for input
       if (existingBranch.date_of_harvest) {
         let date: Date;
 
@@ -80,7 +79,7 @@ export default function AddBranchModal({
       await createBranchWithId(branchId.trim(), {
         branch_manager: branchManager,
         location,
-        date_of_harvest: new Date(dateOfHarvest), // ✅ safe conversion
+        date_of_harvest: new Date(dateOfHarvest),
         share: Number(share),
       });
 
@@ -110,7 +109,7 @@ export default function AddBranchModal({
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
               required
-              disabled={!!existingBranch} // 🔹 prevent editing ID if editing
+              disabled={!!existingBranch}
               className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground disabled:bg-muted disabled:text-muted-foreground"
               placeholder="e.g. branch001"
             />
@@ -168,7 +167,11 @@ export default function AddBranchModal({
             />
           </div>
 
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          {error && (
+            <p className="text-destructive text-sm">
+              {error} Writing only allowed for lorii for now :3
+            </p>
+          )}
 
           <div className="flex justify-end space-x-3">
             <button

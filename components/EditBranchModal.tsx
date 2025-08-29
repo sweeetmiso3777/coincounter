@@ -30,7 +30,7 @@ export default function EditBranchModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  //  Pre-fill values when editing
+  //  autofill values when editing
   useEffect(() => {
     if (existingBranch) {
       setBranchManager(existingBranch.branch_manager);
