@@ -3,8 +3,8 @@
 import type React from "react";
 
 import { useState, useEffect } from "react";
-import { createBranchWithId } from "@/hooks/useBranches"; // ✅ your helper
-import { Timestamp } from "firebase/firestore";
+import { addDoc, collection, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface AddBranchModalProps {
   open: boolean;
@@ -14,7 +14,7 @@ interface AddBranchModalProps {
     id: string;
     branch_manager: string;
     location: string;
-    date_of_harvest: Timestamp | Date | string; // could be Date | string | Firestore timestamp
+    harvest_day_of_month: number;
     share: number;
   };
 }
@@ -24,44 +24,25 @@ export default function AddBranchModal({
   onClose,
   existingBranch,
 }: AddBranchModalProps) {
-  const [branchId, setBranchId] = useState("");
   const [branchManager, setBranchManager] = useState("");
   const [location, setLocation] = useState("");
-  const [dateOfHarvest, setDateOfHarvest] = useState("");
+  const [harvestDayOfMonth, setHarvestDayOfMonth] = useState("");
   const [share, setShare] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Autofill edit
+  // Autofill if editing
   useEffect(() => {
     if (existingBranch) {
-      setBranchId(existingBranch.id);
       setBranchManager(existingBranch.branch_manager);
       setLocation(existingBranch.location);
-
-      if (existingBranch.date_of_harvest) {
-        let date: Date;
-
-        if (existingBranch.date_of_harvest instanceof Timestamp) {
-          date = existingBranch.date_of_harvest.toDate();
-        } else if (existingBranch.date_of_harvest instanceof Date) {
-          date = existingBranch.date_of_harvest;
-        } else {
-          date = new Date(existingBranch.date_of_harvest);
-        }
-
-        setDateOfHarvest(date.toISOString().split("T")[0]);
-      } else {
-        setDateOfHarvest("");
-      }
-
+      setHarvestDayOfMonth(existingBranch.harvest_day_of_month.toString());
       setShare(existingBranch.share.toString());
     } else {
       // Reset if adding new
-      setBranchId("");
       setBranchManager("");
       setLocation("");
-      setDateOfHarvest("");
+      setHarvestDayOfMonth("");
       setShare("");
     }
   }, [existingBranch, open]);
@@ -74,14 +55,27 @@ export default function AddBranchModal({
     setError(null);
 
     try {
-      if (!branchId.trim()) throw new Error("Branch ID is required");
+      const dayOfMonth = Number(harvestDayOfMonth);
 
-      await createBranchWithId(branchId.trim(), {
+      // Validate day of month
+      if (dayOfMonth < 1 || dayOfMonth > 31) {
+        throw new Error("Day of month must be between 1 and 31");
+      }
+
+      // Use addDoc to let Firebase auto-generate the ID
+      await addDoc(collection(db, "Branches"), {
         branch_manager: branchManager,
         location,
-        date_of_harvest: new Date(dateOfHarvest),
+        harvest_day_of_month: dayOfMonth,
         share: Number(share),
+        created_at: Timestamp.now(),
       });
+
+      // Reset form
+      setBranchManager("");
+      setLocation("");
+      setHarvestDayOfMonth("");
+      setShare("");
 
       onClose();
     } catch (err) {
@@ -99,22 +93,6 @@ export default function AddBranchModal({
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Branch ID */}
-          <div>
-            <label className="block text-sm font-medium text-foreground">
-              Branch ID
-            </label>
-            <input
-              type="text"
-              value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-              required
-              disabled={!!existingBranch}
-              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground disabled:bg-muted disabled:text-muted-foreground"
-              placeholder="e.g. branch001"
-            />
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-foreground">
               Branch Manager
@@ -125,6 +103,7 @@ export default function AddBranchModal({
               onChange={(e) => setBranchManager(e.target.value)}
               required
               className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              placeholder="Enter manager name"
             />
           </div>
 
@@ -138,20 +117,28 @@ export default function AddBranchModal({
               onChange={(e) => setLocation(e.target.value)}
               required
               className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              placeholder="Enter branch location"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-foreground">
-              Date of Harvest
+              Harvest Day of Month
             </label>
             <input
-              type="date"
-              value={dateOfHarvest}
-              onChange={(e) => setDateOfHarvest(e.target.value)}
+              type="number"
+              min="1"
+              max="31"
+              value={harvestDayOfMonth}
+              onChange={(e) => setHarvestDayOfMonth(e.target.value)}
               required
               className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              placeholder="Enter day (1-31)"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Day of the month when harvest occurs (e.g., 15 for the 15th of
+              every month)
+            </p>
           </div>
 
           <div>
@@ -160,18 +147,18 @@ export default function AddBranchModal({
             </label>
             <input
               type="number"
+              step="0.01"
+              min="0"
+              max="100"
               value={share}
               onChange={(e) => setShare(e.target.value)}
               required
               className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              placeholder="Enter share percentage"
             />
           </div>
 
-          {error && (
-            <p className="text-destructive text-sm">
-              {error} Writing only allowed for lorii for now :3
-            </p>
-          )}
+          {error && <p className="text-destructive text-sm">{error}</p>}
 
           <div className="flex justify-end space-x-3">
             <button
@@ -186,7 +173,7 @@ export default function AddBranchModal({
               disabled={loading}
               className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {loading ? "Saving..." : existingBranch ? "Update" : "Save"}
+              {loading ? "Saving..." : existingBranch ? "Update" : "Add Branch"}
             </button>
           </div>
         </form>

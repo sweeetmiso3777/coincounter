@@ -16,6 +16,7 @@ export function DashboardStats({ branches }: DashboardStatsProps) {
       : 0;
   const upcomingHarvests = branches.filter(
     (b) =>
+      b.date_of_harvest &&
       b.date_of_harvest > new Date() &&
       b.date_of_harvest <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
   ).length;
