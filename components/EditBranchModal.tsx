@@ -4,7 +4,6 @@ import type React from "react";
 
 import { useState, useEffect } from "react";
 import { updateBranch } from "@/hooks/useBranches";
-import { Timestamp } from "firebase/firestore";
 
 interface EditBranchModalProps {
   open: boolean;
@@ -13,7 +12,7 @@ interface EditBranchModalProps {
     id: string;
     branch_manager: string;
     location: string;
-    date_of_harvest: Date | Timestamp | string;
+    harvest_day_of_month: number;
     share: number;
   };
 }
@@ -25,33 +24,17 @@ export default function EditBranchModal({
 }: EditBranchModalProps) {
   const [branchManager, setBranchManager] = useState("");
   const [location, setLocation] = useState("");
-  const [dateOfHarvest, setDateOfHarvest] = useState("");
+  const [harvestDayOfMonth, setHarvestDayOfMonth] = useState("");
   const [share, setShare] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  //  autofill values when editing
+  // Autofill values when editing
   useEffect(() => {
     if (existingBranch) {
       setBranchManager(existingBranch.branch_manager);
       setLocation(existingBranch.location);
-
-      if (existingBranch.date_of_harvest) {
-        let date: Date;
-
-        if (existingBranch.date_of_harvest instanceof Timestamp) {
-          date = existingBranch.date_of_harvest.toDate();
-        } else if (existingBranch.date_of_harvest instanceof Date) {
-          date = existingBranch.date_of_harvest;
-        } else {
-          date = new Date(existingBranch.date_of_harvest);
-        }
-
-        setDateOfHarvest(date.toISOString().split("T")[0]);
-      } else {
-        setDateOfHarvest("");
-      }
-
+      setHarvestDayOfMonth(existingBranch.harvest_day_of_month.toString());
       setShare(existingBranch.share.toString());
     }
   }, [existingBranch, open]);
@@ -64,10 +47,17 @@ export default function EditBranchModal({
     setError(null);
 
     try {
+      const dayOfMonth = Number(harvestDayOfMonth);
+
+      // Validate day of month
+      if (dayOfMonth < 1 || dayOfMonth > 31) {
+        throw new Error("Day of month must be between 1 and 31");
+      }
+
       await updateBranch(existingBranch.id, {
         branch_manager: branchManager,
         location,
-        date_of_harvest: new Date(dateOfHarvest),
+        harvest_day_of_month: dayOfMonth,
         share: Number(share),
       });
 
@@ -128,15 +118,22 @@ export default function EditBranchModal({
 
           <div>
             <label className="block text-sm font-medium text-foreground">
-              Date of Harvest
+              Harvest Day of Month
             </label>
             <input
-              type="date"
-              value={dateOfHarvest}
-              onChange={(e) => setDateOfHarvest(e.target.value)}
+              type="number"
+              min="1"
+              max="31"
+              value={harvestDayOfMonth}
+              onChange={(e) => setHarvestDayOfMonth(e.target.value)}
               required
               className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              placeholder="Enter day (1-31)"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Day of the month when harvest occurs (e.g., 15 for the 15th of
+              every month)
+            </p>
           </div>
 
           <div>
@@ -145,11 +142,18 @@ export default function EditBranchModal({
             </label>
             <input
               type="number"
+              step="0.01"
+              min="0"
+              max="100"
               value={share}
               onChange={(e) => setShare(e.target.value)}
               required
               className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              The precentage of the total harvest allocated to this branch
+              (0-100%)
+            </p>
           </div>
 
           {error && <p className="text-destructive text-sm">{error}</p>}

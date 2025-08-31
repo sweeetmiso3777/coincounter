@@ -82,8 +82,8 @@ export function useBranches() {
               return {
                 id: doc.id,
                 branch_manager: data.branch_manager,
-                created_at: data.created_at.toDate(),
-                date_of_harvest: data.date_of_harvest.toDate(),
+                created_at: data.created_at?.toDate() || new Date(), // Handle null/undefined
+                harvest_day_of_month: data.harvest_day_of_month || 1, // Changed from date_of_harvest
                 location: data.location,
                 share: data.share,
               }
