@@ -35,7 +35,7 @@ const contacts = [
     location: "Baluarte, Misamis Oriental",
     role: "System Analyst",
     avatar: "/placeholder.svg?height=40&width=40",
-    status: "inactive",
+    status: "active",
   },
   {
     id: 4,

@@ -1,14 +1,15 @@
 "use client";
-import { useBranches } from "@/hooks/useBranches";
+
+import { useBranches } from "@/hooks/use-branches-query";
 import { BranchCard } from "@/components/branch-card";
 import { AddBranchCard } from "@/components/add-branch-card";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { Loader2, AlertCircle } from "lucide-react";
 
 export default function Branches() {
-  const { branches, loading, error } = useBranches();
+  const { data: branches = [], isLoading, error, isError } = useBranches();
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="fixed inset-0 bg-background flex flex-col items-center justify-center">
         <div className="text-center">
@@ -24,7 +25,7 @@ export default function Branches() {
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
       <div className="fixed inset-0 bg-background flex flex-col items-center justify-center">
         <div className="text-center">
@@ -32,7 +33,9 @@ export default function Branches() {
           <h1 className="text-3xl font-bold text-foreground mt-4">
             Error Connecting to Database
           </h1>
-          <p className="text-muted-foreground mt-2">Try Reloading...</p>
+          <p className="text-muted-foreground mt-2">
+            {error instanceof Error ? error.message : "Try Reloading..."}
+          </p>
         </div>
       </div>
     );
@@ -75,12 +78,12 @@ export default function Branches() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {/* Add Branch Card - Always Last */}
+              <AddBranchCard />
               {/* Branch Cards */}
               {branches.map((branch) => (
                 <BranchCard key={branch.id} branch={branch} />
               ))}
-              {/* Add Branch Card - Always Last */}
-              <AddBranchCard />
             </div>
           )}
         </div>

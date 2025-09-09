@@ -71,7 +71,6 @@ export function Nav() {
   return (
     <div className="w-full border-b border-border bg-background px-4 lg:px-6 py-3 shadow-sm sticky top-0 z-50">
       <div className="flex items-center justify-between">
-        {/* Company Logo and Mobile Menu Button */}
         <div className="flex items-center">
           <div className="flex items-center space-x-2">
             <div className="flex items-center">
@@ -83,7 +82,7 @@ export function Nav() {
               </Avatar>
             </div>
             <span className="text-md font-semibold text-foreground hidden sm:block">
-              Gapuz Tracking System
+              Coin Tracking System
             </span>
             <span className="text-md font-semibold text-foreground sm:hidden">
               GTS
