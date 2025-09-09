@@ -58,7 +58,7 @@ body {
 
 :root {
   --radius: 0.625rem;
-  --background: #e2e3d9; /* Moon Mist */
+  --background: #f5f6f4; /* Moon Mist */
   --foreground: #241d23; /* Thunder */
   --card: #ffffff;
   --card-foreground: #241d23;
@@ -66,9 +66,9 @@ body {
   --popover-foreground: #241d23;
   --primary: #241d23; /* Thunder */
   --primary-foreground: #d2e255; /* Wattle */
-  --secondary: #e2e3d9; /* Moon Mist */
+  --secondary: #edf0eb; /* Moon Mist */
   --secondary-foreground: #241d23;
-  --muted: #e2e3d9;
+  --muted: #e9ece7;
   --muted-foreground: #6c6767; /* Dove Gray */
   --accent: #d2e255; /* Wattle */
   --accent-foreground: #241d23;
