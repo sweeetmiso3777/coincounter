@@ -2,7 +2,7 @@
 
 import { GitCommit, Calendar, User, Loader2, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
-
+import { ToastTester } from "@/components/ToastTester";
 interface GitHubCommit {
   sha: string;
   commit: {
@@ -105,6 +105,7 @@ function Dashboard() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="text-center mb-12">
+          <ToastTester />
           <h1 className="text-4xl font-bold text-foreground mb-4">
             Project Dashboard
           </h1>

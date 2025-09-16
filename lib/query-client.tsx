@@ -31,6 +31,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
 }
 
 const LazyReactQueryDevtools = () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [DevTools, setDevTools] = useState<React.ComponentType<any> | null>(
     null
   );

@@ -1,8 +1,8 @@
 "use client";
 
 import { useBranches } from "@/hooks/use-branches-query";
-import { BranchCard } from "@/components/branch-card";
-import { AddBranchCard } from "@/components/add-branch-card";
+import { BranchCard } from "@/components/Branch/branch-card";
+import { AddBranchCard } from "@/components/Branch/add-branch-card";
 import { DashboardStats } from "@/components/dashboard-stats";
 import { Loader2, AlertCircle } from "lucide-react";
 

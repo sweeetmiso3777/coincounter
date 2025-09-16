@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "sonner";
 import {
   useState,
   useRef,
@@ -58,6 +58,14 @@ export const CardMenu = forwardRef<CardMenuRef, CardMenuProps>(
       try {
         await deleteDoc(doc(db, "Branches", branchId));
         console.log("Branch deleted:", branchId);
+        toast.success("Branch has been deleted successfully!", {
+          style: {
+            background: "#dcfce7",
+            border: "1px solid #bbf7d0",
+            color: "#166534",
+          },
+          description: `Manager: ${branchData.branch_manager}, Location: ${branchData.location}, Harvest Day: ${branchData.harvest_day_of_month}, Share: ${branchData.share}%`,
+        });
       } catch (error) {
         console.error("Failed to delete branch:", error);
       }

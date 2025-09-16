@@ -5,6 +5,7 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { toast } from "sonner";
 
 interface AddBranchModalProps {
   open: boolean;
@@ -31,7 +32,6 @@ export default function AddBranchModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Autofill if editing
   useEffect(() => {
     if (existingBranch) {
       setBranchManager(existingBranch.branch_manager);
@@ -39,7 +39,6 @@ export default function AddBranchModal({
       setHarvestDayOfMonth(existingBranch.harvest_day_of_month.toString());
       setShare(existingBranch.share.toString());
     } else {
-      // Reset if adding new
       setBranchManager("");
       setLocation("");
       setHarvestDayOfMonth("");
@@ -57,12 +56,10 @@ export default function AddBranchModal({
     try {
       const dayOfMonth = Number(harvestDayOfMonth);
 
-      // Validate day of month
       if (dayOfMonth < 1 || dayOfMonth > 31) {
         throw new Error("Day of month must be between 1 and 31");
       }
 
-      // Use addDoc to let Firebase auto-generate the ID
       await addDoc(collection(db, "Branches"), {
         branch_manager: branchManager,
         location,
@@ -71,11 +68,19 @@ export default function AddBranchModal({
         created_at: Timestamp.now(),
       });
 
-      // Reset form
       setBranchManager("");
       setLocation("");
       setHarvestDayOfMonth("");
       setShare("");
+
+      toast.success("Branch has been added successfully!", {
+        style: {
+          background: "#dcfce7",
+          border: "1px solid #bbf7d0",
+          color: "#166534",
+        },
+        description: `Manager: ${branchManager}, Location: ${location}, Harvest Day: ${dayOfMonth}, Share: ${share}%`,
+      });
 
       onClose();
     } catch (err) {

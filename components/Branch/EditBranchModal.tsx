@@ -4,6 +4,7 @@ import type React from "react";
 
 import { useState, useEffect } from "react";
 import { updateBranch } from "@/hooks/useBranches";
+import { toast } from "sonner";
 
 interface EditBranchModalProps {
   open: boolean;
@@ -29,7 +30,6 @@ export default function EditBranchModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Autofill values when editing
   useEffect(() => {
     if (existingBranch) {
       setBranchManager(existingBranch.branch_manager);
@@ -49,7 +49,6 @@ export default function EditBranchModal({
     try {
       const dayOfMonth = Number(harvestDayOfMonth);
 
-      // Validate day of month
       if (dayOfMonth < 1 || dayOfMonth > 31) {
         throw new Error("Day of month must be between 1 and 31");
       }
@@ -59,6 +58,14 @@ export default function EditBranchModal({
         location,
         harvest_day_of_month: dayOfMonth,
         share: Number(share),
+      });
+
+      toast.success("Branch has been updated successfully!", {
+        style: {
+          background: "#dcfce7",
+          border: "1px solid #bbf7d0",
+          color: "#166534",
+        },
       });
 
       onClose();
@@ -77,7 +84,6 @@ export default function EditBranchModal({
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Branch ID (locked) */}
           <div>
             <label className="block text-sm font-medium text-foreground">
               Branch ID
@@ -151,7 +157,7 @@ export default function EditBranchModal({
               className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              The precentage of the total harvest allocated to this branch
+              The percentage of the total harvest allocated to this branch
               (0-100%)
             </p>
           </div>

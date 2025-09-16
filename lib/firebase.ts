@@ -1,6 +1,10 @@
 // lib/firebase.ts
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -13,22 +17,25 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID!,
 };
+
+// Initialize Firebase app
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
+
+// Firebase services
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
+export const db = getFirestore(app);
+
+// Helper: Google login
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
-    const token = credential?.accessToken;
+    const token = credential?.accessToken ?? null;
     const user = result.user;
-    return { user, token }; // <-- return an object with both
+    return { user, token };
   } catch (error) {
+    console.error("Google sign-in failed:", error);
     throw error;
   }
 };
-
-
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
-
-const auth = getAuth(app);
-const googleProvider = new GoogleAuthProvider();
-export const db = getFirestore(app)
-export { auth, googleProvider };
