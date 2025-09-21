@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
+  const [isClient, setIsClient] = useState(false);
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -22,6 +23,14 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       })
   );
 
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    return <>{children}</>;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       {children}
@@ -31,10 +40,9 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
 }
 
 const LazyReactQueryDevtools = () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [DevTools, setDevTools] = useState<React.ComponentType<any> | null>(
-    null
-  );
+  const [DevTools, setDevTools] = useState<React.ComponentType<{
+    initialIsOpen?: boolean;
+  }> | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

@@ -3,6 +3,7 @@
 import { GitCommit, Calendar, User, Loader2, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { ToastTester } from "@/components/ToastTester";
+
 interface GitHubCommit {
   sha: string;
   commit: {
@@ -27,15 +28,21 @@ function Dashboard() {
     const fetchCommits = async () => {
       try {
         setLoading(true);
+        // fetch directly from GitHub API
         const response = await fetch(
-          "https://api.github.com/repos/sweeetmiso3777/coincounter/commits?per_page=10"
+          "https://api.github.com/repos/sweeetmiso3777/coincounter/commits?per_page=10",
+          {
+            headers: {
+              Authorization: `token ${process.env.NEXT_PUBLIC_GITHUB_TOKEN}`,
+            },
+          }
         );
 
         if (!response.ok) {
           throw new Error(`GitHub API error: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data: GitHubCommit[] = await response.json();
         setCommits(data);
       } catch (err) {
         setError(
@@ -101,7 +108,7 @@ function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-secondary">
+    <div className="min-h-screen bg-card">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="text-center mb-12">
@@ -143,16 +150,23 @@ function Dashboard() {
               >
                 <div className="flex items-start space-x-4">
                   <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
-                      <GitCommit className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    </div>
+                    {commit.author?.avatar_url ? (
+                      <img
+                        src={commit.author.avatar_url}
+                        alt={commit.author.login}
+                        className="w-10 h-10 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
+                        <GitCommit className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-lg font-semibold text-green-600 dark:text-green-400 truncate">
-                        {commit.commit.message.split("\n")[0]}{" "}
-                        {/* First line only */}
+                        {commit.commit.message.split("\n")[0]}
                       </h3>
                       <a
                         href={`https://github.com/sweeetmiso3777/coincounter/commit/${commit.sha}`}
@@ -164,7 +178,6 @@ function Dashboard() {
                       </a>
                     </div>
 
-                    {/* Show full commit message if it has multiple lines */}
                     {commit.commit.message.includes("\n") && (
                       <p className="text-sm text-muted-foreground mb-3 whitespace-pre-line">
                         {commit.commit.message

@@ -4,66 +4,102 @@ import { useEffect } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { onSnapshot, query, where, collection, orderBy } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { fetchAllSales, salesKeys } from "@/lib/sales-api"
+import { fetchSalesByDay } from "@/lib/sales-api"
 import { toast } from "sonner"
+import type { SalesDocument } from "@/types/sales"
+
+export type SalesCache = {
+  days: string[]
+  salesByDay: Record<string, SalesDocument[]>
+}
+
+const CACHE_KEY = ["sales", "rolling-30"]
+
+function getTodayKey() {
+  return new Date().toLocaleDateString("en-CA") // YYYY-MM-DD in local PH time
+}
 
 export function useSalesQuery() {
   const queryClient = useQueryClient()
+  const todayKey = getTodayKey()
 
-  const queryResult = useQuery({
-    queryKey: salesKeys.realTime(),
-    queryFn: fetchAllSales,
-    staleTime: Number.POSITIVE_INFINITY,
-    gcTime: 1000 * 60 * 60 * 24 * 3,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
+  // 🚨 Notice: queryFn may not even run if we already have cached data
+  const queryResult = useQuery<SalesDocument[], Error>({
+    queryKey: [...CACHE_KEY, todayKey],
+    queryFn: async () => {
+      // Check if cache exists first
+      const cached = queryClient.getQueryData<SalesDocument[]>([...CACHE_KEY, todayKey])
+      if (cached && cached.length > 0) {
+        // ✅ Already have today’s sales in cache → skip fetch
+        return cached
+      }
+      // ❌ No cache → fetch all from Firestore (this will cost N reads once)
+      return fetchSalesByDay(todayKey)
+    },
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 60 * 24 * 30,
   })
 
   useEffect(() => {
-    if (!queryResult.data) return
+    if (queryResult.error) {
+      console.error("Failed to load today's sales:", queryResult.error)
+      toast.error("Failed to load today's sales")
+    }
+  }, [queryResult.error])
 
-    const cachedSales = queryResult.data
-    const latestTimestamp = cachedSales.length
-      ? Math.max(...cachedSales.map((s) => s.timestamp.seconds))
-      : 0
+  useEffect(() => {
+    const cached = queryClient.getQueryData<SalesDocument[]>([...CACHE_KEY, todayKey])
+    if (!cached || cached.length === 0) return // no base data, no listener
 
-    // ✅ Now just listen on the flat "sales" collection
+    // ✅ Use latest cached sale timestamp as cutoff
+    const latest = cached[0] // assuming ordered desc
+    if (!latest?.timestamp) return
+    const latestTimestamp = latest.timestamp.toDate()
+
     const q = query(
       collection(db, "sales"),
-      where("timestamp", ">", new Date(latestTimestamp * 1000)),
+      where("timestamp", ">", latestTimestamp),
       orderBy("timestamp", "desc")
     )
 
     const unsub = onSnapshot(q, (snapshot) => {
-      const newDocs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        deviceId: doc.data().deviceId || "",
-        branchId: doc.data().branchId || "",
-        coins_1: doc.data().coins_1 || 0,
-        coins_5: doc.data().coins_5 || 0,
-        coins_10: doc.data().coins_10 || 0,
-        coins_20: doc.data().coins_20 || 0,
-        total: doc.data().total || 0,
-        timestamp: doc.data().timestamp,
-      }))
+      try {
+        const fresh: SalesDocument[] = snapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() } as SalesDocument)
+        )
 
-      if (newDocs.length > 0) {
-        newDocs.forEach((sale) => {
-          toast.success(`₱${sale.total} received`, {
-            description: `Branch: ${sale.branchId || "Unassigned"} | Device: ${sale.deviceId} | ₱1:${sale.coins_1} ₱5:${sale.coins_5} ₱10:${sale.coins_10} ₱20:${sale.coins_20}`,
+        if (fresh.length > 0) {
+          // Update rolling cache
+          queryClient.setQueryData<SalesCache>(CACHE_KEY, (old) => {
+            if (!old) return { days: [todayKey], salesByDay: { [todayKey]: fresh } }
+            return {
+              ...old,
+              salesByDay: {
+                ...old.salesByDay,
+                [todayKey]: [...fresh, ...(old.salesByDay[todayKey] || [])],
+              },
+            }
           })
-        })
 
-        queryClient.setQueryData<any[]>(salesKeys.realTime(), (old = []) => [
-          ...newDocs,
-          ...old,
-        ])
+          // Update per-day query
+          queryClient.setQueryData<SalesDocument[]>([...CACHE_KEY, todayKey], (old) => {
+            return [...fresh, ...(old || [])]
+          })
+
+          // Toast for each new sale
+          fresh.forEach((sale) => {
+            toast.success(`₱${sale.total} received`, {
+              description: `Branch: ${sale.branchId || "Unassigned"} | Device: ${sale.deviceId}`,
+            })
+          })
+        }
+      } catch (err) {
+        console.error("Failed processing snapshot:", err)
       }
-
     })
 
     return () => unsub()
-  }, [queryResult.data, queryClient])
+  }, [queryResult.data, queryClient, todayKey])
 
   return queryResult
 }

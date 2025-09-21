@@ -35,13 +35,12 @@ import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { ModeToggle } from "./ui/ModeToggle";
-import { cn } from "@/lib/utils";
 
 export function Nav() {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [, setIsMobile] = useState(false);
 
   // Check screen size on mount and resize
   useEffect(() => {
@@ -134,6 +133,14 @@ export function Nav() {
                   Units
                 </NavigationMenuLink>
               </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuLink
+                  href="/real-time"
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+                >
+                  Real Time
+                </NavigationMenuLink>
+              </NavigationMenuItem>
             </NavigationMenuList>
             <NavigationMenuIndicator />
             <NavigationMenuViewport />
@@ -161,10 +168,6 @@ export function Nav() {
           <ModeToggle />
           <div className="flex items-center">
             <Avatar className="h-9 w-9">
-              <AvatarImage
-                src="/placeholder.svg?height=36&width=36"
-                alt="Profile"
-              />
               <AvatarFallback className="bg-muted text-muted-foreground">
                 JD
               </AvatarFallback>
@@ -282,6 +285,13 @@ export function Nav() {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Units
+            </Link>
+            <Link
+              href="/real-time"
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Real-Time
             </Link>
 
             {/* Mobile User Menu */}

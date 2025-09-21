@@ -1,23 +1,16 @@
 export interface Unit {
-  id: string // This is the deviceId (document ID from Firebase)
-  branch: string // Branch ID (Firebase auto ID)
-  created_at: any // Firestore Timestamp
-  // Add other unit fields as needed
+  deviceId: string
+  // Add other common fields that might exist in your units
+  status?: "active" | "inactive" | "maintenance"
+  lastSeen?: Date
+  location?: string
+  model?: string
+  firmware?: string
+  [key: string]: any // Allow for additional dynamic fields
 }
 
-export interface Sale {
-  id: string
-  coins_1: number
-  coins_5: number
-  coins_10: number
-  coins_20: number
-  total: number
-  timestamp: any // Firestore Timestamp
-}
-
-export interface UnitWithBranchAndSales {
-  id: string // This is the deviceId
-  branchId: string
-  branchName: string
-  totalSales: number
+export interface UnitsState {
+  units: Unit[]
+  loading: boolean
+  error: string | null
 }

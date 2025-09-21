@@ -1,9 +1,10 @@
 "use client";
 
+import React, { useEffect } from "react";
+import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import { useSalesQuery } from "@/hooks/use-sales-query";
 import { SalesCard } from "@/components/sales-card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Loader2,
   AlertCircle,
@@ -13,25 +14,62 @@ import {
   Clock,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { salesKeys } from "@/lib/sales-api";
+import { Virtuoso } from "react-virtuoso";
+
+function AnimatedNumber({
+  value,
+  decimals = 0,
+}: {
+  value: number;
+  decimals?: number;
+}) {
+  const count = useMotionValue(0);
+  const rounded = useTransform(count, (latest) =>
+    decimals > 0 ? Number(latest.toFixed(decimals)) : Math.round(latest)
+  );
+
+  useEffect(() => {
+    const controls = animate(count, value, { duration: 2.5, ease: "easeOut" });
+    return controls.stop;
+  }, [value, count, decimals]);
+
+  return <motion.span>{rounded}</motion.span>;
+}
 
 export default function RealTimeSales() {
-  const { data: sales = [], isLoading, error, isError } = useSalesQuery();
   const queryClient = useQueryClient();
+  const {
+    data: sales = [],
+    isLoading,
+    error,
+    isError,
+    refetch,
+  } = useSalesQuery();
 
+  // Reload button refetches today's sales
   const handleReloadSales = () => {
-    queryClient.invalidateQueries({ queryKey: salesKeys.realTime() });
+    refetch();
   };
 
-  // Calculate stats
-  const totalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
+  // Stats
+  const totalSales = sales.reduce(
+    (sum, sale) => sum + Number(sale.total ?? 0),
+    0
+  );
   const totalTransactions = sales.length;
   const averageTransaction =
     totalTransactions > 0 ? totalSales / totalTransactions : 0;
+
   const todaySales = sales.filter((sale) => {
-    const saleDate = sale.timestamp.toDate();
+    const saleDate = sale.timestamp?.toDate
+      ? sale.timestamp.toDate()
+      : new Date(sale.timestamp.seconds * 1000); // for persisted data
     const today = new Date();
-    return saleDate.toDateString() === today.toDateString();
+    return (
+      saleDate.getFullYear() === today.getFullYear() &&
+      saleDate.getMonth() === today.getMonth() &&
+      saleDate.getDate() === today.getDate()
+    );
   });
 
   if (isLoading) {
@@ -64,8 +102,7 @@ export default function RealTimeSales() {
               : "Failed to load sales data"}
           </p>
           <Button onClick={handleReloadSales} className="mt-4">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Try Again
+            <RefreshCw className="h-4 w-4 mr-2" /> Try Again
           </Button>
         </div>
       </div>
@@ -76,7 +113,7 @@ export default function RealTimeSales() {
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground">
               Real-Time Sales
@@ -85,86 +122,74 @@ export default function RealTimeSales() {
               Monitor sales across all coin-operated units
             </p>
           </div>
-          <Button
-            onClick={handleReloadSales}
-            variant="outline"
-            className="mt-4 sm:mt-0 bg-transparent"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Reload Real-Time Sales
-          </Button>
+
+          <div className="flex items-center gap-3 mt-4 sm:mt-0">
+            <Button
+              onClick={handleReloadSales}
+              variant="outline"
+              className="bg-transparent"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" /> Reload
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Sales
-              </CardTitle>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-[2px] mb-4">
+          <div className="flex flex-col border-l-2 border-current pl-2">
+            <div className="flex items-center gap-1">
               <TrendingUp className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">
-                ₱{totalSales}
-              </div>
-              <p className="text-xs text-muted-foreground">All time revenue</p>
-            </CardContent>
-          </Card>
+              <span className="text-sm text-muted-foreground">Total Sales</span>
+            </div>
+            <div className="text-xl font-bold text-foreground">
+              ₱<AnimatedNumber value={totalSales} />
+            </div>
+            <p className="text-xs text-muted-foreground">Within This Day</p>
+          </div>
 
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Transactions
-              </CardTitle>
+          <div className="flex flex-col border-l-2 border-current pl-2">
+            <div className="flex items-center gap-1">
               <Coins className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">
-                {totalTransactions}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Total transactions
-              </p>
-            </CardContent>
-          </Card>
+              <span className="text-sm text-muted-foreground">
+                Transactions
+              </span>
+            </div>
+            <div className="text-xl font-bold text-foreground">
+              <AnimatedNumber value={totalTransactions} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Total transactions Within This Day
+            </p>
+          </div>
 
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Average Sale
-              </CardTitle>
+          <div className="flex flex-col border-l-2 border-current pl-2">
+            <div className="flex items-center gap-1">
               <TrendingUp className="h-4 w-4 text-amber-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">
-                ₱{averageTransaction.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">Per transaction</p>
-            </CardContent>
-          </Card>
+              <span className="text-sm text-muted-foreground">
+                Average Sale
+              </span>
+            </div>
+            <div className="text-xl font-bold text-foreground">
+              ₱<AnimatedNumber value={averageTransaction} decimals={2} />
+            </div>
+            <p className="text-xs text-muted-foreground">Per transaction</p>
+          </div>
 
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Today's Sales
-              </CardTitle>
+          {/* <div className="flex flex-col border-l-2 border-current pl-2">
+            <div className="flex items-center gap-1">
               <Clock className="h-4 w-4 text-purple-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">
-                {todaySales.length}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Transactions today
-              </p>
-            </CardContent>
-          </Card>
+              <span className="text-sm text-muted-foreground">Sales Today</span>
+            </div>
+            <div className="text-xl font-bold text-foreground">
+              {todaySales.length}
+            </div>
+            <p className="text-xs text-muted-foreground">Transactions today</p>
+          </div> */}
         </div>
 
         {/* Sales List */}
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-foreground mb-4">
+          <h2 className="text-xl font-semibold text-foreground mb-3">
             Recent Sales ({sales.length})
           </h2>
 
@@ -180,18 +205,26 @@ export default function RealTimeSales() {
                   generating revenue.
                 </p>
                 <Button onClick={handleReloadSales} variant="outline">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Reload Sales Data
+                  <RefreshCw className="h-4 w-4 mr-2" /> Reload Sales Data
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              {" "}
-              {/* ⬅️ stack cards vertically */}
-              {sales.map((sale) => (
-                <SalesCard key={`${sale.deviceId}-${sale.id}`} sale={sale} />
-              ))}
+            <div
+              className="relative rounded-sm border border-border"
+              style={{ height: "calc(100vh - 18rem)" }}
+            >
+              <Virtuoso
+                data={sales}
+                totalCount={sales.length}
+                itemContent={(index, sale) => (
+                  <div key={`${sale.deviceId}-${sale.id}`} className="p-1">
+                    <SalesCard sale={sale} />
+                  </div>
+                )}
+                overscan={5}
+                className="scrollbar-hide"
+              />
             </div>
           )}
         </div>

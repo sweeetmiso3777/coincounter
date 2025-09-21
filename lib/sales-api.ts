@@ -1,39 +1,30 @@
-import { collection, query, orderBy, getDocs } from "firebase/firestore"
+import { collection, query, where, orderBy, getDocs } from "firebase/firestore"
 import { db } from "./firebase"
 import type { SalesDocument } from "@/types/sales"
 
-export const salesKeys = {
-  all: ["sales"] as const,
-  realTime: () => [...salesKeys.all, "realTime"] as const,
+function getDayBounds(day: string) {
+  // Construct explicit local PH timezone dates
+  const start = new Date(`${day}T00:00:00+08:00`)
+  const end = new Date(`${day}T23:59:59+08:00`)
+  return { start, end }
 }
 
-export async function fetchAllSales(): Promise<SalesDocument[]> {
-  console.log("[v1] Starting fetchAllSales from flat sales collection")
-
+export async function fetchSalesByDay(day: string): Promise<SalesDocument[]> {
   try {
-    const salesRef = collection(db, "sales")
-    const salesQuery = query(salesRef, orderBy("timestamp", "desc"))
-    const salesSnapshot = await getDocs(salesQuery)
+    const { start, end } = getDayBounds(day)
 
-    const allSales: SalesDocument[] = salesSnapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        deviceId: data.deviceId || "",
-        branchId: data.branchId || "",
-        coins_1: data.coins_1 || 0,
-        coins_5: data.coins_5 || 0,
-        coins_10: data.coins_10 || 0,
-        coins_20: data.coins_20 || 0,
-        total: data.total || 0,
-        timestamp: data.timestamp,
-      }
-    })
 
-    console.log("[v1] Total sales fetched:", allSales.length)
-    return allSales
+    const q = query(
+      collection(db, "sales"),
+      where("timestamp", ">=", start),
+      where("timestamp", "<=", end),
+      orderBy("timestamp", "desc")
+    )
+
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as SalesDocument))
   } catch (error) {
-    console.error("[v1] Error fetching sales:", error)
-    throw error
+    console.error("[fetchSalesByDay] Failed:", error)
+    return [] // return empty array on error
   }
 }

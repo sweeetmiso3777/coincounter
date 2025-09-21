@@ -1,7 +1,6 @@
 "use client";
 
-import type React from "react";
-
+import type { BranchData } from "@/types/branch";
 import {
   CalendarDays,
   User,
@@ -11,29 +10,28 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { CardMenu } from "./card-menu";
-import type { BranchData } from "@/types/branch";
-import { useRef } from "react";
 import Link from "next/link";
 
 interface BranchCardProps {
   branch: BranchData;
+  totalUnits: number;
+  onlineUnits: number;
 }
 
-export function BranchCard({ branch }: BranchCardProps) {
-  const cardMenuRef = useRef<{ openMenu: () => void }>(null);
-
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
+export function BranchCard({
+  branch,
+  totalUnits,
+  onlineUnits,
+}: BranchCardProps) {
+  const formatDate = (date: Date) =>
+    new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     }).format(date);
-  };
 
   const getOrdinalSuffix = (day: number) => {
-    if (day >= 11 && day <= 13) {
-      return "th";
-    }
+    if (day >= 11 && day <= 13) return "th";
     switch (day % 10) {
       case 1:
         return "st";
@@ -48,70 +46,39 @@ export function BranchCard({ branch }: BranchCardProps) {
 
   const getNextHarvestDate = (harvestDay: number) => {
     const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-    const currentDay = now.getDate();
-
-    // Create date for this month's harvest
-    let harvestDate = new Date(currentYear, currentMonth, harvestDay);
-
-    // If this month's harvest has already passed, move to next month
-    if (harvestDay < currentDay) {
-      harvestDate = new Date(currentYear, currentMonth + 1, harvestDay);
-    }
-
-    // Handle edge case where harvest day doesn't exist in the target month (e.g., Feb 30th)
-    if (harvestDate.getDate() !== harvestDay) {
-      // Move to the last day of that month
-      harvestDate = new Date(currentYear, currentMonth + 1, 0);
-    }
-
+    let harvestDate = new Date(now.getFullYear(), now.getMonth(), harvestDay);
+    if (harvestDay < now.getDate())
+      harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, harvestDay);
+    if (harvestDate.getDate() !== harvestDay)
+      harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     return harvestDate;
   };
 
   const formatHarvestSchedule = (harvestDay: number) => {
     const nextHarvest = getNextHarvestDate(harvestDay);
-    const formattedDate = new Intl.DateTimeFormat("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    }).format(nextHarvest);
-
-    // Format as "February 17" (current month + harvest day)
-    const shortDate = new Intl.DateTimeFormat("en-US", {
-      month: "long",
-      day: "numeric",
-    }).format(nextHarvest);
-
     const ordinal = getOrdinalSuffix(harvestDay);
-
     return {
       schedule: `${harvestDay}${ordinal} day of every month`,
-      nextDate: formattedDate,
-      shortDate: shortDate,
+      nextDate: new Intl.DateTimeFormat("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }).format(nextHarvest),
+      shortDate: new Intl.DateTimeFormat("en-US", {
+        month: "long",
+        day: "numeric",
+      }).format(nextHarvest),
       isThisMonth: nextHarvest.getMonth() === new Date().getMonth(),
       daysUntil: Math.ceil(
-        (nextHarvest.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+        (nextHarvest.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
       ),
     };
   };
 
-  const handleRightClick = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent browser context menu
-    cardMenuRef.current?.openMenu();
-  };
-
   const harvestInfo = formatHarvestSchedule(branch.harvest_day_of_month);
 
-  // Mock data for units - you can replace this with real data from your branch object
-  const totalUnits = Math.floor(Math.random() * 20) + 5; // Random between 5-25
-  const onlineUnits = Math.floor(Math.random() * totalUnits); // Random online units
-
   return (
-    <div
-      className="bg-card rounded-lg border border-border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-      onContextMenu={handleRightClick}
-    >
+    <div className="bg-card rounded-lg border border-border shadow-sm hover:shadow-md transition-shadow cursor-pointer">
       <div className="p-6 h-full flex flex-col min-h-[280px]">
         <div className="flex items-center justify-between mb-3">
           <div className="flex-1 min-w-0">
@@ -125,16 +92,9 @@ export function BranchCard({ branch }: BranchCardProps) {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <CardMenu
-              ref={cardMenuRef}
-              branchId={branch.id}
-              branchData={branch}
-            />
-          </div>
+          <CardMenu branchId={branch.id} branchData={branch} />
         </div>
 
-        {/* Content */}
         <div className="flex-1 space-y-3 mt-4">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-green-500 flex-shrink-0" />
@@ -145,7 +105,6 @@ export function BranchCard({ branch }: BranchCardProps) {
           </div>
 
           <div className="space-y-3 pt-2 border-t border-border">
-            {/* Total Units */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Monitor className="h-4 w-4 text-purple-500 flex-shrink-0" />
@@ -158,7 +117,6 @@ export function BranchCard({ branch }: BranchCardProps) {
               </span>
             </div>
 
-            {/* Created Date */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -171,7 +129,6 @@ export function BranchCard({ branch }: BranchCardProps) {
               </span>
             </div>
 
-            {/* Harvest Schedule */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-blue-500 flex-shrink-0" />
@@ -184,11 +141,9 @@ export function BranchCard({ branch }: BranchCardProps) {
               </span>
             </div>
 
-            {/* Next Harvest */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 flex-shrink-0" />{" "}
-                {/* Spacer for alignment */}
+                <div className="w-4 h-4 flex-shrink-0" />
                 <span className="text-sm font-medium text-foreground">
                   Next:
                 </span>
@@ -217,7 +172,6 @@ export function BranchCard({ branch }: BranchCardProps) {
             </div>
           </div>
 
-          {/* Branch ID at bottom */}
           <div className="pt-2 border-t border-border justify-between flex items-center">
             <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded">
               {branch.id}
