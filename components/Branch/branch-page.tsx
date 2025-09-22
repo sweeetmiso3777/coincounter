@@ -19,7 +19,6 @@ export interface Branch {
 
 export interface BranchWithUnits extends Branch {
   totalUnits: number;
-  onlineUnits: number;
 }
 
 interface BranchPageProps {
@@ -59,14 +58,10 @@ export function BranchPage({ branches }: BranchPageProps) {
       const branchData: BranchWithUnits = {
         ...branch,
         totalUnits: 0,
-        onlineUnits: 0,
       };
 
       const unsub = onSnapshot(q, (snapshot) => {
         branchData.totalUnits = snapshot.size;
-        branchData.onlineUnits = snapshot.docs.filter(
-          (d) => d.data().status === "online"
-        ).length;
         setBranchesWithUnits((prev) => {
           const others = prev.filter((b) => b.id !== branch.id);
           return [...others, branchData];
@@ -177,7 +172,6 @@ export function BranchPage({ branches }: BranchPageProps) {
                   key={branch.id}
                   branch={branch}
                   totalUnits={branch.totalUnits}
-                  onlineUnits={branch.onlineUnits}
                 />
               ))}
             </div>

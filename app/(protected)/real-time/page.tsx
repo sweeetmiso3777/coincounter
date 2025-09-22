@@ -192,7 +192,20 @@ export default function RealTimeSales() {
           <h2 className="text-xl font-semibold text-foreground mb-3">
             Recent Sales ({sales.length})
           </h2>
-
+          <div className="flex items-center justify-end gap-2 mb-2">
+            <Button variant="outline" size="sm">
+              Today
+            </Button>
+            <Button variant="outline" size="sm">
+              Yesterday
+            </Button>
+            <Button variant="outline" size="sm">
+              7 Days
+            </Button>
+            <Button variant="outline" size="sm">
+              1 Month
+            </Button>
+          </div>
           {sales.length === 0 ? (
             <div className="text-center py-16">
               <div className="max-w-md mx-auto">
@@ -211,7 +224,7 @@ export default function RealTimeSales() {
             </div>
           ) : (
             <div
-              className="relative rounded-sm border border-border"
+              className="relative rounded-sm border border-border px-1"
               style={{ height: "calc(100vh - 18rem)" }}
             >
               <Virtuoso

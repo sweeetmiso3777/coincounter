@@ -15,14 +15,9 @@ import Link from "next/link";
 interface BranchCardProps {
   branch: BranchData;
   totalUnits: number;
-  onlineUnits: number;
 }
 
-export function BranchCard({
-  branch,
-  totalUnits,
-  onlineUnits,
-}: BranchCardProps) {
+export function BranchCard({ branch, totalUnits }: BranchCardProps) {
   const formatDate = (date: Date) =>
     new Intl.DateTimeFormat("en-US", {
       year: "numeric",
@@ -78,7 +73,7 @@ export function BranchCard({
   const harvestInfo = formatHarvestSchedule(branch.harvest_day_of_month);
 
   return (
-    <div className="bg-card rounded-lg border border-border shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+    <div className="bg-card rounded-lg border border-border shadow-sm hover:shadow-md transition-shadow ">
       <div className="p-6 h-full flex flex-col min-h-[280px]">
         <div className="flex items-center justify-between mb-3">
           <div className="flex-1 min-w-0">
@@ -113,7 +108,7 @@ export function BranchCard({
                 </span>
               </div>
               <span className="text-sm text-muted-foreground">
-                {totalUnits} ({onlineUnits} Online)
+                {totalUnits}
               </span>
             </div>
 
@@ -178,6 +173,7 @@ export function BranchCard({
             </span>
             <Link
               href={`/branches/${branch.id}`}
+              prefetch={true}
               className="text-xs text-blue-500 hover:underline"
             >
               <ChevronRight />

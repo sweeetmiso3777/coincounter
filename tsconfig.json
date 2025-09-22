@@ -34,7 +34,7 @@
     ".next/types/**/*.ts",
     "next-env.d.ts",
     "functions/.next/types/**/*.ts"
-  ],
+, "scripts/seed-aggregates.js", "app/(protected)/branches/[branchId]/page-client.tsx"  ],
   "exclude": [
     "node_modules"
   ]

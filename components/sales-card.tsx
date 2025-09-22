@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Coins, Clock, Monitor } from "lucide-react";
 import type { SalesDocument } from "@/types/sales";
-import { Timestamp } from "firebase/firestore";
+import type { Timestamp as FirestoreTimestamp } from "firebase/firestore";
 
 interface SalesCardProps {
   sale: SalesDocument & {
@@ -12,8 +12,31 @@ interface SalesCardProps {
 }
 
 export function SalesCard({ sale }: SalesCardProps) {
-  const formatTimestamp = (timestamp: Timestamp) => {
-    const date = timestamp.toDate();
+  const formatTimestamp = (timestamp: FirestoreTimestamp) => {
+    let date: Date;
+
+    // Handle serialized Firestore timestamp
+    if (timestamp && typeof timestamp === "object" && timestamp.seconds) {
+      date = new Date(
+        timestamp.seconds * 1000 + (timestamp.nanoseconds || 0) / 1000000
+      );
+    }
+    // Handle Firestore Timestamp object
+    else if (timestamp && typeof timestamp.toDate === "function") {
+      date = timestamp.toDate();
+    }
+    // Handle JavaScript Date
+    else if (timestamp instanceof Date) {
+      date = timestamp;
+    }
+    // Handle string timestamp
+    else if (typeof timestamp === "string") {
+      date = new Date(timestamp);
+    } else {
+      console.warn("[SalesCard] Unable to parse timestamp:", timestamp);
+      date = new Date(); // fallback to current date
+    }
+
     return {
       date: date.toLocaleDateString("en-US", {
         month: "short",
