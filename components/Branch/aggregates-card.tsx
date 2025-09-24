@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { TrendingUp, CreditCard } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -13,31 +12,20 @@ interface BranchAggregateData {
     peso1: number;
     peso5: number;
     peso10: number;
+    peso20: number;
   };
 }
 
 interface AggregatesCardProps {
   data: BranchAggregateData;
-  timePeriod: string;
 }
 
-export function AggregatesCard({ data, timePeriod }: AggregatesCardProps) {
+export function AggregatesCard({ data }: AggregatesCardProps) {
   return (
     <>
-      <div className="flex items-center gap-2 mb-6">
-        <span className="text-sm text-muted-foreground mr-2">Time Period:</span>
-        <Badge variant="secondary">
-          {timePeriod === "1d"
-            ? "Today"
-            : timePeriod === "7d"
-            ? "Last 7 Days"
-            : "Last 30 Days"}
-        </Badge>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <motion.div
-          key={`revenue-${timePeriod}`}
+          key="revenue"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -56,9 +44,7 @@ export function AggregatesCard({ data, timePeriod }: AggregatesCardProps) {
                 ₱{data?.totalRevenue.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {timePeriod === "1d"
-                  ? "Today's earnings"
-                  : `Last ${timePeriod === "7d" ? "7" : "30"} days`}
+                Total earnings
               </p>
               <div className="absolute bottom-0 left-0 w-full h-1 bg-chart-2/20">
                 <div className="h-full w-full bg-chart-2 rounded-full" />
@@ -68,7 +54,7 @@ export function AggregatesCard({ data, timePeriod }: AggregatesCardProps) {
         </motion.div>
 
         <motion.div
-          key={`transactions-${timePeriod}`}
+          key="transactions"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -87,7 +73,7 @@ export function AggregatesCard({ data, timePeriod }: AggregatesCardProps) {
                 {data?.totalTransactions.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {timePeriod === "1d" ? "Total processed" : "Total transactions"}
+                Total processed
               </p>
               <div className="absolute bottom-0 left-0 w-full h-1 bg-chart-1/20">
                 <div className="h-full w-4/5 bg-chart-1 rounded-full" />
@@ -98,7 +84,7 @@ export function AggregatesCard({ data, timePeriod }: AggregatesCardProps) {
 
         {/* Coin Breakdown Card */}
         <motion.div
-          key={`coins-${timePeriod}`}
+          key="coins"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -136,6 +122,14 @@ export function AggregatesCard({ data, timePeriod }: AggregatesCardProps) {
                   </span>
                   <span className="font-semibold">
                     {data?.coinBreakdown.peso10.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">
+                    ₱20 coins:
+                  </span>
+                  <span className="font-semibold">
+                    {data?.coinBreakdown.peso20.toLocaleString()}
                   </span>
                 </div>
               </div>

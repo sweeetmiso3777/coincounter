@@ -37,47 +37,9 @@ const BranchHeader = React.memo(
 
 BranchHeader.displayName = "BranchHeader";
 
-const TimePeriodSelector = React.memo(
-  ({
-    timePeriod,
-    setTimePeriod,
-  }: {
-    timePeriod: string;
-    setTimePeriod: (period: string) => void;
-  }) => (
-    <div className="flex items-center gap-2 mb-6">
-      <span className="text-sm text-muted-foreground mr-2">Time Period:</span>
-      <div className="flex rounded-lg border p-1 bg-muted/50">
-        {[
-          { value: "1d", label: "Today" },
-          { value: "7d", label: "7 Days" },
-          { value: "30d", label: "30 Days" },
-        ].map((period) => (
-          <Button
-            key={period.value}
-            variant={timePeriod === period.value ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setTimePeriod(period.value)}
-            className={`text-xs transition-all ${
-              timePeriod === period.value
-                ? "bg-background shadow-sm"
-                : "hover:bg-background/50"
-            }`}
-          >
-            {period.label}
-          </Button>
-        ))}
-      </div>
-    </div>
-  )
-);
-
-TimePeriodSelector.displayName = "TimePeriodSelector";
-
 function BranchPageClient() {
   const { branchId } = useParams<{ branchId: string }>();
-  const { data, isLoading, isError, error, timePeriod, setTimePeriod } =
-    useBranchAggregates(branchId);
+  const { data, isLoading, isError, error } = useBranchAggregates(branchId);
 
   if (isLoading) {
     return (
@@ -138,8 +100,8 @@ function BranchPageClient() {
                 No Data Available
               </h3>
               <p className="text-muted-foreground text-center mb-6">
-                No aggregates found for today. Check back later or verify branch
-                operations.
+                No aggregates found for this branch. Check back later or verify
+                branch operations.
               </p>
               <Button asChild variant="outline">
                 <Link href="/branches">
@@ -159,22 +121,7 @@ function BranchPageClient() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <BranchHeader branchId={branchId} location={data?.location} />
 
-        <TimePeriodSelector
-          timePeriod={timePeriod}
-          setTimePeriod={setTimePeriod}
-        />
-
-        <AggregatesCard
-          data={{
-            ...data,
-            coinBreakdown: {
-              peso1: data.coinBreakdown.coins_1,
-              peso5: data.coinBreakdown.coins_5,
-              peso10: data.coinBreakdown.coins_10,
-            },
-          }}
-          timePeriod={timePeriod}
-        />
+        <AggregatesCard data={data} />
       </div>
     </div>
   );

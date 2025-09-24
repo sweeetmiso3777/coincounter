@@ -17,12 +17,14 @@ function getManilaDate(daysAgo = 0) {
 }
 
 function getAggregateId(date) {
-  return date.toLocaleDateString("en-US", {
-    timeZone: "Asia/Manila",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).toLowerCase();
+  return date
+    .toLocaleDateString("en-US", {
+      timeZone: "Asia/Manila",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+    .toLowerCase();
 }
 
 async function seedAggregates() {
@@ -37,18 +39,15 @@ async function seedAggregates() {
       const aggregateId = getAggregateId(date);
 
       const aggregateData = {
-        totalRevenue: Math.floor(Math.random() * 10000), // dummy revenue
-        totalTransactions: Math.floor(Math.random() * 100), // dummy transactions
+        totalRevenue: Math.floor(Math.random() * 10000),
+        totalTransactions: Math.floor(Math.random() * 100),
         coinBreakdown: {
           coins_1: Math.floor(Math.random() * 50),
           coins_5: Math.floor(Math.random() * 50),
           coins_10: Math.floor(Math.random() * 50),
           coins_20: Math.floor(Math.random() * 50),
         },
-        timeRange: {
-          earliest: date,
-          latest: date,
-        },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(), // ✅ NEW
       };
 
       await db

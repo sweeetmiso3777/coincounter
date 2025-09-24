@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import { useSalesQuery } from "@/hooks/use-sales-query";
-import { SalesCard } from "@/components/sales-card";
+import { SalesCard } from "@/components/real-time/sales-card";
 import { Button } from "@/components/ui/button";
 import {
   Loader2,

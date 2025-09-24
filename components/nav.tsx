@@ -1,68 +1,42 @@
 "use client";
 
-import {
-  NavigationMenu,
-  NavigationMenuIndicator,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuViewport,
-} from "@/components/ui/navigation-menu";
-import {
-  Search,
-  User,
-  Settings,
-  LogOut,
-  Bell,
-  Contact,
-  ChevronDown,
-  Menu,
-  X,
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ModeToggle } from "./ui/ModeToggle";
+import { CircleFabMenu } from "./CircleFabMenu"; // new component
 import { Button } from "@/components/ui/button";
+import { Search, Bell, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import Link from "next/link";
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { ModeToggle } from "./ui/ModeToggle";
+} from "./ui/dropdown-menu";
 
 export function Nav() {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Check screen size on mount and resize
   useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-
+    const checkScreenSize = () => setIsMobile(window.innerWidth < 1024);
     checkScreenSize();
     window.addEventListener("resize", checkScreenSize);
-
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
   const handleLogout = async () => {
     try {
       setLoggingOut(true);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((res) => setTimeout(res, 500));
       await signOut(auth);
-      console.log("User logged out");
       router.push("/");
-    } catch (error) {
-      console.error("Logout failed:", error);
+    } catch (err) {
+      console.error(err);
       setLoggingOut(false);
     }
   };
@@ -70,292 +44,94 @@ export function Nav() {
   return (
     <div className="w-full border-b border-border bg-background px-4 lg:px-6 py-3 shadow-sm sticky top-0 z-50">
       <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center">
-              <Avatar className="h-8 w-8 lg:h-9 lg:w-9">
-                <AvatarImage src="/gapuz.png" alt="Profile" />
-                <AvatarFallback className="bg-muted text-muted-foreground">
-                  JD
-                </AvatarFallback>
-              </Avatar>
-            </div>
-            <span className="text-md font-semibold text-foreground hidden sm:block">
-              Coin Tracking System
-            </span>
-            <span className="text-md font-semibold text-foreground sm:hidden">
-              GTS
-            </span>
-          </div>
+        <div className="flex items-center space-x-2">
+          <Avatar className="h-8 w-8 lg:h-9 lg:w-9">
+            <AvatarImage src="/gapuz.png" alt="Profile" />
+            <AvatarFallback className="bg-muted text-muted-foreground">
+              JD
+            </AvatarFallback>
+          </Avatar>
+          <span className="text-md font-semibold text-foreground hidden sm:block">
+            Coin Tracking System
+          </span>
+          <span className="text-md font-semibold text-foreground sm:hidden">
+            GTS
+          </span>
         </div>
 
-        {/* Mobile Menu Button */}
-        <div className="lg:hidden">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-accent"
-          >
-            {isMobileMenuOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
-          </Button>
-        </div>
-
-        {/* Navigation Menu - Desktop */}
-        <div className="flex-1 hidden lg:flex items-center ml-8">
-          <NavigationMenu>
-            <NavigationMenuList className="flex gap-6">
-              <NavigationMenuItem>
-                <NavigationMenuLink
-                  href="/dashboard"
-                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-                >
-                  Dashboard
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <NavigationMenuLink
-                  href="/branches"
-                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-                >
-                  Branches
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <NavigationMenuLink
-                  href="/units"
-                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-                >
-                  Units
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <NavigationMenuLink
-                  href="/real-time"
-                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-                >
-                  Real Time
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-            <NavigationMenuIndicator />
-            <NavigationMenuViewport />
-          </NavigationMenu>
-        </div>
-
-        {/* Right Side Actions */}
-        <div className="hidden lg:flex items-center space-x-4 ml-auto">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-accent"
-          >
-            <Search className="h-4 w-4" />
-            <span className="sr-only">Search</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-accent"
-          >
-            <Bell className="h-4 w-4" />
-            <span className="sr-only">Notifications</span>
-          </Button>
-          <ModeToggle />
-          <div className="flex items-center">
-            <Avatar className="h-9 w-9">
-              <AvatarFallback className="bg-muted text-muted-foreground">
-                JD
-              </AvatarFallback>
-            </Avatar>
-
-            {/* Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="cursor-pointer h-9 w-9 p-0 ml-1 text-muted-foreground hover:text-foreground hover:bg-accent"
-                >
-                  <ChevronDown className="h-4 w-4" />
-                  <span className="sr-only">Open menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-56 bg-popover border-border"
-                align="end"
-                forceMount
-              >
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none text-popover-foreground">
-                      sigma lord
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      skibidisigma@gmail.com
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-border" />
-                <DropdownMenuItem asChild>
-                  <Link
-                    href="/profile"
-                    className="flex items-center cursor-pointer text-popover-foreground hover:bg-accent"
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator className="bg-border" />
-
-                <DropdownMenuItem asChild>
-                  <Link
-                    href="/contacts"
-                    className="flex items-center cursor-pointer text-popover-foreground hover:bg-accent"
-                  >
-                    <Contact className="mr-2 h-4 w-4" />
-                    <span>Contacts</span>
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem asChild>
-                  <Link
-                    href="/settings"
-                    className="flex items-center cursor-pointer text-popover-foreground hover:bg-accent"
-                  >
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-border" />
-                <DropdownMenuItem
-                  className="cursor-pointer text-popover-foreground hover:bg-accent"
-                  onClick={handleLogout}
-                >
-                  <div className="flex items-center cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Logout</span>
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        {/* Mobile Icons (Search, Notifications, Theme) */}
-        <div className="flex lg:hidden items-center space-x-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-accent"
-          >
-            <Search className="h-4 w-4" />
-            <span className="sr-only">Search</span>
-          </Button>
-          <ModeToggle />
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden mt-4 pb-4 border-t border-border pt-4">
-          <div className="flex flex-col space-y-3">
+        {/* Desktop Nav */}
+        {!isMobile && (
+          <div className="flex-1 hidden lg:flex items-center ml-8 space-x-4">
             <Link
               href="/dashboard"
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
             >
               Dashboard
             </Link>
             <Link
               href="/branches"
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
             >
               Branches
             </Link>
             <Link
               href="/units"
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
             >
               Units
             </Link>
             <Link
               href="/real-time"
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-              onClick={() => setIsMobileMenuOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
             >
               Real-Time
             </Link>
 
-            {/* Mobile User Menu */}
-            <div className="px-4 py-2 flex items-center space-x-3">
-              <Avatar className="h-8 w-8">
-                <AvatarImage
-                  src="/placeholder.svg?height=32&width=32"
-                  alt="Profile"
-                />
-                <AvatarFallback className="bg-muted text-muted-foreground">
-                  JD
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col">
-                <p className="text-sm font-medium text-foreground">
-                  sigma lord
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  skibidisigma@gmail.com
-                </p>
-              </div>
-            </div>
+            <div className="ml-auto flex items-center space-x-2">
+              <Button variant="ghost" size="icon">
+                <Search className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon">
+                <Bell className="h-4 w-4" />
+              </Button>
+              <ModeToggle />
 
-            <div className="border-t border-border pt-3">
-              <Link
-                href="/profile"
-                className="flex items-center px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </Link>
-              <Link
-                href="/contacts"
-                className="flex items-center px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <Contact className="mr-2 h-4 w-4" />
-                <span>Contacts</span>
-              </Link>
-              <Link
-                href="/settings"
-                className="flex items-center px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </Link>
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  handleLogout();
-                }}
-                className="flex items-center w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Logout</span>
-              </button>
+              {/* Avatar + Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center space-x-1 px-2 py-1 rounded-md hover:bg-accent focus:outline-none">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src="/gapuz.png" alt="Profile" />
+                      <AvatarFallback>JD</AvatarFallback>
+                    </Avatar>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem asChild>
+                    <Link href="/contacts">Contacts</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">Settings</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-red-500 focus:text-red-500"
+                  >
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Fullscreen "Logging Out..." overlay */}
+        {/* Mobile */}
+        {isMobile && <CircleFabMenu handleLogout={handleLogout} />}
+      </div>
+
+      {/* Logging Out Overlay */}
       {loggingOut && (
         <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50">
           <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>

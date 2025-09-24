@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Nav } from "@/components/nav";
-import { Providers } from "@/components/Sales-Query-Provider";
+import { Providers } from "@/components/real-time/Sales-Query-Provider";
 
 export default function ProtectedLayout({
   children,

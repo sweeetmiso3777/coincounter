@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import type { BranchData } from "@/types/branch";
 import {
   CalendarDays,
@@ -18,6 +19,7 @@ interface BranchCardProps {
 }
 
 export function BranchCard({ branch, totalUnits }: BranchCardProps) {
+  // ---------- Date Helpers ----------
   const formatDate = (date: Date) =>
     new Intl.DateTimeFormat("en-US", {
       year: "numeric",
@@ -72,9 +74,17 @@ export function BranchCard({ branch, totalUnits }: BranchCardProps) {
 
   const harvestInfo = formatHarvestSchedule(branch.harvest_day_of_month);
 
+  // ---------- JSX ----------
   return (
-    <div className="bg-card rounded-lg border border-border shadow-sm hover:shadow-md transition-shadow ">
+    <motion.div
+      className="bg-card rounded-lg border border-border shadow-sm cursor-pointer"
+      whileHover={{ scale: 1.02, boxShadow: "0 8px 20px rgba(0,0,0,0.12)" }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
       <div className="p-6 h-full flex flex-col min-h-[280px]">
+        {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex-1 min-w-0">
             <h3 className="text-xl font-bold text-foreground truncate mb-1">
@@ -90,7 +100,9 @@ export function BranchCard({ branch, totalUnits }: BranchCardProps) {
           <CardMenu branchId={branch.id} branchData={branch} />
         </div>
 
+        {/* Body */}
         <div className="flex-1 space-y-3 mt-4">
+          {/* Share */}
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-green-500 flex-shrink-0" />
             <span className="text-sm font-medium text-foreground">Share:</span>
@@ -99,7 +111,9 @@ export function BranchCard({ branch, totalUnits }: BranchCardProps) {
             </span>
           </div>
 
+          {/* Info rows */}
           <div className="space-y-3 pt-2 border-t border-border">
+            {/* Total Units */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Monitor className="h-4 w-4 text-purple-500 flex-shrink-0" />
@@ -112,6 +126,7 @@ export function BranchCard({ branch, totalUnits }: BranchCardProps) {
               </span>
             </div>
 
+            {/* Created */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -124,6 +139,7 @@ export function BranchCard({ branch, totalUnits }: BranchCardProps) {
               </span>
             </div>
 
+            {/* Harvest */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-blue-500 flex-shrink-0" />
@@ -136,6 +152,7 @@ export function BranchCard({ branch, totalUnits }: BranchCardProps) {
               </span>
             </div>
 
+            {/* Next */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 flex-shrink-0" />
@@ -167,20 +184,29 @@ export function BranchCard({ branch, totalUnits }: BranchCardProps) {
             </div>
           </div>
 
-          <div className="pt-2 border-t border-border justify-between flex items-center">
-            <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded">
+          {/* Branch ID row */}
+          <motion.div
+            className="pt-2 pb-2 border-t border-border flex justify-between items-center px-3 rounded group"
+            whileHover={{ scale: 1.03 }}
+          >
+            <span className="text-xs font-mono text-muted-foreground">
               {branch.id}
             </span>
             <Link
               href={`/branches/${branch.id}`}
               prefetch={true}
-              className="text-xs text-blue-500 hover:underline"
+              className="text-xs text-blue-500 flex items-center"
             >
-              <ChevronRight />
+              <motion.div
+                animate={{ x: [0, 2, 0] }}
+                transition={{ repeat: Infinity, duration: 1 }}
+              >
+                <ChevronRight />
+              </motion.div>
             </Link>
-          </div>
+          </motion.div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
