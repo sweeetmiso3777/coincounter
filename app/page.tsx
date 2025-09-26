@@ -13,7 +13,7 @@ export default function Home() {
     try {
       await signInWithGoogle();
     } catch (err) {
-      console.error("Google login failed, dawg:", err);
+      console.error("Google login failed:", err);
     }
   };
 
@@ -40,7 +40,7 @@ export default function Home() {
         />
         <ol className="font-mono text-sm/6 text-center sm:text-center">
           <li className="mb-2 tracking-[-.01em]">
-            Welcome to the Coin Slot Tracking System, dawg
+            Welcome to the Coin Slot Tracking System
           </li>
           <li className="mb-2 tracking-[-.01em]">Get started by Logging In</li>
           <li className="tracking-[-.01em]">

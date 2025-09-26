@@ -7,61 +7,65 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-function getManilaDate(daysAgo = 0) {
-  const today = new Date();
-  const manilaDate = new Date(
-    today.toLocaleString("en-US", { timeZone: "Asia/Manila" })
+function randomTimeToday() {
+  const now = new Date();
+  const manilaNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+
+  const startOfDay = new Date(
+    manilaNow.getFullYear(),
+    manilaNow.getMonth(),
+    manilaNow.getDate(),
+    0, 0, 0, 0
   );
-  manilaDate.setDate(manilaDate.getDate() - daysAgo);
-  return manilaDate;
+  const endOfDay = new Date(
+    manilaNow.getFullYear(),
+    manilaNow.getMonth(),
+    manilaNow.getDate(),
+    23, 59, 59, 999
+  );
+
+  const randomMillis =
+    startOfDay.getTime() +
+    Math.random() * (endOfDay.getTime() - startOfDay.getTime());
+
+  return admin.firestore.Timestamp.fromDate(new Date(randomMillis));
 }
 
-function getAggregateId(date) {
-  return date
-    .toLocaleDateString("en-US", {
-      timeZone: "Asia/Manila",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
-    .toLowerCase();
-}
+async function seedSales() {
+  const deviceId = "C0C4597F";
 
-async function seedAggregates() {
-  const branchesSnap = await db.collection("Branches").get();
-
-  for (const branch of branchesSnap.docs) {
-    const branchId = branch.id;
-
-    // Generate aggregates for last 7 days
-    for (let i = 0; i < 7; i++) {
-      const date = getManilaDate(i);
-      const aggregateId = getAggregateId(date);
-
-      const aggregateData = {
-        totalRevenue: Math.floor(Math.random() * 10000),
-        totalTransactions: Math.floor(Math.random() * 100),
-        coinBreakdown: {
-          coins_1: Math.floor(Math.random() * 50),
-          coins_5: Math.floor(Math.random() * 50),
-          coins_10: Math.floor(Math.random() * 50),
-          coins_20: Math.floor(Math.random() * 50),
-        },
-        createdAt: admin.firestore.FieldValue.serverTimestamp(), // ✅ NEW
-      };
-
-      await db
-        .collection("Branches")
-        .doc(branchId)
-        .collection("Aggregates")
-        .doc(aggregateId)
-        .set(aggregateData);
-
-      console.log(`✅ Seeded aggregate for branch ${branchId} on ${aggregateId}`);
-    }
+  // Try to fetch branchId from Units/{deviceId}
+  const unitRef = db.collection("Units").doc(deviceId);
+  const unitDoc = await unitRef.get();
+  let branchId = "UNASSIGNED";
+  if (unitDoc.exists && unitDoc.get("branchId")) {
+    branchId = unitDoc.get("branchId");
   }
 
-  console.log("Done seeding aggregates for last 7 days.");
+  for (let i = 0; i < 177; i++) {
+    const coins_1 = Math.floor(Math.random() * 6);
+    const coins_5 = Math.floor(Math.random() * 6);
+    const coins_10 = Math.floor(Math.random() * 6);
+    const coins_20 = Math.floor(Math.random() * 6);
+
+    const total = coins_1 * 1 + coins_5 * 5 + coins_10 * 10 + coins_20 * 20;
+
+    const saleData = {
+      deviceId,
+      branchId,
+      coins_1,
+      coins_5,
+      coins_10,
+      coins_20,
+      total,
+      timestamp: randomTimeToday(), // ✅ random time today, Manila timezone
+    };
+
+    await db.collection("sales").add(saleData);
+    console.log(`✅ Sale ${i + 1}/177 created`);
+  }
+
+  console.log("🎉 Done seeding 177 random sales for today.");
 }
 
-seedAggregates().catch(console.error);
+seedSales().catch(console.error);

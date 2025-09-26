@@ -27,10 +27,10 @@ export function useSalesQuery() {
   const queryResult = useQuery<SalesDocument[], Error>({
     queryKey: [...CACHE_KEY, todayKey],
     queryFn: async () => {
-      console.log(`[v0] LETS GET THIS FUCKING STARTED - NO FUCKING CATCH FOR ${todayKey} MOTHERFUCKER`)
+      console.log(`[v0] LETS GET THIS  STARTED - NO FUCKING CATCH FOR ${todayKey} MOTHERFUCKER`)
       console.log(`[v0] YOUR KEY DUMBASS:`, [...CACHE_KEY, todayKey])
       const sales = await fetchSalesByDay(todayKey)
-      console.log(`[v0]  ITS FUCKING DONE!: ${sales.length} SALES RETRIVED`)
+      console.log(`[v0]  ITS  DONE!: ${sales.length} SALES RETRIVED`)
       return sales
     },
     staleTime: Number.POSITIVE_INFINITY, // Data never goes stale
@@ -38,7 +38,7 @@ export function useSalesQuery() {
   })
 
   useEffect(() => {
-    console.log(`[v0] SOMETHING CHANGED MOTHERFUCKER:`, {
+    console.log(`[v0] SOMETHING CHANGED :`, {
       isLoading: queryResult.isLoading,
       isFetching: queryResult.isFetching,
       isSuccess: queryResult.isSuccess,

@@ -5,7 +5,7 @@ admin.initializeApp()
 
 export const aggregateAllSales = onSchedule(
   {
-    schedule: "49 23 * * *", // every 11:59 PM Manila
+    schedule: "59 23 * * *", // every 11:59 PM Manila
     timeZone: "Asia/Manila",
   },
   async () => {
@@ -15,22 +15,26 @@ export const aggregateAllSales = onSchedule(
       const now = new Date()
       const manilaNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }))
       const start = new Date(manilaNow.getFullYear(), manilaNow.getMonth(), manilaNow.getDate(), 0, 0, 0)
-      const end   = new Date(manilaNow.getFullYear(), manilaNow.getMonth(), manilaNow.getDate(), 23, 59, 59, 999)
+      const end = new Date(manilaNow.getFullYear(), manilaNow.getMonth(), manilaNow.getDate(), 23, 59, 59, 999)
 
-      const aggregateId = manilaNow
-        .toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
-        .toLowerCase()
+      const aggregateId = `${manilaNow.getFullYear()}-${String(manilaNow.getMonth() + 1).padStart(2, "0")}-${String(
+        manilaNow.getDate()
+      ).padStart(2, "0")}`
 
-      console.log(`[v1] Aggregating sales for ${aggregateId}`)
+      console.log(`[agg] Aggregating sales for ${aggregateId}`)
 
       // --- 2. Build device → branch map ---
-      const deviceSnap = await db.collection("devices").get()
+      const unitSnap = await db.collection("Units").get()
       const deviceBranchMap = new Map<string, string>()
-      deviceSnap.forEach((doc) => {
-        const d = doc.data()
-        if (d.branchId) deviceBranchMap.set(doc.id, d.branchId)
+      unitSnap.forEach((doc) => {
+        const u = doc.data()
+        if (u.branchId) {
+          deviceBranchMap.set(doc.id, u.branchId)
+        } else {
+          deviceBranchMap.set(doc.id, "unassigned") // fallback: device exists but no branch
+        }
       })
-      console.log(`[v1] Loaded ${deviceBranchMap.size} devices for branch lookup`)
+      console.log(`[agg] Loaded ${deviceBranchMap.size} units for branch lookup`)
 
       // --- 3. Fetch today's sales ---
       const salesSnap = await db
@@ -40,7 +44,7 @@ export const aggregateAllSales = onSchedule(
         .get()
 
       if (salesSnap.empty) {
-        console.log(`[v1] No sales found for ${aggregateId}`)
+        console.log(`[agg] No sales found for ${aggregateId}`)
         return
       }
 
@@ -49,12 +53,19 @@ export const aggregateAllSales = onSchedule(
 
       salesSnap.forEach((doc) => {
         const data = doc.data()
-        const branchId = deviceBranchMap.get(data.deviceId) || "unknown"
+        const deviceId = data.deviceId
+        let branchId = deviceBranchMap.get(deviceId)
+
+        if (!branchId) {
+          branchId = "unknown" // fallback: device doc not found
+        }
 
         if (!branchAggregates.has(branchId)) {
           branchAggregates.set(branchId, {
             branchId,
-            aggregateDate: aggregateId,
+            aggregateDate: admin.firestore.Timestamp.fromDate(
+              new Date(manilaNow.getFullYear(), manilaNow.getMonth(), manilaNow.getDate())
+            ),
             totalTransactions: 0,
             grandTotal: 0,
             coins_1: 0,
@@ -93,24 +104,19 @@ export const aggregateAllSales = onSchedule(
       const batch = db.batch()
       branchAggregates.forEach((agg, branchId) => {
         const totalCoins = agg.coins_1 + agg.coins_5 + agg.coins_10 + agg.coins_20
-        const ref = db.collection("Branches").doc(branchId)
-                      .collection("Aggregates").doc(aggregateId)
+        const ref = db.collection("Branches").doc(branchId).collection("Aggregates").doc(aggregateId)
         batch.set(ref, {
           ...agg,
           totalCoins,
           processedAt: admin.firestore.FieldValue.serverTimestamp(),
         })
-        console.log(
-          `[v1] Branch ${branchId} - ${agg.totalTransactions} txns, ₱${agg.grandTotal}`
-        )
+        console.log(`[agg] Branch ${branchId} - ${agg.totalTransactions} txns, ₱${agg.grandTotal}`)
       })
 
       await batch.commit()
-      console.log(
-        `[v1] ✅ Aggregated ${salesSnap.size} sales across ${branchAggregates.size} branches`
-      )
+      console.log(`[agg] ✅ Aggregated ${salesSnap.size} sales across ${branchAggregates.size} branches`)
     } catch (err) {
-      console.error("[v1] ❌ Error aggregating sales:", err)
+      console.error("[agg] ❌ Error aggregating sales:", err)
       throw err
     }
   }
