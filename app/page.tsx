@@ -1,51 +1,46 @@
 "use client";
-import Image from "next/image";
-import { signInWithGoogle, auth } from "../lib/firebase";
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { onAuthStateChanged } from "firebase/auth";
+import Image from "next/image";
+import { signInWithGoogle } from "../lib/firebase";
+import { useUsers } from "../hooks/use-users";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const { user, loading } = useUsers();
   const router = useRouter();
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        // if logged in → redirect to dashboard
-        router.push("/dashboard");
-      } else {
-        // if not logged in → stay on /
-        router.push("/");
-      }
-    });
-
-    return () => unsubscribe();
-  }, [router]);
 
   const handleGoogleLogin = async () => {
     try {
-      const { user } = await signInWithGoogle();
-      console.log("Logged in user:", user);
-      router.push("/dashboard");
-    } catch (error) {
-      console.error("Login failed:", error);
+      await signInWithGoogle();
+    } catch (err) {
+      console.error("Google login failed, dawg:", err);
     }
   };
 
+  // Optional: redirect automatically if already logged in
+  useEffect(() => {
+    if (!loading && user?.status === "approved") {
+      router.push("/dashboard");
+    }
+    if (!loading && user && user.status !== "approved") {
+      router.push("/sorry");
+    }
+  }, [user, loading, router]);
+
   return (
-    <div className="font-sans flex items-center justify-center min-h-screen p-8 bg-gray-50">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-center bg-white px-8 border border-gray-200 shadow-lg rounded-xl pb-20 p-8 w-full">
+    <div className="font-sans flex flex-col items-center justify-center min-h-screen p-8 bg-gray-50">
+      <main className="flex flex-col gap-[32px] items-center bg-white px-12 py-16 border border-gray-200 shadow-lg rounded-xl w-full max-w-2xl">
         <Image
           className="rounded-lg"
           src="/gapuz.png"
-          alt="Next.js logo"
+          alt="Coin Slot Tracker logo"
           width={360}
           height={36}
           priority
         />
         <ol className="font-mono text-sm/6 text-center sm:text-center">
           <li className="mb-2 tracking-[-.01em]">
-            Welcome to the Coin Slot Tracking System
+            Welcome to the Coin Slot Tracking System, dawg
           </li>
           <li className="mb-2 tracking-[-.01em]">Get started by Logging In</li>
           <li className="tracking-[-.01em]">
@@ -65,7 +60,7 @@ export default function Home() {
               width={20}
               height={20}
             />
-            Log in with Google
+            Log in with Google, dawg
           </button>
           <a
             className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"

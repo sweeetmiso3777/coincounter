@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, ReactNode } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 
@@ -19,8 +19,8 @@ const asyncStoragePersister = createAsyncStoragePersister({
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: Infinity,
-      gcTime: 1000 * 60 * 60 * 24 * 30, // 30 days
+      staleTime: Infinity, // cache never considered stale
+      gcTime: 1000 * 60 * 60 * 24 * 30, // garbage collect after 30 days
       refetchOnWindowFocus: false,
     },
   },
@@ -30,7 +30,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // nothing to do here since async persister works automatically
+    // make sure localStorage is available on client
     setIsReady(true);
   }, []);
 
@@ -41,7 +41,7 @@ export function Providers({ children }: { children: ReactNode }) {
       client={queryClient}
       persistOptions={{ persister: asyncStoragePersister }}
     >
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      {children}
     </PersistQueryClientProvider>
   );
 }

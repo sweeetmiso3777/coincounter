@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { TrendingUp, Coins, Clock } from "lucide-react";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import { useUsers } from "@/hooks/use-users";
 
 export interface Branch {
   id: string;
@@ -46,6 +47,7 @@ export function BranchPage({ branches }: BranchPageProps) {
   const [branchesWithUnits, setBranchesWithUnits] = useState<BranchWithUnits[]>(
     []
   );
+  const { user } = useUsers(); // we’ll check role directly
 
   useEffect(() => {
     const unsubscribes: (() => void)[] = [];
@@ -78,8 +80,10 @@ export function BranchPage({ branches }: BranchPageProps) {
   }, [branches]);
 
   const totalBranches = branches.length;
-  const totalActive = 4; // calculate as needed
+  const totalActive = 4; // TODO: calculate dynamically
   const totalInactive = totalBranches - totalActive;
+
+  const isAdmin = user?.role === "admin"; // ✅ string check
 
   return (
     <div className="min-h-screen bg-background">
@@ -161,12 +165,12 @@ export function BranchPage({ branches }: BranchPageProps) {
                   Get started by creating your first branch to track harvests
                   and manage operations.
                 </p>
-                <AddBranchCard />
+                {isAdmin && <AddBranchCard />}
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              <AddBranchCard />
+              {isAdmin && <AddBranchCard />}
               {branchesWithUnits.map((branch) => (
                 <BranchCard
                   key={branch.id}
