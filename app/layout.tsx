@@ -1,10 +1,10 @@
-"use client";
 import type React from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/ThemeProvider";
-import { QueryProvider } from "@/lib/query-client";
+import { ThemeProvider } from "@/providers/ThemeProvider";
+import { QueryProvider } from "@/providers/query-client";
 import { Toaster } from "@/components/sonner";
+import { UserProvider } from "@/providers/UserProvider";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -32,8 +32,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <QueryProvider>
-            <main>{children}</main>
-            <Toaster position="top-right" />
+            <UserProvider>
+              <main>{children}</main>
+              <Toaster position="top-right" />
+            </UserProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

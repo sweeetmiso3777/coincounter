@@ -31,6 +31,7 @@ interface Unit {
 interface Branch {
   id: string;
   location: string;
+  totalUnits?: number;
 }
 
 export function UnitsTable() {
@@ -110,20 +111,54 @@ export function UnitsTable() {
     if (!selectedUnit) return;
     try {
       if (actionType === "decommission") {
+        // decrement old branch totalUnits
+        if (selectedUnit.branchId) {
+          const branchRef = doc(db, "Branches", selectedUnit.branchId);
+          await updateDoc(branchRef, {
+            totalUnits:
+              (branches.find((b) => b.id === selectedUnit.branchId)
+                ?.totalUnits || 1) - 1,
+          });
+        }
+
         await updateDoc(doc(db, "Units", selectedUnit.deviceId), {
           branchId: null,
         });
+
         toast.success(`Unit ${selectedUnit.deviceId} decommissioned!`);
       } else if (actionType === "reassign" && selectedBranchId) {
+        const oldBranchId = selectedUnit.branchId;
+
+        // decrement old branch totalUnits if exists
+        if (oldBranchId) {
+          const oldBranchRef = doc(db, "Branches", oldBranchId);
+          await updateDoc(oldBranchRef, {
+            totalUnits:
+              (branches.find((b) => b.id === oldBranchId)?.totalUnits || 1) - 1,
+          });
+        }
+
+        // increment new branch totalUnits
+        const newBranchRef = doc(db, "Branches", selectedBranchId);
+        await updateDoc(newBranchRef, {
+          totalUnits:
+            (branches.find((b) => b.id === selectedBranchId)?.totalUnits || 0) +
+            1,
+        });
+
+        // reassign unit
         await updateDoc(doc(db, "Units", selectedUnit.deviceId), {
           branchId: selectedBranchId,
         });
+
         toast.success(`Unit ${selectedUnit.deviceId} reassigned!`);
       }
+
       setConfirmVisible(false);
       setConfirmInput("");
       setSelectedBranchId("");
       fetchUnits();
+      fetchBranches(); // refresh branches to get updated totalUnits
     } catch {
       toast.error("Action failed.");
     }

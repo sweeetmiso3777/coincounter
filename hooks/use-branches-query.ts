@@ -1,123 +1,77 @@
-"use client"
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useEffect } from "react"
-import {
-  fetchBranches,
-  fetchBranch,
-  createBranch,
-  updateBranch,
-  deleteBranch,
-  subscribeToBranches,
-} from "@/lib/branches-api"
-import type { BranchData } from "@/types/branch"
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { collection, doc, getDocs, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
-// Query keys
-export const branchesKeys = {
-  all: ["branches"] as const,
-  lists: () => [...branchesKeys.all, "list"] as const,
-  list: (filters: string) => [...branchesKeys.lists(), { filters }] as const,
-  details: () => [...branchesKeys.all, "detail"] as const,
-  detail: (id: string) => [...branchesKeys.details(), id] as const,
+export interface BranchData {
+  id: string;
+  branch_manager: string;
+  location: string;
+  harvest_day_of_month: number;
+  created_at: Date;
+  share: number;
+  totalUnits: number; // totalUnits
 }
 
-// Fetch all branches with real-time updates
+// fetch all branches with totalUnits
+async function fetchBranches(): Promise<BranchData[]> {
+  const branchesSnapshot = await getDocs(collection(db, "Branches"));
+
+  const branches: BranchData[] = await Promise.all(
+    branchesSnapshot.docs.map(async (docSnap) => {
+      const data = docSnap.data();
+      
+      const totalUnits = data.totalUnits ?? 0;
+      return {
+        id: docSnap.id,
+        branch_manager: data.branch_manager,
+        location: data.location,
+        harvest_day_of_month: data.harvest_day_of_month,
+        created_at: data.created_at?.toDate?.() ?? new Date(),
+        share: data.share ?? 0,
+        totalUnits,
+      };
+    })
+  );
+
+  return branches;
+}
+
+// single branch fetch
+async function fetchBranch(branchId: string): Promise<BranchData | null> {
+  const branchRef = doc(db, "Branches", branchId);
+  const branchSnap = await getDoc(branchRef);
+
+  if (!branchSnap.exists()) return null;
+
+  const data = branchSnap.data();
+  const totalUnits = data.totalUnits ?? 0;
+
+  return {
+    id: branchSnap.id,
+    branch_manager: data.branch_manager,
+    location: data.location,
+    harvest_day_of_month: data.harvest_day_of_month,
+    created_at: data.created_at?.toDate?.() ?? new Date(),
+    share: data.share ?? 0,
+    totalUnits,
+  };
+}
+
+// TanStack Query hook
 export function useBranches() {
-  const queryClient = useQueryClient()
-
-  const query = useQuery({
-    queryKey: branchesKeys.lists(),
+  return useQuery<BranchData[]>({
+    queryKey: ["branches"],
     queryFn: fetchBranches,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  })
-
-  // Set up real-time subscription
-  useEffect(() => {
-    const unsubscribe = subscribeToBranches((branches) => {
-      queryClient.setQueryData(branchesKeys.lists(), branches)
-    })
-
-    return unsubscribe
-  }, [queryClient])
-
-  return query
+    staleTime: 5 * 60 * 1000,
+  });
 }
 
-// Fetch single branch
-export function useBranch(id: string) {
-  return useQuery({
-    queryKey: branchesKeys.detail(id),
-    queryFn: () => fetchBranch(id),
-    enabled: !!id,
-  })
-}
-
-// Create branch mutation
-export function useCreateBranch() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: createBranch,
-    onSuccess: () => {
-      // Invalidate and refetch branches list
-      queryClient.invalidateQueries({ queryKey: branchesKeys.lists() })
-    },
-    onError: (error) => {
-      console.error("Failed to create branch:", error)
-    },
-  })
-}
-
-// Update branch mutation
-export function useUpdateBranch() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Omit<BranchData, "id" | "created_at">> }) =>
-      updateBranch(id, data),
-    onSuccess: (_, { id }) => {
-      // Invalidate both the list and the specific branch
-      queryClient.invalidateQueries({ queryKey: branchesKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: branchesKeys.detail(id) })
-    },
-    onError: (error) => {
-      console.error("Failed to update branch:", error)
-    },
-  })
-}
-
-// Delete branch mutation
-export function useDeleteBranch() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: deleteBranch,
-    onSuccess: (_, id) => {
-      // Remove from cache and invalidate list
-      queryClient.removeQueries({ queryKey: branchesKeys.detail(id) })
-      queryClient.invalidateQueries({ queryKey: branchesKeys.lists() })
-    },
-    onError: (error) => {
-      console.error("Failed to delete branch:", error)
-    },
-  })
-}
-
-// Optimistic updates helper
-export function useOptimisticBranchUpdate() {
-  const queryClient = useQueryClient()
-
-  const updateBranchOptimistically = (id: string, updates: Partial<BranchData>) => {
-    queryClient.setQueryData(branchesKeys.lists(), (old: BranchData[] | undefined) => {
-      if (!old) return old
-      return old.map((branch) => (branch.id === id ? { ...branch, ...updates } : branch))
-    })
-
-    queryClient.setQueryData(branchesKeys.detail(id), (old: BranchData | undefined) => {
-      if (!old) return old
-      return { ...old, ...updates }
-    })
-  }
-
-  return { updateBranchOptimistically }
+export function useBranch(branchId: string) {
+  return useQuery<BranchData | null>({
+    queryKey: ["branch", branchId],
+    queryFn: () => fetchBranch(branchId),
+    enabled: !!branchId,
+  });
 }

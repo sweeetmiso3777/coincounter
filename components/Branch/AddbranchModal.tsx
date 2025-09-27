@@ -66,6 +66,7 @@ export default function AddBranchModal({
         harvest_day_of_month: dayOfMonth,
         share: Number(share),
         created_at: Timestamp.now(),
+        totalUnits: 0,
       });
 
       setBranchManager("");

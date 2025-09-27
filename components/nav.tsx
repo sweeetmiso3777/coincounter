@@ -51,7 +51,7 @@ export function Nav() {
               JD
             </AvatarFallback>
           </Avatar>
-          <span className="text-md font-semibold text-foreground hidden sm:block">
+          <span className="text-md font-semibold font-mono text-foreground hidden sm:block">
             Coin Tracking System
           </span>
           <span className="text-md font-semibold text-foreground sm:hidden">
@@ -64,25 +64,25 @@ export function Nav() {
           <div className="flex-1 hidden lg:flex items-center ml-8 space-x-4">
             <Link
               href="/dashboard"
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
+              className="px-4 py-2 text-sm font-medium font-mono text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
             >
               Dashboard
             </Link>
             <Link
               href="/branches"
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
+              className="px-4 py-2 text-sm font-medium font-mono text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
             >
               Branches
             </Link>
             <Link
               href="/units"
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
+              className="px-4 py-2 text-sm font-medium font-mono text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
             >
               Units
             </Link>
             <Link
               href="/real-time"
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
+              className="px-4 py-2 text-sm font-medium font-mono text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
             >
               Real-Time
             </Link>

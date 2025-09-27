@@ -1,77 +1,102 @@
 "use client";
+
 import { useEffect } from "react";
 import Image from "next/image";
 import { signInWithGoogle } from "../lib/firebase";
-import { useUsers } from "../hooks/use-users";
+import { useUser } from "@/providers/UserProvider";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
-  const { user, loading } = useUsers();
+  const { user, loading } = useUser();
   const router = useRouter();
 
   const handleGoogleLogin = async () => {
     try {
       await signInWithGoogle();
+      // Redirect will be handled by useEffect
     } catch (err) {
       console.error("Google login failed:", err);
     }
   };
 
-  // Optional: redirect automatically if already logged in
   useEffect(() => {
-    if (!loading && user?.status === "approved") {
-      router.push("/dashboard");
-    }
-    if (!loading && user && user.status !== "approved") {
-      router.push("/sorry");
+    console.log("Login page - User state:", { user, loading });
+
+    if (!loading && user) {
+      console.log("Redirecting based on status:", user.status);
+
+      if (user.status === "approved") {
+        if (user.role === "admin" || user.role === "partner") {
+          router.push("/dashboard");
+        } else {
+          router.push("/sorry");
+        }
+      } else {
+        router.push("/sorry");
+      }
     }
   }, [user, loading, router]);
 
   return (
-    <div className="font-sans flex flex-col items-center justify-center min-h-screen p-8 bg-gray-50">
-      <main className="flex flex-col gap-[32px] items-center bg-white px-12 py-16 border border-gray-200 shadow-lg rounded-xl w-full max-w-2xl">
-        <Image
-          className="rounded-lg"
-          src="/gapuz.png"
-          alt="Coin Slot Tracker logo"
-          width={360}
-          height={36}
-          priority
-        />
-        <ol className="font-mono text-sm/6 text-center sm:text-center">
-          <li className="mb-2 tracking-[-.01em]">
-            Welcome to the Coin Slot Tracking System
-          </li>
-          <li className="mb-2 tracking-[-.01em]">Get started by Logging In</li>
-          <li className="tracking-[-.01em]">
-            View and Manage your Coin Slot Tracking System
-          </li>
-        </ol>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-800 text-gray-100 font-mono relative overflow-hidden">
+      {/* Background Blur Effects */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-cyan-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl"></div>
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <button
-            onClick={handleGoogleLogin}
-            className="cursor-pointer rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
+      {/* Content Container - Completely Transparent */}
+      <div className="flex flex-col items-center gap-8 relative z-10">
+        {/* Image - No Container */}
+        <Image
+          src="/gapuz.png"
+          alt="Coin Slot Tracker"
+          width={320}
+          height={32}
+          priority
+          className="rounded-lg"
+        />
+
+        {/* Text Container with Glass Effect */}
+        <div
+          className="flex flex-col items-center gap-4 p-8 rounded-3xl
+          bg-white/5 backdrop-blur-md border border-white/10 shadow-2xl
+          shadow-black/20"
+        >
+          <h1
+            className="text-2xl font-bold font-mono tracking-wider uppercase text-white
+            drop-shadow-lg text-center"
           >
-            <Image
-              className="cursor-pointer"
-              src="/Google__G__logo.svg.png"
-              alt="Google logo"
-              width={20}
-              height={20}
-            />
-            Log in with Google, dawg
-          </button>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="/about"
-            target="_blank"
-            rel="noopener noreferrer"
+            COIN SLOT TRACKER
+          </h1>
+
+          <p
+            className="text-white/80 text-sm text-center leading-relaxed max-w-md
+            drop-shadow"
           >
-            About Us
-          </a>
+            Real-time sales tracking for your branches, powered by ESP32 +
+            Firebase.
+          </p>
         </div>
-      </main>
+
+        {/* Button with Glass Effect */}
+        <button
+          onClick={handleGoogleLogin}
+          className="mt-4 w-full max-w-xs rounded-full bg-white/10 backdrop-blur-lg 
+            text-white font-bold py-4 hover:bg-white/20 transition-all duration-300 
+            tracking-wide border border-white/20 shadow-2xl hover:shadow-cyan-500/20
+            hover:scale-105 transform hover:border-white/40"
+        >
+          Sign in with Google
+        </button>
+      </div>
+
+      <footer
+        className="mt-12 text-gray-400 text-xs relative z-10
+        backdrop-blur-sm bg-black/20 px-4 py-2 rounded-full"
+      >
+        Made with Next.js + Firebase
+      </footer>
     </div>
   );
 }

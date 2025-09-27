@@ -4,30 +4,21 @@ import type React from "react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Nav } from "@/components/nav";
-import { Providers } from "@/components/real-time/Sales-Query-Provider";
-import { useUsers } from "@/hooks/use-users";
+import { Providers } from "@/providers/Sales-Query-Provider";
+import { UserProvider, useUser } from "@/providers/UserProvider";
 
-export default function ProtectedLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function LayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, loading, isApproved } = useUsers();
+  const { user, loading, isApproved } = useUser();
 
   useEffect(() => {
     if (!loading) {
-      if (!user) {
-        router.push("/"); // not logged in → redirect to login
-      } else if (!isApproved) {
-        router.push("/sorry"); // logged in but pending → redirect
-      }
+      if (!user) router.push("/"); // not logged in
+      else if (!isApproved) router.push("/sorry"); // pending/rejected
     }
   }, [user, isApproved, loading, router]);
 
-  if (loading || !user || !isApproved) {
-    return null; // show nothing while redirecting
-  }
+  if (loading || !user || !isApproved) return null;
 
   return (
     <>
@@ -36,5 +27,17 @@ export default function ProtectedLayout({
         <Providers>{children}</Providers>
       </main>
     </>
+  );
+}
+
+export default function ProtectedLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <UserProvider>
+      <LayoutContent>{children}</LayoutContent>
+    </UserProvider>
   );
 }

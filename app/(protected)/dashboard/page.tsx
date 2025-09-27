@@ -113,10 +113,10 @@ function Dashboard() {
         {/* Header */}
         <div className="text-center mb-12">
           <ToastTester />
-          <h1 className="text-4xl font-bold text-foreground mb-4">
+          <h1 className="text-4xl font-mono text-foreground mb-4">
             Project Dashboard
           </h1>
-          <p className="text-lg text-foreground">
+          <p className="text-lg font-mono text-foreground">
             Recent commits from{" "}
             <a
               href="https://github.com/sweeetmiso3777/coincounter"

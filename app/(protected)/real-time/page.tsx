@@ -115,10 +115,10 @@ export default function RealTimeSales() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">
+            <h1 className="text-3xl font-mono text-foreground">
               Real-Time Sales
             </h1>
-            <p className="text-muted-foreground mt-2">
+            <p className="font-mono text-muted-foreground mt-2">
               Monitor sales across all coin-operated units
             </p>
           </div>

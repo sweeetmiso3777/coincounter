@@ -1,11 +1,8 @@
 // lib/firebase.ts
-import { initializeApp, getApps } from "firebase/app";
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-} from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions'; // New: for Cloud Functions
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -18,24 +15,28 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID!,
 };
 
-// Initialize Firebase app
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
-
-// Firebase services
+const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
-
-// Helper: Google login
+export const functions = getFunctions(app); // New: Export functions instance
+export const googleProvider = new GoogleAuthProvider();
+// Updated signInWithGoogle (if not already; ensures session handling)
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    const token = credential?.accessToken ?? null;
     const user = result.user;
-    return { user, token };
-  } catch (error) {
-    console.error("Google sign-in failed:", error);
+    console.log('Signed in with Google:', user.email); // Gmail log
+    // Optional: Force token refresh after sign-in to pick up claims immediately
+    if (user) {
+      await user.getIdToken(true);
+    }
+    return result;
+  } catch (error: unknown) {
+  if (error instanceof Error) {
+    console.error("Google sign-in error:", error.message);
+    } else {
+      console.error("Unknown sign-in error:", error);
+    }
     throw error;
   }
 };

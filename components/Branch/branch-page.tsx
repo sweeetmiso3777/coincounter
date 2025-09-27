@@ -1,96 +1,26 @@
+// components/Branch/branch-page.tsx
 "use client";
 
-import { BranchCard } from "@/components/Branch/branch-card";
-import { AddBranchCard } from "@/components/Branch/add-branch-card";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useEffect, useState } from "react";
-import { TrendingUp, Coins, Clock } from "lucide-react";
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
-import { useUsers } from "@/hooks/use-users";
+import { BranchCard } from "./branch-card";
+import { AddBranchCard } from "./add-branch-card";
+import { useBranches } from "@/hooks/use-branches-query";
+import { useUser } from "@/providers/UserProvider";
 
-export interface Branch {
-  id: string;
-  branch_manager: string;
-  created_at: Date;
-  harvest_day_of_month: number;
-  location: string;
-  share: number;
-}
+export function BranchPage() {
+  const { user } = useUser();
+  const { data: branches = [], isLoading, error } = useBranches();
 
-export interface BranchWithUnits extends Branch {
-  totalUnits: number;
-}
+  const isAdmin = user?.role === "admin";
 
-interface BranchPageProps {
-  branches: Branch[];
-}
-
-function AnimatedNumber({
-  value,
-  decimals = 0,
-}: {
-  value: number;
-  decimals?: number;
-}) {
-  const count = useMotionValue(0);
-  const rounded = useTransform(count, (latest) =>
-    decimals > 0 ? Number(latest.toFixed(decimals)) : Math.round(latest)
-  );
-
-  animate(count, value, { duration: 2.5, ease: "easeOut" });
-
-  return <motion.span>{rounded}</motion.span>;
-}
-
-export function BranchPage({ branches }: BranchPageProps) {
-  const [branchesWithUnits, setBranchesWithUnits] = useState<BranchWithUnits[]>(
-    []
-  );
-  const { user } = useUsers(); // we’ll check role directly
-
-  useEffect(() => {
-    const unsubscribes: (() => void)[] = [];
-
-    const enrichedBranches = branches.map((branch) => {
-      const q = query(
-        collection(db, "Units"),
-        where("branchId", "==", branch.id)
-      );
-      const branchData: BranchWithUnits = {
-        ...branch,
-        totalUnits: 0,
-      };
-
-      const unsub = onSnapshot(q, (snapshot) => {
-        branchData.totalUnits = snapshot.size;
-        setBranchesWithUnits((prev) => {
-          const others = prev.filter((b) => b.id !== branch.id);
-          return [...others, branchData];
-        });
-      });
-
-      unsubscribes.push(unsub);
-      return branchData;
-    });
-
-    setBranchesWithUnits(enrichedBranches);
-
-    return () => unsubscribes.forEach((unsub) => unsub());
-  }, [branches]);
-
-  const totalBranches = branches.length;
-  const totalActive = 4; // TODO: calculate dynamically
-  const totalInactive = totalBranches - totalActive;
-
-  const isAdmin = user?.role === "admin"; // ✅ string check
+  if (isLoading) return <p className="p-4">Loading branches…</p>;
+  if (error) return <p className="p-4 text-red-500">Failed to load branches</p>;
 
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-3xl  text-foreground">
             Branch Management Dashboard
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -98,64 +28,13 @@ export function BranchPage({ branches }: BranchPageProps) {
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-[2px] mb-8">
-          <div className="flex flex-col border-l-2 border-current pl-2">
-            <div className="flex items-center gap-1">
-              <TrendingUp className="h-4 w-4 text-green-500" />
-              <span className="text-sm text-muted-foreground">
-                Total Branches
-              </span>
-            </div>
-            <div className="text-xl font-bold text-foreground">
-              <AnimatedNumber value={totalBranches} />
-            </div>
-            <p className="text-xs text-muted-foreground">All branches</p>
-          </div>
-
-          <div className="flex flex-col border-l-2 border-current pl-2">
-            <div className="flex items-center gap-1">
-              <Coins className="h-4 w-4 text-blue-500" />
-              <span className="text-sm text-muted-foreground">Active</span>
-            </div>
-            <div className="text-xl font-bold text-foreground">
-              <AnimatedNumber value={totalActive} />
-            </div>
-            <p className="text-xs text-muted-foreground">Currently active</p>
-          </div>
-
-          <div className="flex flex-col border-l-2 border-current pl-2">
-            <div className="flex items-center gap-1">
-              <TrendingUp className="h-4 w-4 text-amber-500" />
-              <span className="text-sm text-muted-foreground">Inactive</span>
-            </div>
-            <div className="text-xl font-bold text-foreground">
-              <AnimatedNumber value={totalInactive} />
-            </div>
-            <p className="text-xs text-muted-foreground">Currently inactive</p>
-          </div>
-
-          <div className="flex flex-col border-l-2 border-current pl-2">
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4 text-purple-500" />
-              <span className="text-sm text-muted-foreground">
-                Recently Added
-              </span>
-            </div>
-            <div className="text-xl font-bold text-foreground">
-              {branches.slice(-1).length}
-            </div>
-            <p className="text-xs text-muted-foreground">New this session</p>
-          </div>
-        </div>
-
         {/* Branches Grid */}
         <div>
-          <h2 className="text-xl font-semibold text-foreground mb-4">
+          <h2 className="text-xl font-mono text-foreground mb-4">
             All Branches ({branches.length})
           </h2>
 
-          {branchesWithUnits.length === 0 ? (
+          {branches.length === 0 ? (
             <div className="text-center py-16">
               <div className="max-w-md mx-auto">
                 <h3 className="text-lg font-medium text-foreground mb-2">
@@ -171,11 +50,11 @@ export function BranchPage({ branches }: BranchPageProps) {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {isAdmin && <AddBranchCard />}
-              {branchesWithUnits.map((branch) => (
+              {branches.map((branch) => (
                 <BranchCard
                   key={branch.id}
                   branch={branch}
-                  totalUnits={branch.totalUnits}
+                  totalUnits={branch.totalUnits || 0} // ensure default
                 />
               ))}
             </div>

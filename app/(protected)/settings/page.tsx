@@ -18,8 +18,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { ArrowDownRight } from "lucide-react";
-import { useUsers } from "@/hooks/use-users"; // ⬅️ your hook
+import {
+  ArrowDownRight,
+  MoreVertical,
+  User,
+  Calendar,
+  Shield,
+} from "lucide-react";
+import { useUser } from "@/providers/UserProvider";
 
 interface UserData {
   id: string;
@@ -31,18 +37,17 @@ interface UserData {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, loading } = useUsers(); // ⬅️ current logged-in user
+  const { user, loading } = useUser();
   const [users, setUsers] = useState<UserData[]>([]);
 
-  // 🚨 Restrict access: only admins
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        router.push("/"); // not logged in → home
+        router.push("/");
       } else if (user.status !== "approved") {
-        router.push("/sorry"); // pending/rejected → sorry page
+        router.push("/sorry");
       } else if (user.role !== "admin") {
-        router.push("/"); // approved but not admin → block
+        router.push("/");
       }
     }
   }, [user, loading, router]);
@@ -69,7 +74,7 @@ export default function SettingsPage() {
   }, [user]);
 
   if (loading || !user || user.status !== "approved" || user.role !== "admin") {
-    return null; // prevent flash
+    return null;
   }
 
   const updateRole = async (userId: string, role: string) => {
@@ -92,86 +97,122 @@ export default function SettingsPage() {
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "approved":
+        return "text-green-600 dark:text-green-400";
+      case "blacklisted":
+        return "text-red-600 dark:text-red-400";
+      default:
+        return "text-orange-600 dark:text-orange-400";
+    }
+  };
+
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-4">
-      <h1 className="text-2xl font-bold mb-4 text-foreground">
+    <div className="p-4 max-w-5xl mx-auto space-y-3">
+      <h1 className="text-xl font-bold mb-4 text-foreground px-2">
         Users Settings
       </h1>
-      {users.map((user) => (
+
+      {users.map((u) => (
         <div
-          key={user.id}
-          className="flex justify-between items-center border rounded-xl p-4 shadow-sm 
-                     bg-card text-card-foreground border-border"
+          key={u.id}
+          className="border rounded-lg p-3 shadow-sm bg-card text-card-foreground border-border"
         >
-          <div className="flex flex-col">
-            <span className="font-semibold">{user.email}</span>
-            <span className="text-sm text-muted-foreground">
-              Requested At:{" "}
-              {user.requestedAt?.toDate
-                ? user.requestedAt.toDate().toLocaleString()
-                : "N/A"}
-            </span>
-            <span className="text-sm">
-              Status:{" "}
+          {/* Main Content - Stacked for mobile */}
+          <div className="flex flex-col space-y-3">
+            {/* Email and Role */}
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <User size={16} className="text-muted-foreground" />
+                  <span className="font-semibold truncate">{u.email}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Shield size={14} className="text-muted-foreground" />
+                  <span className="text-muted-foreground">
+                    Role: {u.role || "Not set"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Status Badge - Mobile */}
               <span
-                className={`font-bold ${
-                  user.status === "approved"
-                    ? "text-green-600 dark:text-green-400"
-                    : user.status === "blacklisted"
-                    ? "text-red-600 dark:text-red-400"
-                    : "text-orange-600 dark:text-orange-400"
-                }`}
+                className={`text-xs font-bold px-2 py-1 rounded-full ${getStatusColor(
+                  u.status
+                )} bg-opacity-10`}
               >
-                {user.status}
+                {u.status}
               </span>
-            </span>
-          </div>
+            </div>
 
-          <div className="flex gap-4 items-center">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-1">
-                  {user.role || "Set Role"} <ArrowDownRight size={16} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem
-                  onClick={() => updateRole(user.id, "partner")}
-                >
-                  Partner
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => updateRole(user.id, "admin")}>
-                  Admin
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Request Date */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Calendar size={12} />
+              <span>
+                Requested:{" "}
+                {u.requestedAt?.toDate
+                  ? u.requestedAt.toDate().toLocaleDateString()
+                  : "N/A"}
+              </span>
+            </div>
 
-            {user.status !== "approved" && user.status !== "blacklisted" && (
-              <Button
-                onClick={() => approveUser(user.id)}
-                className="bg-green-600 text-white hover:bg-green-700"
-              >
-                Approve
-              </Button>
-            )}
+            {/* Action Buttons - Stacked on mobile */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-border">
+              {/* Role Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1 justify-center text-xs"
+                  >
+                    Set Role <ArrowDownRight size={12} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => updateRole(u.id, "partner")}>
+                    Partner
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => updateRole(u.id, "admin")}>
+                    Admin
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-            {user.status === "approved" && user.role !== "admin" && (
-              <Button
-                onClick={() => blacklistUser(user.id)}
-                className="bg-yellow-600 text-white hover:bg-yellow-700"
-              >
-                Blacklist
-              </Button>
-            )}
+              {/* Action Buttons Group */}
+              <div className="flex gap-2">
+                {u.status !== "approved" && u.status !== "blacklisted" && (
+                  <Button
+                    onClick={() => approveUser(u.id)}
+                    size="sm"
+                    className="bg-green-600 text-white hover:bg-green-700 flex-1 text-xs"
+                  >
+                    Approve
+                  </Button>
+                )}
 
-            {user.role !== "admin" && (
-              <Button
-                onClick={() => deleteUser(user.id)}
-                className="bg-red-600 text-white hover:bg-red-700"
-              >
-                Delete
-              </Button>
-            )}
+                {u.status === "approved" && u.role !== "admin" && (
+                  <Button
+                    onClick={() => blacklistUser(u.id)}
+                    size="sm"
+                    className="bg-yellow-600 text-white hover:bg-yellow-700 flex-1 text-xs"
+                  >
+                    Blacklist
+                  </Button>
+                )}
+
+                {u.role !== "admin" && (
+                  <Button
+                    onClick={() => deleteUser(u.id)}
+                    size="sm"
+                    className="bg-red-600 text-white hover:bg-red-700 flex-1 text-xs"
+                  >
+                    Delete
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       ))}
