@@ -41,8 +41,7 @@ async function fetchBranches(): Promise<BranchData[]> {
 // single branch fetch
 async function fetchBranch(branchId: string): Promise<BranchData | null> {
   const branchRef = doc(db, "Branches", branchId);
-  const branchSnap = await getDoc(branchRef);
-
+  const branchSnap = await getDoc(branchRef); //Fetch Branch By ID (branchId)
   if (!branchSnap.exists()) return null;
 
   const data = branchSnap.data();

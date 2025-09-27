@@ -1,13 +1,13 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useBranchAggregates } from "@/hooks/use-branch-aggregates";
+import { useBranchAggregatesHistory } from "@/hooks/use-branch-aggregates-history"; // Adjust path
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MapPin, Activity, Calendar } from "lucide-react";
 import Link from "next/link";
 import React from "react";
-import { AggregatesCard } from "@/components/Branch/aggregates-card";
+import { AggregatesTable } from "@/components/Branch/aggregates-table"; // Adjust path (renamed from aggregates-card)
 
 const BranchHeader = React.memo(
   ({ branchId, location }: { branchId: string; location?: string }) => (
@@ -19,17 +19,17 @@ const BranchHeader = React.memo(
         </Link>
       </Button>
 
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 font-mono">
         <div className="p-2 bg-secondary/10 rounded-lg">
-          <MapPin className="h-6 w-6 text-secondary" />
+          <MapPin className="h-6 w-6 text-primary" />
         </div>
         <h1 className="text-3xl font-bold text-foreground text-balance">
           {location || `Branch ${branchId}`}
         </h1>
       </div>
 
-      <p className="text-muted-foreground text-lg">
-        Real-time performance metrics and transaction data
+      <p className="text-muted-foreground text-lg font-mono">
+        Historical performance metrics and transaction data
       </p>
     </div>
   )
@@ -39,20 +39,48 @@ BranchHeader.displayName = "BranchHeader";
 
 function BranchPageClient() {
   const { branchId } = useParams<{ branchId: string }>();
-  const { data, isLoading, isError, error } = useBranchAggregates(branchId);
+  const {
+    data: historyData,
+    isLoading,
+    isError,
+    error,
+  } = useBranchAggregatesHistory(branchId as string, 30); // Last 30 days
+
+  const location = historyData.length > 0 ? historyData[0].location : undefined;
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {" "}
+          {/* Wider for table */}
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-muted rounded w-1/3"></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-32 bg-muted rounded-lg"></div>
-              ))}
+            <div className="space-y-2">
+              <div className="h-10 bg-muted rounded-md"></div>{" "}
+              {/* Header skeleton */}
+              <div className="space-y-4">
+                {[...Array(5)].map(
+                  (
+                    _,
+                    i // Skeleton rows
+                  ) => (
+                    <div key={i} className="flex gap-4 p-4 bg-muted rounded-md">
+                      <div className="h-4 bg-muted-foreground/20 rounded w-20"></div>
+                      <div className="h-4 bg-muted-foreground/20 rounded flex-1"></div>
+                      <div className="h-4 bg-muted-foreground/20 rounded w-24"></div>
+                      {/* Repeat for other columns */}
+                      {[...Array(6)].map((_, j) => (
+                        <div
+                          key={j}
+                          className="h-4 bg-muted-foreground/20 rounded w-20"
+                        ></div>
+                      ))}
+                    </div>
+                  )
+                )}
+              </div>
             </div>
-            <div className="h-64 bg-muted rounded-lg"></div>
           </div>
         </div>
       </div>
@@ -62,7 +90,7 @@ function BranchPageClient() {
   if (isError) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Card className="border-destructive/20 bg-destructive/5">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="p-4 bg-destructive/10 rounded-full mb-4">
@@ -87,10 +115,11 @@ function BranchPageClient() {
     );
   }
 
-  if (!data) {
+  if (historyData.length === 0) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <BranchHeader branchId={branchId as string} location={location} />
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="p-4 bg-muted rounded-full mb-4">
@@ -118,13 +147,16 @@ function BranchPageClient() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BranchHeader branchId={branchId} location={data?.location} />
-
-        <AggregatesCard data={data} />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {" "}
+        {/* Wider for table */}
+        <BranchHeader branchId={branchId as string} location={location} />
+        <AggregatesTable
+          data={historyData}
+          location={location || `Branch ${branchId}`}
+        />
       </div>
     </div>
   );
 }
-
 export default BranchPageClient;

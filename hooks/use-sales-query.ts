@@ -27,7 +27,7 @@ export function useSalesQuery() {
   const queryResult = useQuery<SalesDocument[], Error>({
     queryKey: [...CACHE_KEY, todayKey],
     queryFn: async () => {
-      console.log(`[v0] LETS GET THIS  STARTED - NO FUCKING CATCH FOR ${todayKey} MOTHERFUCKER`)
+      console.log(`[v0] No cache for ${todayKey} `)
       console.log(`[v0] YOUR KEY DUMBASS:`, [...CACHE_KEY, todayKey])
       const sales = await fetchSalesByDay(todayKey)
       console.log(`[v0]  ITS  DONE!: ${sales.length} SALES RETRIVED`)

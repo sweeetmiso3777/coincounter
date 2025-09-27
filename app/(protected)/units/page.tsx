@@ -1,4 +1,10 @@
 import { UnitsTable } from "@/components/Unit/units-page";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Units List",
+  description: "View All Your Units.",
+};
 
 export default function Home() {
   return (
