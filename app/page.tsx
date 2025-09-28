@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { signInWithGoogle } from "../lib/firebase";
 import { useUser } from "@/providers/UserProvider";
@@ -12,6 +12,22 @@ export default function Home() {
   const router = useRouter();
   const [showInfo, setShowInfo] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [hue, setHue] = useState(151);
+  const [displayHue, setDisplayHue] = useState(151);
+  const [showHueSlider, setShowHueSlider] = useState(false);
+
+  // Debounced hue update for better performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setHue(displayHue);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [displayHue]);
+
+  const handleHueChange = useCallback((value: number) => {
+    setDisplayHue(value);
+  }, []);
 
   const handleGoogleLogin = async () => {
     try {
@@ -55,12 +71,79 @@ export default function Home() {
       {/* Lightning Background */}
       <div className="absolute inset-0 z-0">
         <Lightning
-          hue={151}
+          hue={hue}
           xOffset={isMobile ? 0.8 : 1.3}
           speed={0.7}
           intensity={isMobile ? 0.8 : 1.1}
           size={isMobile ? 1.2 : 1.7}
         />
+      </div>
+
+      {/* Hue Control Arrow and Slider - Mobile: top-left, Desktop: left-center */}
+      <div
+        className={`fixed z-20 flex items-center gap-3 ${
+          isMobile
+            ? "top-4 left-4"
+            : "left-4 top-1/2 transform -translate-y-1/2"
+        }`}
+      >
+        {/* Hue Slider */}
+        <div
+          className={`bg-black/20 backdrop-blur-lg rounded-xl border border-white/10 p-4 transition-all duration-300 ${
+            showHueSlider
+              ? "opacity-100 translate-x-0 w-32"
+              : "opacity-0 translate-x-2 w-0 overflow-hidden"
+          }`}
+        >
+          <div className="space-y-2">
+            <label className="text-xs text-white/70 block">
+              Hue: {displayHue}°
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="360"
+              value={displayHue}
+              onChange={(e) => handleHueChange(parseInt(e.target.value))}
+              className="w-full h-1 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+              style={{
+                background: `linear-gradient(to right, 
+                  hsl(0, 70%, 50%), 
+                  hsl(60, 70%, 50%), 
+                  hsl(120, 70%, 50%), 
+                  hsl(180, 70%, 50%), 
+                  hsl(240, 70%, 50%), 
+                  hsl(300, 70%, 50%), 
+                  hsl(360, 70%, 50%))`,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Arrow Button */}
+        <button
+          onClick={() => setShowHueSlider(!showHueSlider)}
+          className="w-8 h-8 flex items-center justify-center bg-black/20 backdrop-blur-lg rounded-full border border-white/10 hover:bg-white/10 transition-all duration-300 group"
+          title="Adjust lightning color"
+        >
+          <div
+            className={`transform transition-transform duration-300 ${
+              showHueSlider ? "rotate-180" : "rotate-0"
+            }`}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="text-white/70 group-hover:text-white"
+            >
+              <path d="M15 18l6-6-6-6" />
+            </svg>
+          </div>
+        </button>
       </div>
 
       {/* Main Container - Stack vertically on mobile */}
