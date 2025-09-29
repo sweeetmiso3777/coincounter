@@ -20,12 +20,16 @@ interface BranchCardProps {
 
 export function BranchCard({ branch, totalUnits }: BranchCardProps) {
   // ---------- Date Helpers ----------
-  const formatDate = (date: Date) =>
-    new Intl.DateTimeFormat("en-US", {
+  const formatDate = (date: Date | null | undefined) => {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return "Invalid date";
+    }
+    return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     }).format(date);
+  };
 
   const getOrdinalSuffix = (day: number) => {
     if (day >= 11 && day <= 13) return "th";

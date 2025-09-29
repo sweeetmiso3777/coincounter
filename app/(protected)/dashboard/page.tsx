@@ -3,7 +3,7 @@
 import { GitCommit, Calendar, User, Loader2, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { ToastTester } from "@/components/ToastTester";
-
+import Image from "next/image";
 interface GitHubCommit {
   sha: string;
   commit: {
@@ -151,10 +151,12 @@ function Dashboard() {
                 <div className="flex items-start space-x-4">
                   <div className="flex-shrink-0">
                     {commit.author?.avatar_url ? (
-                      <img
+                      <Image
                         src={commit.author.avatar_url}
                         alt={commit.author.login}
-                        className="w-10 h-10 rounded-full"
+                        width={40}
+                        height={40}
+                        className="rounded-full"
                       />
                     ) : (
                       <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">

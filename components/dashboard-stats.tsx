@@ -5,6 +5,24 @@ interface DashboardStatsProps {
   branches: BranchData[];
 }
 
+function getNextHarvestDate(harvestDay: number): Date {
+  const now = new Date();
+  let harvestDate = new Date(now.getFullYear(), now.getMonth(), harvestDay);
+
+  // If the harvest day this month has already passed, move to next month
+  if (harvestDate < now) {
+    harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, harvestDay);
+  }
+
+  // Handle cases where the day might not exist in next month (e.g., 31st in Feb)
+  if (harvestDate.getDate() !== harvestDay) {
+    // Set to last day of next month
+    harvestDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+  }
+
+  return harvestDate;
+}
+
 export function DashboardStats({ branches }: DashboardStatsProps) {
   const totalBranches = branches.length;
   const uniqueManagers = new Set(branches.map((b) => b.branch_manager)).size;
@@ -14,12 +32,14 @@ export function DashboardStats({ branches }: DashboardStatsProps) {
           branches.reduce((sum, b) => sum + b.share, 0) / branches.length
         )
       : 0;
-  const upcomingHarvests = branches.filter(
-    (b) =>
-      b.date_of_harvest &&
-      b.date_of_harvest > new Date() &&
-      b.date_of_harvest <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-  ).length;
+
+  const now = new Date();
+  const in30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  const upcomingHarvests = branches.filter((b) => {
+    const nextHarvest = getNextHarvestDate(b.harvest_day_of_month);
+    return nextHarvest > now && nextHarvest <= in30Days;
+  }).length;
 
   const stats = [
     {

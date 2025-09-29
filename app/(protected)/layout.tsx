@@ -1,10 +1,11 @@
+// ProtectedLayout.tsx
 "use client";
 
 import type React from "react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Nav } from "@/components/nav";
-import { Providers } from "@/providers/Sales-Query-Provider";
+import { BranchesQueryProvider } from "@/providers/BranchesQueryProvider";
 import { UserProvider, useUser } from "@/providers/UserProvider";
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
@@ -23,9 +24,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Nav />
-      <main className="min-h-screen bg-background">
-        <Providers>{children}</Providers>
-      </main>
+      <main className="min-h-screen bg-background">{children}</main>
     </>
   );
 }
@@ -37,7 +36,9 @@ export default function ProtectedLayout({
 }) {
   return (
     <UserProvider>
-      <LayoutContent>{children}</LayoutContent>
+      <BranchesQueryProvider>
+        <LayoutContent>{children}</LayoutContent>
+      </BranchesQueryProvider>
     </UserProvider>
   );
 }

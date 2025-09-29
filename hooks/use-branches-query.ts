@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { collection, doc, getDocs, getDoc } from "firebase/firestore";
+import { useQuery } from "@tanstack/react-query";
+import { collection, doc, getDocs, getDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export interface BranchData {
@@ -11,54 +11,45 @@ export interface BranchData {
   harvest_day_of_month: number;
   created_at: Date;
   share: number;
-  totalUnits: number; // totalUnits
+  totalUnits: number;
 }
 
-// fetch all branches with totalUnits
+// fetch all branches
 async function fetchBranches(): Promise<BranchData[]> {
-  const branchesSnapshot = await getDocs(collection(db, "Branches"));
-
-  const branches: BranchData[] = await Promise.all(
-    branchesSnapshot.docs.map(async (docSnap) => {
-      const data = docSnap.data();
-      
-      const totalUnits = data.totalUnits ?? 0;
-      return {
-        id: docSnap.id,
-        branch_manager: data.branch_manager,
-        location: data.location,
-        harvest_day_of_month: data.harvest_day_of_month,
-        created_at: data.created_at?.toDate?.() ?? new Date(),
-        share: data.share ?? 0,
-        totalUnits,
-      };
-    })
-  );
-
-  return branches;
+  const snapshot = await getDocs(collection(db, "Branches"));
+  return snapshot.docs.map((docSnap) => {
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      branch_manager: data.branch_manager,
+      location: data.location,
+      harvest_day_of_month: data.harvest_day_of_month,
+      created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(),
+      share: data.share ?? 0,
+      totalUnits: data.totalUnits ?? 0,
+    };
+  });
 }
 
-// single branch fetch
+// fetch single branch
 async function fetchBranch(branchId: string): Promise<BranchData | null> {
   const branchRef = doc(db, "Branches", branchId);
-  const branchSnap = await getDoc(branchRef); //Fetch Branch By ID (branchId)
+  const branchSnap = await getDoc(branchRef);
   if (!branchSnap.exists()) return null;
 
   const data = branchSnap.data();
-  const totalUnits = data.totalUnits ?? 0;
-
   return {
     id: branchSnap.id,
     branch_manager: data.branch_manager,
     location: data.location,
     harvest_day_of_month: data.harvest_day_of_month,
-    created_at: data.created_at?.toDate?.() ?? new Date(),
+    created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(),
     share: data.share ?? 0,
-    totalUnits,
+    totalUnits: data.totalUnits ?? 0,
   };
 }
 
-// TanStack Query hook
+// React Query hooks
 export function useBranches() {
   return useQuery<BranchData[]>({
     queryKey: ["branches"],
