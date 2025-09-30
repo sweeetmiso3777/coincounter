@@ -1,10 +1,9 @@
 "use client";
 
 import type React from "react";
-
 import { useState, useEffect } from "react";
-import { updateBranch } from "@/hooks/useBranches";
 import { toast } from "sonner";
+import { useBranches } from "@/hooks/use-branches-query";
 
 interface EditBranchModalProps {
   open: boolean;
@@ -23,6 +22,7 @@ export default function EditBranchModal({
   onClose,
   existingBranch,
 }: EditBranchModalProps) {
+  const { updateBranch } = useBranches();
   const [branchManager, setBranchManager] = useState("");
   const [location, setLocation] = useState("");
   const [harvestDayOfMonth, setHarvestDayOfMonth] = useState("");
@@ -31,7 +31,7 @@ export default function EditBranchModal({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (existingBranch) {
+    if (existingBranch && open) {
       setBranchManager(existingBranch.branch_manager);
       setLocation(existingBranch.location);
       setHarvestDayOfMonth(existingBranch.harvest_day_of_month.toString());
@@ -48,19 +48,21 @@ export default function EditBranchModal({
 
     try {
       const dayOfMonth = Number(harvestDayOfMonth);
-
       if (dayOfMonth < 1 || dayOfMonth > 31) {
         throw new Error("Day of month must be between 1 and 31");
       }
 
-      await updateBranch(existingBranch.id, {
-        branch_manager: branchManager,
-        location,
-        harvest_day_of_month: dayOfMonth,
-        share: Number(share),
+      await updateBranch.mutateAsync({
+        id: existingBranch.id,
+        data: {
+          branch_manager: branchManager,
+          location,
+          harvest_day_of_month: dayOfMonth,
+          share: Number(share),
+        },
       });
 
-      toast.success("Branch has been updated successfully!", {
+      toast.success("Branch updated successfully!", {
         style: {
           background: "#dcfce7",
           border: "1px solid #bbf7d0",
@@ -70,15 +72,21 @@ export default function EditBranchModal({
 
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save branch");
+      setError(err instanceof Error ? err.message : "Failed to update branch");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <div className="bg-card rounded-lg shadow-lg w-full max-w-md p-6 border border-border">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={onClose} // close when clicking on overlay
+    >
+      <div
+        className="bg-card rounded-lg shadow-lg w-full max-w-md p-6 border border-border z-50"
+        onClick={(e) => e.stopPropagation()} // prevent modal close when clicking inside
+      >
         <h2 className="text-xl font-semibold mb-4 text-foreground">
           Edit Branch
         </h2>
@@ -134,12 +142,7 @@ export default function EditBranchModal({
               onChange={(e) => setHarvestDayOfMonth(e.target.value)}
               required
               className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
-              placeholder="Enter day (1-31)"
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Day of the month when harvest occurs (e.g., 15 for the 15th of
-              every month)
-            </p>
           </div>
 
           <div>
@@ -156,10 +159,6 @@ export default function EditBranchModal({
               required
               className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              The percentage of the total harvest allocated to this branch
-              (0-100%)
-            </p>
           </div>
 
           {error && <p className="text-destructive text-sm">{error}</p>}

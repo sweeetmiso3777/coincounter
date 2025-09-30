@@ -1,4 +1,5 @@
 "use client";
+
 import { toast } from "sonner";
 import {
   useState,
@@ -7,10 +8,9 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { MoreVertical, Edit, Trash2 } from "lucide-react";
+import { MoreVertical, Trash2, Edit } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { doc, deleteDoc } from "firebase/firestore";
-import EditBranchModal from "./EditBranchModal";
 
 interface CardMenuProps {
   branchId: string; // Firestore document ID
@@ -20,6 +20,7 @@ interface CardMenuProps {
     harvest_day_of_month: number;
     share: number;
   };
+  onEdit?: () => void; // new callback to open modal
 }
 
 export interface CardMenuRef {
@@ -27,9 +28,8 @@ export interface CardMenuRef {
 }
 
 export const CardMenu = forwardRef<CardMenuRef, CardMenuProps>(
-  ({ branchId, branchData }, ref) => {
+  ({ branchId, branchData, onEdit }, ref) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [editing, setEditing] = useState(false); // controls edit modal
     const menuRef = useRef<HTMLDivElement>(null);
 
     // Expose openMenu function to parent
@@ -57,7 +57,6 @@ export const CardMenu = forwardRef<CardMenuRef, CardMenuProps>(
       if (!confirm("Are you sure you want to delete this branch?")) return;
       try {
         await deleteDoc(doc(db, "Branches", branchId));
-        console.log("Branch deleted:", branchId);
         toast.success("Branch has been deleted successfully!", {
           style: {
             background: "#dcfce7",
@@ -92,8 +91,7 @@ export const CardMenu = forwardRef<CardMenuRef, CardMenuProps>(
               onClick={(e) => {
                 e.stopPropagation();
                 setIsOpen(false);
-                console.log("Editing branch with ID:", branchId);
-                setEditing(true); // Open modal
+                onEdit?.(); // call parent's edit handler
               }}
               className="w-full px-3 py-2 text-left text-sm text-popover-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
             >
@@ -112,14 +110,6 @@ export const CardMenu = forwardRef<CardMenuRef, CardMenuProps>(
               Remove
             </button>
           </div>
-        )}
-
-        {editing && (
-          <EditBranchModal
-            open={editing}
-            onClose={() => setEditing(false)}
-            existingBranch={{ id: branchId, ...branchData }}
-          />
         )}
       </div>
     );

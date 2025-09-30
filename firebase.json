@@ -5,6 +5,13 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "redirects": [
+      {
+        "source": "**",
+        "destination": "https://coincounter.vercel.app/",
+        "type": 301
+      }
     ]
   },
   "firestore": {

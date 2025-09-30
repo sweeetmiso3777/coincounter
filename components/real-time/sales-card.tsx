@@ -50,7 +50,7 @@ export function SalesCard({ sale }: SalesCardProps) {
     };
   };
 
-  const { date, time } = formatTimestamp(sale.timestamp);
+  const { date, time } = formatTimestamp(sale.timestamp as FirestoreTimestamp);
 
   const coinDenominations = [
     { denomination: "₱1", count: sale.coins_1 },

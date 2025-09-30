@@ -9,7 +9,8 @@ export interface SalesDocument {
   coins_10: number
   coins_20: number
   total: number
-  timestamp: Timestamp
+  timestamp: Timestamp | Date | string | { seconds: number; nanoseconds: number }
+
 }
 
 export interface SalesWithBranch extends SalesDocument {

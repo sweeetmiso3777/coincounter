@@ -1,8 +1,8 @@
 // lib/firebase.ts
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions'; // New: for Cloud Functions
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -16,24 +16,32 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// Configure Firestore with offline persistence
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
+
 export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const functions = getFunctions(app); // New: Export functions instance
+// export const functions = getFunctions(app);
 export const googleProvider = new GoogleAuthProvider();
-// Updated signInWithGoogle (if not already; ensures session handling)
+
+// Your existing signInWithGoogle function remains unchanged
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
-    console.log('Signed in with Google:', user.email); // Gmail log
+    console.log('Signed in with Google:', user.email);
     // Optional: Force token refresh after sign-in to pick up claims immediately
     if (user) {
       await user.getIdToken(true);
     }
     return result;
   } catch (error: unknown) {
-  if (error instanceof Error) {
-    console.error("Google sign-in error:", error.message);
+    if (error instanceof Error) {
+      console.error("Google sign-in error:", error.message);
     } else {
       console.error("Unknown sign-in error:", error);
     }
