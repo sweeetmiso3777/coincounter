@@ -1,9 +1,26 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@/providers/UserProvider"; // adjust path if needed
 
 export default function ImSorryPage() {
+  const { user, loading } = useUser();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user) {
+      if (user.status === "approved") {
+        if (user.role === "admin" || user.role === "partner") {
+          router.push("/dashboard");
+        } else {
+          router.push("/sorry"); // optional: redirect somewhere else
+        }
+      }
+    }
+  }, [user, loading, router]);
+
+  if (loading) return null; // or a spinner
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white px-8">
