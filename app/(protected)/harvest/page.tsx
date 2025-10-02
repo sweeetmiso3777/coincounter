@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
-import { ContinuousCalendar } from "@/components/CCalendar";
-import { useBranches, BranchData } from "@/hooks/use-branches-query";
+import { useBranches } from "@/hooks/use-branches-query";
 import { Calendar1, HandCoins, User } from "lucide-react";
+import FullCalendarComponent from "@/components/FullCalendarComponent";
 
 export default function CalendarWithSidebarPage() {
   const { data: branches = [], isLoading, error } = useBranches();
@@ -16,19 +16,15 @@ export default function CalendarWithSidebarPage() {
   useEffect(() => {
     const updateHeight = () => {
       if (calendarContainerRef.current) {
-        // Get the available height considering the viewport and header
-        const availableHeight = window.innerHeight - 200; // Adjust this value as needed
-        setCalendarHeight(Math.min(availableHeight, 800)); // Max height of 800px
+        const availableHeight = window.innerHeight - 200;
+        setCalendarHeight(Math.min(availableHeight, 800));
       }
     };
-
     updateHeight();
     window.addEventListener("resize", updateHeight);
-
     return () => window.removeEventListener("resize", updateHeight);
   }, []);
 
-  // Colors for branches
   const colors: string[] = [
     "#f87171",
     "#34d399",
@@ -39,41 +35,53 @@ export default function CalendarWithSidebarPage() {
     "#22d3ee",
   ];
 
-  interface BranchWithHarvest extends BranchData {
+  interface BranchWithHarvest {
+    id: string;
+    branch_manager: string;
+    location: string;
+    harvest_day_of_month: number;
+    share: number;
+    totalUnits: number;
     color: string;
-    nextHarvest: {
-      date: Date;
-      endDate: Date;
-      daysUntil: number;
-    };
   }
 
   const branchesWithHarvests: BranchWithHarvest[] = branches.map(
-    (b, index): BranchWithHarvest => ({
+    (b, index) => ({
       ...b,
       color: colors[index % colors.length],
-      nextHarvest: {
-        date: new Date(),
-        endDate: new Date(),
-        daysUntil: Math.floor(Math.random() * 10),
-      },
     })
   );
 
-  // Sort by closest harvest
-  branchesWithHarvests.sort(
-    (a, b) => a.nextHarvest.daysUntil - b.nextHarvest.daysUntil
-  );
+  // Generate events for previous 2, current, next 3 years
+  const events = branchesWithHarvests
+    .filter((b) => selectedBranch === "all" || b.id === selectedBranch)
+    .flatMap((branch) => {
+      const now = new Date();
+      const startYear = now.getFullYear() - 2;
+      const endYear = now.getFullYear() + 3;
+      const branchEvents = [];
 
-  const handleCalendarClick = (day: number, month: number, year: number) => {
-    console.log("Clicked date:", day, month, year);
-  };
+      for (let year = startYear; year <= endYear; year++) {
+        for (let month = 0; month < 12; month++) {
+          branchEvents.push({
+            location: branch.location,
+            manager: branch.branch_manager,
+            share: branch.share,
+            start: new Date(year, month, branch.harvest_day_of_month),
+            color: branch.color,
+            allDay: true,
+          });
+        }
+      }
+
+      return branchEvents;
+    });
 
   if (isLoading) return <p className="p-4">Loading branches…</p>;
   if (error) return <p className="p-4 text-red-500">Failed to load branches</p>;
 
   return (
-    <div className="min-h-screen bg-background ">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-6">
@@ -88,11 +96,11 @@ export default function CalendarWithSidebarPage() {
         <div className="flex gap-6 flex-col lg:flex-row min-h-0 bg-background">
           {/* Sidebar */}
           <div
-            className="w-full lg:w-70 flex-shrink-0 lg:order-1 bg-background"
+            className="w-full lg:w-70 flex-shrink-0 lg:order-1 bg-background "
             style={{ height: `${calendarHeight}px`, minHeight: "400px" }}
           >
             <div className="bg-background rounded-lg shadow-sm border h-full flex flex-col">
-              <div className="p-4 flex-shrink-0 bg-background ">
+              <div className="p-4 flex-shrink-0 bg-background">
                 <h2 className="text-lg font-bold text-foreground">
                   Branch Harvests
                 </h2>
@@ -103,7 +111,6 @@ export default function CalendarWithSidebarPage() {
                   data={branchesWithHarvests}
                   itemContent={(index, branch) => {
                     const {
-                      nextHarvest,
                       id,
                       location,
                       branch_manager,
@@ -112,7 +119,6 @@ export default function CalendarWithSidebarPage() {
                       share,
                       totalUnits,
                     } = branch;
-
                     return (
                       <div
                         key={id}
@@ -145,48 +151,19 @@ export default function CalendarWithSidebarPage() {
                             </span>
                           </div>
                         </div>
-
-                        {nextHarvest ? (
-                          <div className="border rounded p-2 bg-card shadow-sm">
-                            <div className="flex justify-between items-start mb-1">
-                              <span className="font-medium text-sm">
-                                Next Harvest
-                              </span>
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {nextHarvest.daysUntil > 0
-                                  ? `in ${nextHarvest.daysUntil} days`
-                                  : nextHarvest.daysUntil === 0
-                                  ? "Today"
-                                  : "In Progress"}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>
-                                {nextHarvest.date.toLocaleDateString()}
-                              </span>
-                              <span>
-                                → {nextHarvest.endDate.toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            No upcoming harvest
-                          </p>
-                        )}
                       </div>
                     );
                   }}
                 />
               </div>
-              <div className="p-4 border-t flex-shrink-0">
-                <h3 className="font-medium text-foreground mb-2 text-sm">
+              <div className="p-4 border-t flex-shrink-0 bg-card rounded-b-lg shadow-sm cursor-pointer">
+                <h3 className="font-medium text-foreground mb-2 text-sm cursor-pointer">
                   Filter by Branch
                 </h3>
                 <select
                   value={selectedBranch}
                   onChange={(e) => setSelectedBranch(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-background text-sm text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm cursor-pointer"
                 >
                   <option value="all">All Branches</option>
                   {branches.map((branch) => (
@@ -197,6 +174,11 @@ export default function CalendarWithSidebarPage() {
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* Calendar */}
+          <div className="flex-1" ref={calendarContainerRef}>
+            <FullCalendarComponent events={events} height={calendarHeight} />
           </div>
         </div>
       </div>

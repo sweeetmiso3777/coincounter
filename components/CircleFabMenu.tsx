@@ -12,6 +12,7 @@ import {
   X,
   Menu,
   ArrowLeftRight,
+  Settings,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -28,13 +29,13 @@ export function CircleFabMenu({ handleLogout }: CircleFabMenuProps) {
     { icon: <MapPin />, href: "/branches", label: "Branches" },
     { icon: <Grid />, href: "/units", label: "Units" },
     { icon: <Activity />, href: "/real-time", label: "Real-Time" },
-    { icon: <User />, href: "/contacts", label: "Contacts" },
+    { icon: <Settings />, href: "/settings", label: "Settings" },
     { icon: <LogOut />, action: handleLogout, label: "Logout" },
   ];
 
-  const containerClasses = `fixed bottom-6 z-50 flex flex-col items-end gap-2 ${
-    position === "right" ? "right-6" : "left-6"
-  }`;
+  const containerClasses = `fixed bottom-6 z-50 flex flex-col ${
+    position === "right" ? "items-end right-6" : "items-start left-6"
+  } gap-2`;
 
   return (
     <div className={containerClasses}>
@@ -62,12 +63,16 @@ export function CircleFabMenu({ handleLogout }: CircleFabMenuProps) {
                 damping: 30,
                 delay: index * 0.05,
               }}
-              className="flex items-center gap-2"
+              className={`flex items-center ${
+                position === "left" ? "flex-row-reverse" : "flex-row"
+              } gap-2`}
             >
               {item.href ? (
                 <Link
                   href={item.href}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background text-foreground shadow hover:bg-accent/20 text-sm"
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-background text-foreground shadow hover:bg-accent/20 text-sm ${
+                    position === "left" ? "flex-row-reverse" : ""
+                  }`}
                   onClick={() => setOpen(false)}
                 >
                   {item.icon}
@@ -79,7 +84,9 @@ export function CircleFabMenu({ handleLogout }: CircleFabMenuProps) {
                     setOpen(false);
                     item.action?.();
                   }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background text-foreground shadow hover:bg-accent/20 text-sm"
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-background text-foreground shadow hover:bg-accent/20 text-sm ${
+                    position === "left" ? "flex-row-reverse" : ""
+                  }`}
                 >
                   {item.icon}
                   <span>{item.label}</span>

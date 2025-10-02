@@ -48,19 +48,33 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    console.log(" STARTING DAILY AGGREGATION PROCESS");
+    
     const today = getManilaDate();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
     const todayDateId = getDateId(today);
 
+    console.log(` Processing date: ${todayDateId}`);
+    console.log(` Time range: ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`);
+
     // --- Step 1: Aggregate Today's Sales ---
+    console.log(" Querying today's sales...");
     const salesSnapshot = await db.collection("sales")
       .where("timestamp", ">=", admin.firestore.Timestamp.fromDate(startOfDay))
       .where("timestamp", "<=", admin.firestore.Timestamp.fromDate(endOfDay))
       .get();
 
+    console.log(` Found ${salesSnapshot.size} sales documents for today`);
+
     const deviceAggregates: Record<string, Aggregate> = {};
-    const devicesWithSales: Record<string, { sales_count: number }> = {};
+    let totalSalesAmount = 0;
+    let totalCoins = {
+      coins_1: 0,
+      coins_5: 0,
+      coins_10: 0,
+      coins_20: 0
+    };
 
     salesSnapshot.forEach(doc => {
       const data = doc.data();
@@ -85,22 +99,59 @@ export async function GET(request: NextRequest) {
       deviceAggregates[deviceId].total += data.total || 0;
       deviceAggregates[deviceId].sales_count += 1;
 
-      devicesWithSales[deviceId] = devicesWithSales[deviceId] || { sales_count: 0 };
-      devicesWithSales[deviceId].sales_count += 1;
+      // Track overall totals
+      totalSalesAmount += data.total || 0;
+      totalCoins.coins_1 += data.coins_1 || 0;
+      totalCoins.coins_5 += data.coins_5 || 0;
+      totalCoins.coins_10 += data.coins_10 || 0;
+      totalCoins.coins_20 += data.coins_20 || 0;
     });
 
+    // Log device-specific aggregation results
+    console.log(`\n SALES AGGREGATION RESULTS:`);
+    console.log(`Devices with sales today: ${Object.keys(deviceAggregates).length}`);
+    
+    Object.entries(deviceAggregates).forEach(([deviceId, agg]) => {
+      console.log(`\n Device: ${deviceId}`);
+      console.log(`   • Sales Count: ${agg.sales_count}`);
+      console.log(`   • Total Amount: ₱${agg.total}`);
+      console.log(`   • Coins Breakdown:`);
+      console.log(`     - 1P: ${agg.coins_1} coins`);
+      console.log(`     - 5P: ${agg.coins_5} coins`);
+      console.log(`     - 10P: ${agg.coins_10} coins`);
+      console.log(`     - 20P: ${agg.coins_20} coins`);
+    });
+
+    console.log(`\n GRAND TOTALS ACROSS ALL DEVICES:`);
+    console.log(`   • Total Sales: ${salesSnapshot.size} transactions`);
+    console.log(`   • Total Amount: ₱${totalSalesAmount}`);
+    console.log(`   • Total Coins: ${totalCoins.coins_1 + totalCoins.coins_5 + totalCoins.coins_10 + totalCoins.coins_20} coins`);
+    console.log(`   • Coin Distribution: 1P(${totalCoins.coins_1}) 5P(${totalCoins.coins_5}) 10P(${totalCoins.coins_10}) 20P(${totalCoins.coins_20})`);
+
     // --- Step 2: Write Aggregates ---
+    console.log(`\n Writing aggregates to Firestore...`);
     const batchAggregates = db.batch();
+    const aggregateWrites = [];
+
     for (const [deviceId, agg] of Object.entries(deviceAggregates)) {
       const aggRef = db.collection("Units").doc(deviceId).collection("aggregates").doc(todayDateId);
       batchAggregates.set(aggRef, agg, { merge: true });
+      aggregateWrites.push(deviceId);
     }
 
-    // --- Step 3: Process Unrecovered Backups ---
-    const backupsSnapshot = await db.collection("backups").where("Recovered", "==", false).get();
-    const batchBackups = db.batch();
+    console.log(`Preparing ${aggregateWrites.length} aggregate documents...`);
+    await batchAggregates.commit();
+    console.log(`Successfully wrote aggregates for ${aggregateWrites.length} devices`);
 
+    // --- Step 3: Process Unrecovered Backups ---
+    console.log(`\n PROCESSING UNRECOVERED BACKUPS`);
+    const backupsSnapshot = await db.collection("backups").where("Recovered", "==", false).get();
+    
+    console.log(`Found ${backupsSnapshot.size} unrecovered backup documents`);
+
+    const batchBackups = db.batch();
     const backupsByDeviceDate: Record<string, BackupAggregate> = {};
+    let processedBackupCount = 0;
 
     backupsSnapshot.forEach(doc => {
       const data = doc.data();
@@ -131,46 +182,55 @@ export async function GET(request: NextRequest) {
         backupsByDeviceDate[key].timestamp = admin.firestore.Timestamp.fromDate(uploadedAt);
       }
 
-      // mark original backup as recovered
+      // Mark original backup as recovered
       batchBackups.update(doc.ref, { Recovered: true });
+      processedBackupCount++;
     });
 
-    // Write aggregated backups
+    console.log(`Aggregated ${backupsSnapshot.size} backups into ${Object.keys(backupsByDeviceDate).length} device-date combinations`);
+
+    // Write aggregated backups to Units backups subcollection
+    console.log(`Writing aggregated backups...`);
     for (const key in backupsByDeviceDate) {
       const [deviceId, dateId] = key.split("__");
       const backupRef = db.collection("Units").doc(deviceId).collection("backups").doc(dateId);
       batchBackups.set(backupRef, backupsByDeviceDate[key], { merge: true });
+      console.log(`   • Backup for ${deviceId} on ${dateId}: ₱${backupsByDeviceDate[key].total}`);
     }
 
-    await Promise.all([batchAggregates.commit(), batchBackups.commit()]);
+    await batchBackups.commit();
+    console.log(`Successfully processed ${processedBackupCount} backups`);
 
-    // --- Step 4: Write Logs ---
-    const unitsSnapshot = await db.collection("Units").get();
-    const allDeviceIds = unitsSnapshot.docs.map(d => d.id);
-    const devicesWithZeroSales = allDeviceIds.filter(id => !Object.keys(devicesWithSales).includes(id));
-
-    const logDevices = Object.entries(devicesWithSales).map(([deviceId, d]) => ({
-      deviceId,
-      sales_count: d.sales_count
-    }));
-
-    await db.collection("Logs").add({
-      type: "Aggregation",
-      date: todayDateId,
-      devicesWithSales: logDevices,
-      devicesWithZeroSales,
-      created_at: admin.firestore.Timestamp.fromDate(today)
-    });
+    // --- Final Summary ---
+    console.log(`\n AGGREGATION PROCESS COMPLETED SUCCESSFULLY`);
+    console.log(`Date: ${todayDateId}`);
+    console.log(`Devices Aggregated: ${Object.keys(deviceAggregates).length}`);
+    console.log(`Total Sales: ${salesSnapshot.size} transactions`);
+    console.log(`Total Revenue: ₱${totalSalesAmount}`);
+    console.log(`Backups Processed: ${backupsSnapshot.size}`);
+    console.log(`Completed at: ${new Date().toISOString()}`);
+    console.log(`=========================================`);
 
     return NextResponse.json({
       success: true,
       message: "Aggregates and backups processed successfully",
-      devicesAggregated: Object.keys(deviceAggregates),
-      backupsProcessed: backupsSnapshot.size
+      summary: {
+        date: todayDateId,
+        devicesAggregated: Object.keys(deviceAggregates),
+        salesProcessed: salesSnapshot.size,
+        totalRevenue: totalSalesAmount,
+        backupsProcessed: backupsSnapshot.size,
+        deviceBreakdown: deviceAggregates
+      }
     });
 
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ success: false, error: (err as Error).message }, { status: 500 });
+    console.error(`AGGREGATION PROCESS FAILED:`);
+    console.error(`Error: ${(err as Error).message}`);
+    console.error(`Stack: ${(err as Error).stack}`);
+    return NextResponse.json({ 
+      success: false, 
+      error: (err as Error).message 
+    }, { status: 500 });
   }
 }

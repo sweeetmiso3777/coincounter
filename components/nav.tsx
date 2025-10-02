@@ -7,7 +7,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ModeToggle } from "./ui/ModeToggle";
-import { CircleFabMenu } from "./CircleFabMenu"; // new component
+import { CircleFabMenu } from "./CircleFabMenu";
 import { Button } from "@/components/ui/button";
 import { Search, Bell, ChevronDown } from "lucide-react";
 import {
@@ -68,12 +68,37 @@ export function Nav() {
             >
               Dashboard
             </Link>
-            <Link
-              href="/branches"
-              className="px-4 py-2 text-sm font-medium font-mono text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
-            >
-              Branches
-            </Link>
+
+            {/* Branches link with dropdown */}
+            <DropdownMenu>
+              <div className="flex items-center space-x-1">
+                {/* Main Branches link */}
+                <Link
+                  href="/branches"
+                  className="px-4 py-2 text-sm font-medium font-mono text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
+                >
+                  Branches
+                </Link>
+
+                {/* Dropdown trigger */}
+                <DropdownMenuTrigger asChild>
+                  <button className="px-2 py-2 rounded-md hover:bg-accent">
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+              </div>
+
+              {/* Dropdown content */}
+              <DropdownMenuContent align="start" className="w-40">
+                <DropdownMenuItem asChild>
+                  <Link href="/branches">Branches</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/harvest">Harvest</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Link
               href="/units"
               className="px-4 py-2 text-sm font-medium font-mono text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"

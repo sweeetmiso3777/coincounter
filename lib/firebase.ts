@@ -1,6 +1,6 @@
 // lib/firebase.ts
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
@@ -46,5 +46,13 @@ export const signInWithGoogle = async () => {
       console.error("Unknown sign-in error:", error);
     }
     throw error;
+  }
+};
+const loginWithUsername = async (email: string, password: string) => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    console.log("Logged in:", userCredential.user.email);
+  } catch (err) {
+    console.error("Login failed:", err);
   }
 };
