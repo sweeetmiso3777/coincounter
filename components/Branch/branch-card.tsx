@@ -14,6 +14,7 @@ import { CardMenu } from "./card-menu";
 import Link from "next/link";
 import { useState } from "react";
 import EditBranchModal from "./EditBranchModal";
+import router from "next/router";
 
 interface BranchCardProps {
   branch: BranchData;
@@ -23,7 +24,6 @@ interface BranchCardProps {
 export function BranchCard({ branch, totalUnits }: BranchCardProps) {
   const [editing, setEditing] = useState(false); // controls EditBranchModal
 
-  // ---------- Date Helpers ----------
   const formatDate = (date: Date | null | undefined) => {
     if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
       return "Invalid date";
@@ -87,35 +87,33 @@ export function BranchCard({ branch, totalUnits }: BranchCardProps) {
     <>
       <motion.div
         className="bg-card rounded-lg border border-border shadow-sm cursor-pointer"
-        whileHover={{ scale: 1.02, boxShadow: "0 8px 20px rgba(0,0,0,0.12)" }}
+        whileHover={{ scale: 1.01, boxShadow: "0 8px 20px rgba(0,0,0,0.12)" }}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.1 }}
       >
         <div className="p-6 h-full flex flex-col min-h-[280px]">
           {/* Header */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex-1 min-w-0">
-              <h3 className="text-xl font-bold text-foreground truncate mb-1">
-                {branch.location}
-              </h3>
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-sm text-muted-foreground truncate">
-                  {branch.branch_manager}
-                </span>
+          <div className="bg-muted/17 rounded-t-lg p-4 -mx-6 -mt-6  border-b border-border/50">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex-1 min-w-0 ">
+                <h3 className="text-xl font-bold text-foreground truncate mb-1">
+                  {branch.location}
+                </h3>
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-sm text-muted-foreground truncate">
+                    {branch.branch_manager}
+                  </span>
+                </div>
               </div>
+              {/* Pass a function to open the modal from the card */}
+              <CardMenu
+                branchId={branch.id}
+                branchData={branch}
+                onEdit={() => setEditing(true)}
+              />
             </div>
-            {/* Pass a function to open the modal from the card */}
-            <CardMenu
-              branchId={branch.id}
-              branchData={branch}
-              onEdit={() => setEditing(true)}
-            />
-          </div>
-
-          {/* Body */}
-          <div className="flex-1 space-y-3 mt-4">
             {/* Share */}
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-green-500 flex-shrink-0" />
@@ -126,9 +124,12 @@ export function BranchCard({ branch, totalUnits }: BranchCardProps) {
                 {branch.share}%
               </span>
             </div>
+          </div>
 
+          {/* Body */}
+          <div className="flex-1 space-y-3 mt-4 bg-card">
             {/* Info rows */}
-            <div className="space-y-3 pt-2 border-t border-border">
+            <div className="space-y-3 pt-2 ">
               {/* Total Units */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -154,50 +155,55 @@ export function BranchCard({ branch, totalUnits }: BranchCardProps) {
                   {formatDate(branch.created_at)}
                 </span>
               </div>
-
-              {/* Harvest */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                  <span className="text-sm font-medium text-foreground">
-                    Harvest:
-                  </span>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  {harvestInfo.shortDate}
-                </span>
-              </div>
-
-              {/* Next */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 flex-shrink-0" />
-                  <span className="text-sm font-medium text-foreground">
-                    Next:
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`text-sm font-medium ${
-                      harvestInfo.isThisMonth
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-blue-600 dark:text-blue-400"
-                    }`}
-                  >
-                    {harvestInfo.nextDate}
-                  </span>
-                  {harvestInfo.daysUntil <= 7 && harvestInfo.daysUntil > 0 && (
-                    <span className="text-xs bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400 px-1.5 py-0.5 rounded">
-                      {harvestInfo.daysUntil}d
+              <Link
+                href={`/harvest`}
+                className="block rounded-md hover:bg-muted/30 transition-colors"
+              >
+                {/* Harvest */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                    <span className="text-sm font-medium text-foreground">
+                      Harvest:
                     </span>
-                  )}
-                  {harvestInfo.daysUntil === 0 && (
-                    <span className="text-xs bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400 px-1.5 py-0.5 rounded">
-                      Today!
-                    </span>
-                  )}
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {harvestInfo.shortDate}
+                  </span>
                 </div>
-              </div>
+
+                {/* Next */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm font-medium text-foreground">
+                      Next:
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-sm font-medium ${
+                        harvestInfo.isThisMonth
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-blue-600 dark:text-blue-400"
+                      }`}
+                    >
+                      {harvestInfo.nextDate}
+                    </span>
+                    {harvestInfo.daysUntil <= 7 &&
+                      harvestInfo.daysUntil > 0 && (
+                        <span className="text-xs bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400 px-1.5 py-0.5 rounded">
+                          {harvestInfo.daysUntil}d
+                        </span>
+                      )}
+                    {harvestInfo.daysUntil === 0 && (
+                      <span className="text-xs bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400 px-1.5 py-0.5 rounded">
+                        Today!
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </Link>
             </div>
 
             {/* Branch ID row */}
@@ -205,14 +211,15 @@ export function BranchCard({ branch, totalUnits }: BranchCardProps) {
               className="pt-2 pb-2 border-t border-border flex justify-between items-center px-3 rounded group"
               whileHover={{ scale: 1.03 }}
             >
-              <span className="text-xs font-mono text-muted-foreground">
-                {branch.id}
-              </span>
               <Link
                 href={`/branches/${branch.id}`}
                 prefetch={true}
-                className="text-xs text-blue-500 flex items-center"
+                className="flex items-center justify-between w-full text-xs text-blue-500"
               >
+                <span className="text-xs font-mono text-muted-foreground">
+                  {branch.id}
+                </span>
+
                 <motion.div
                   animate={{ x: [0, 2, 0] }}
                   transition={{ repeat: Infinity, duration: 1 }}

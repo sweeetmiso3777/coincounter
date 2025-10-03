@@ -42,11 +42,6 @@ function getDateId(date: Date) {
 }
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
   try {
     console.log(" STARTING DAILY AGGREGATION PROCESS");
     
@@ -68,13 +63,6 @@ export async function GET(request: NextRequest) {
     console.log(` Found ${salesSnapshot.size} sales documents for today`);
 
     const deviceAggregates: Record<string, Aggregate> = {};
-    let totalSalesAmount = 0;
-    let totalCoins = {
-      coins_1: 0,
-      coins_5: 0,
-      coins_10: 0,
-      coins_20: 0
-    };
 
     salesSnapshot.forEach(doc => {
       const data = doc.data();
@@ -98,14 +86,16 @@ export async function GET(request: NextRequest) {
       deviceAggregates[deviceId].coins_20 += data.coins_20 || 0;
       deviceAggregates[deviceId].total += data.total || 0;
       deviceAggregates[deviceId].sales_count += 1;
-
-      // Track overall totals
-      totalSalesAmount += data.total || 0;
-      totalCoins.coins_1 += data.coins_1 || 0;
-      totalCoins.coins_5 += data.coins_5 || 0;
-      totalCoins.coins_10 += data.coins_10 || 0;
-      totalCoins.coins_20 += data.coins_20 || 0;
     });
+
+    // Calculate totals after aggregation
+    const totalSalesAmount = Object.values(deviceAggregates).reduce((sum, agg) => sum + agg.total, 0);
+    const totalCoins = {
+      coins_1: Object.values(deviceAggregates).reduce((sum, agg) => sum + agg.coins_1, 0),
+      coins_5: Object.values(deviceAggregates).reduce((sum, agg) => sum + agg.coins_5, 0),
+      coins_10: Object.values(deviceAggregates).reduce((sum, agg) => sum + agg.coins_10, 0),
+      coins_20: Object.values(deviceAggregates).reduce((sum, agg) => sum + agg.coins_20, 0)
+    };
 
     // Log device-specific aggregation results
     console.log(`\n SALES AGGREGATION RESULTS:`);
@@ -139,15 +129,15 @@ export async function GET(request: NextRequest) {
       aggregateWrites.push(deviceId);
     }
 
-    console.log(`Preparing ${aggregateWrites.length} aggregate documents...`);
+    console.log(` Preparing ${aggregateWrites.length} aggregate documents...`);
     await batchAggregates.commit();
-    console.log(`Successfully wrote aggregates for ${aggregateWrites.length} devices`);
+    console.log(` Successfully wrote aggregates for ${aggregateWrites.length} devices`);
 
     // --- Step 3: Process Unrecovered Backups ---
     console.log(`\n PROCESSING UNRECOVERED BACKUPS`);
     const backupsSnapshot = await db.collection("backups").where("Recovered", "==", false).get();
     
-    console.log(`Found ${backupsSnapshot.size} unrecovered backup documents`);
+    console.log(` Found ${backupsSnapshot.size} unrecovered backup documents`);
 
     const batchBackups = db.batch();
     const backupsByDeviceDate: Record<string, BackupAggregate> = {};
@@ -187,10 +177,10 @@ export async function GET(request: NextRequest) {
       processedBackupCount++;
     });
 
-    console.log(`Aggregated ${backupsSnapshot.size} backups into ${Object.keys(backupsByDeviceDate).length} device-date combinations`);
+    console.log(` Aggregated ${backupsSnapshot.size} backups into ${Object.keys(backupsByDeviceDate).length} device-date combinations`);
 
     // Write aggregated backups to Units backups subcollection
-    console.log(`Writing aggregated backups...`);
+    console.log(` Writing aggregated backups...`);
     for (const key in backupsByDeviceDate) {
       const [deviceId, dateId] = key.split("__");
       const backupRef = db.collection("Units").doc(deviceId).collection("backups").doc(dateId);
@@ -199,16 +189,17 @@ export async function GET(request: NextRequest) {
     }
 
     await batchBackups.commit();
-    console.log(`Successfully processed ${processedBackupCount} backups`);
+    console.log(` Successfully processed ${processedBackupCount} backups`);
 
     // --- Final Summary ---
     console.log(`\n AGGREGATION PROCESS COMPLETED SUCCESSFULLY`);
-    console.log(`Date: ${todayDateId}`);
-    console.log(`Devices Aggregated: ${Object.keys(deviceAggregates).length}`);
-    console.log(`Total Sales: ${salesSnapshot.size} transactions`);
-    console.log(`Total Revenue: ₱${totalSalesAmount}`);
-    console.log(`Backups Processed: ${backupsSnapshot.size}`);
-    console.log(`Completed at: ${new Date().toISOString()}`);
+    console.log(`----------------------------------------`);
+    console.log(` Date: ${todayDateId}`);
+    console.log(` Devices Aggregated: ${Object.keys(deviceAggregates).length}`);
+    console.log(` Total Sales: ${salesSnapshot.size} transactions`);
+    console.log(` Total Revenue: ₱${totalSalesAmount}`);
+    console.log(` Backups Processed: ${backupsSnapshot.size}`);
+    console.log(` Completed at: ${new Date().toISOString()}`);
     console.log(`=========================================`);
 
     return NextResponse.json({
@@ -225,7 +216,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (err) {
-    console.error(`AGGREGATION PROCESS FAILED:`);
+    console.error(` AGGREGATION PROCESS FAILED:`);
     console.error(`Error: ${(err as Error).message}`);
     console.error(`Stack: ${(err as Error).stack}`);
     return NextResponse.json({ 

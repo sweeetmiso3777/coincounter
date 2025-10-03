@@ -10,6 +10,7 @@ export interface SalesDocument {
   coins_20: number
   total: number
   timestamp: Timestamp | Date | string | { seconds: number; nanoseconds: number }
+  isRecovered?: boolean
 
 }
 

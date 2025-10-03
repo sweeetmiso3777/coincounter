@@ -7,7 +7,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ModeToggle } from "./ui/ModeToggle";
-import { CircleFabMenu } from "./CircleFabMenu";
+import { CompactSlideOutNav } from "./SlideOutNav";
 import { Button } from "@/components/ui/button";
 import { Search, Bell, ChevronDown } from "lucide-react";
 import {
@@ -153,7 +153,7 @@ export function Nav() {
         )}
 
         {/* Mobile */}
-        {isMobile && <CircleFabMenu handleLogout={handleLogout} />}
+        {isMobile && <CompactSlideOutNav handleLogout={handleLogout} />}
       </div>
 
       {/* Logging Out Overlay */}

@@ -30,7 +30,7 @@ function Dashboard() {
         setLoading(true);
         // fetch directly from GitHub API
         const response = await fetch(
-          "https://api.github.com/repos/sweeetmiso3777/coincounter/commits?per_page=10",
+          "https://api.github.com/repos/sweeetmiso3777/coincounter/commits?per_page=25",
           {
             headers: {
               Authorization: `token ${process.env.NEXT_PUBLIC_GITHUB_TOKEN}`,
