@@ -80,14 +80,14 @@ export default function EditBranchModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      onClick={onClose} // close when clicking on overlay
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
     >
       <div
-        className="bg-card rounded-lg shadow-lg w-full max-w-md p-6 border border-border z-50"
-        onClick={(e) => e.stopPropagation()} // prevent modal close when clicking inside
+        className="bg-gradient-to-b from-white/90 to-white/80 dark:from-gray-800/90 dark:to-gray-700/80 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-600 w-full max-w-md p-6 z-50"
+        onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-semibold mb-4 text-foreground">
+        <h2 className="text-xl font-semibold mb-4 text-foreground drop-shadow-sm">
           Edit Branch
         </h2>
 
@@ -100,7 +100,7 @@ export default function EditBranchModal({
               type="text"
               value={existingBranch.id}
               disabled
-              className="mt-1 w-full border border-input rounded-md p-2 bg-muted text-muted-foreground"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-gray-100 dark:bg-gray-700 text-muted-foreground shadow-inner"
             />
           </div>
 
@@ -113,7 +113,7 @@ export default function EditBranchModal({
               value={branchManager}
               onChange={(e) => setBranchManager(e.target.value)}
               required
-              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-inner transition-all"
             />
           </div>
 
@@ -126,7 +126,7 @@ export default function EditBranchModal({
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               required
-              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-inner transition-all"
             />
           </div>
 
@@ -141,7 +141,7 @@ export default function EditBranchModal({
               value={harvestDayOfMonth}
               onChange={(e) => setHarvestDayOfMonth(e.target.value)}
               required
-              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-inner transition-all"
             />
           </div>
 
@@ -157,7 +157,7 @@ export default function EditBranchModal({
               value={share}
               onChange={(e) => setShare(e.target.value)}
               required
-              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-inner transition-all"
             />
           </div>
 
@@ -167,14 +167,14 @@ export default function EditBranchModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-md border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+              className="px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 dark:bg-gray-700 text-foreground hover:bg-gray-100 dark:hover:bg-gray-600 transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50"
             >
               {loading ? "Updating..." : "Update"}
             </button>

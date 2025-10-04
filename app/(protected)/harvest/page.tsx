@@ -4,11 +4,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { useBranches } from "@/hooks/use-branches-query";
 import { Calendar1, HandCoins, User } from "lucide-react";
-import FullCalendarComponent from "@/components/FullCalendarComponent";
+import FullCalendarComponent from "@/components/Harvest/FullCalendarComponent";
+import BranchDetailsModalPage from "@/components/Harvest/BranchDetailsModalPage"; // modal in the same folder
 
 export default function CalendarWithSidebarPage() {
   const { data: branches = [], isLoading, error } = useBranches();
   const [selectedBranch, setSelectedBranch] = useState<string>("all");
+  const [viewDetailsId, setViewDetailsId] = useState<string | null>(null);
 
   const calendarContainerRef = useRef<HTMLDivElement>(null);
   const [calendarHeight, setCalendarHeight] = useState<number>(600);
@@ -35,24 +37,11 @@ export default function CalendarWithSidebarPage() {
     "#22d3ee",
   ];
 
-  interface BranchWithHarvest {
-    id: string;
-    branch_manager: string;
-    location: string;
-    harvest_day_of_month: number;
-    share: number;
-    totalUnits: number;
-    color: string;
-  }
+  const branchesWithHarvests = branches.map((b, index) => ({
+    ...b,
+    color: colors[index % colors.length],
+  }));
 
-  const branchesWithHarvests: BranchWithHarvest[] = branches.map(
-    (b, index) => ({
-      ...b,
-      color: colors[index % colors.length],
-    })
-  );
-
-  // Generate events for previous 2, current, next 3 years
   const events = branchesWithHarvests
     .filter((b) => selectedBranch === "all" || b.id === selectedBranch)
     .flatMap((branch) => {
@@ -60,10 +49,10 @@ export default function CalendarWithSidebarPage() {
       const startYear = now.getFullYear() - 2;
       const endYear = now.getFullYear() + 3;
       const branchEvents = [];
-
       for (let year = startYear; year <= endYear; year++) {
         for (let month = 0; month < 12; month++) {
           branchEvents.push({
+            id: branch.id,
             location: branch.location,
             manager: branch.branch_manager,
             share: branch.share,
@@ -73,7 +62,6 @@ export default function CalendarWithSidebarPage() {
           });
         }
       }
-
       return branchEvents;
     });
 
@@ -83,7 +71,6 @@ export default function CalendarWithSidebarPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-mono text-foreground">
             See Upcoming Harvests
@@ -96,14 +83,15 @@ export default function CalendarWithSidebarPage() {
         <div className="flex gap-6 flex-col lg:flex-row min-h-0 bg-background">
           {/* Sidebar */}
           <div
-            className="w-full lg:w-70 flex-shrink-0 lg:order-1 bg-background "
+            className="w-full lg:w-70 flex-shrink-0 lg:order-1 bg-background"
             style={{ height: `${calendarHeight}px`, minHeight: "400px" }}
           >
             <div className="bg-background rounded-lg shadow-sm border h-full flex flex-col">
               <div className="p-4 flex-shrink-0 bg-background">
                 <h2 className="text-lg font-bold text-foreground">
-                  Branch Harvests
+                  Upcoming Harvests
                 </h2>
+                <h5 className="text-sm text-foreground">Sorted by closest</h5>
               </div>
               <div className="flex-1 min-h-0 px-4 overflow-hidden">
                 <Virtuoso
@@ -151,6 +139,12 @@ export default function CalendarWithSidebarPage() {
                             </span>
                           </div>
                         </div>
+                        <button
+                          className="text-blue-600 text-xs hover:underline mt-1"
+                          onClick={() => setViewDetailsId(id)}
+                        >
+                          View Details
+                        </button>
                       </div>
                     );
                   }}
@@ -178,10 +172,23 @@ export default function CalendarWithSidebarPage() {
 
           {/* Calendar */}
           <div className="flex-1" ref={calendarContainerRef}>
-            <FullCalendarComponent events={events} height={calendarHeight} />
+            <FullCalendarComponent
+              events={events}
+              height={calendarHeight}
+              onViewDetails={(branchId) => setViewDetailsId(branchId)}
+            />
           </div>
         </div>
       </div>
+
+      {/* Branch Details Modal */}
+      {viewDetailsId && (
+        <BranchDetailsModalPage
+          branchId={viewDetailsId}
+          open={!!viewDetailsId}
+          onClose={() => setViewDetailsId(null)}
+        />
+      )}
     </div>
   );
 }

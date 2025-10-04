@@ -11,7 +11,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  ArrowLeftRight,
 } from "lucide-react";
 import Link from "next/link";
 import { ModeToggle } from "./ui/ModeToggle";
@@ -55,22 +54,22 @@ export function CompactSlideOutNav({ handleLogout }: CompactSlideOutNavProps) {
       {/* Navigation Panel */}
       <div
         className={`fixed top-0 z-50 h-full backdrop-blur-lg transition-all duration-300
-    ${position === "right" ? "right-0" : "left-0"}
-    ${
-      isOpen
-        ? "opacity-100 translate-x-0 w-56"
-        : position === "right"
-        ? "opacity-0 translate-x-2 w-0 overflow-hidden"
-        : "opacity-0 -translate-x-2 w-0 overflow-hidden"
-    }`}
+          ${position === "right" ? "right-0" : "left-0"}
+          ${
+            isOpen
+              ? "opacity-100 translate-x-0 w-56"
+              : position === "right"
+              ? "opacity-0 translate-x-2 w-0 overflow-hidden"
+              : "opacity-0 -translate-x-2 w-0 overflow-hidden"
+          }
+        `}
       >
-        <div className="bg-black/20 backdrop-blur-lg border-l border-white/10 h-full w-56 p-4 flex flex-col">
-          {/* Header */}
+        <div className="bg-black/40 backdrop-blur-lg border-l border-white/10 h-full w-56 p-4 flex flex-col text-foreground">
           <h2 className="text-white/90 text-base font-semibold mb-6 text-center">
             Coin Slot Sales Tracker
           </h2>
 
-          {/* Navigation Items - Centered vertically */}
+          {/* Navigation Items */}
           <nav className="flex-1 flex flex-col justify-center space-y-3">
             {menuItems.map((item, index) => (
               <motion.div
@@ -89,22 +88,27 @@ export function CompactSlideOutNav({ handleLogout }: CompactSlideOutNavProps) {
                 </Link>
               </motion.div>
             ))}
-          </nav>
 
-          {/* Logout Button */}
-          <motion.button
-            initial={{ x: position === "right" ? 20 : -20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: menuItems.length * 0.1 }}
-            onClick={() => {
-              setIsOpen(false);
-              handleLogout?.();
-            }}
-            className="flex items-center gap-3 px-3 py-3 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-all duration-200 mt-4"
-          >
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium text-sm">Logout</span>
-          </motion.button>
+            {/* Theme Toggle above Logout */}
+            <div className="mt-6 px-3">
+              <ModeToggle />
+            </div>
+
+            {/* Logout Button */}
+            <motion.button
+              initial={{ x: position === "right" ? 20 : -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: menuItems.length * 0.1 }}
+              onClick={() => {
+                setIsOpen(false);
+                handleLogout?.();
+              }}
+              className="flex items-center gap-3 px-3 py-3 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-all duration-200 mt-4"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="font-medium text-sm">Logout</span>
+            </motion.button>
+          </nav>
 
           {/* Position Toggle */}
           <button
@@ -120,34 +124,13 @@ export function CompactSlideOutNav({ handleLogout }: CompactSlideOutNavProps) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`fixed top-1/2 -translate-y-1/2 z-50 flex items-center justify-center w-10 h-10 
-    rounded-lg bg-black/20 backdrop-blur-lg border border-white/10 text-white shadow-lg 
-    hover:bg-white/20 transition-all duration-300 ${
-      position === "right" ? "right-0" : "left-0"
-    }`}
+          rounded-lg bg-black/20 backdrop-blur-lg border border-white/10 text-white shadow-lg 
+          hover:bg-white/20 transition-all duration-300 ${
+            position === "right" ? "right-0" : "left-0"
+          }`}
       >
         <ArrowIcon className="w-4 h-4" />
       </button>
-
-      {/* Side Switcher Button (just below arrow) */}
-      <button
-        onClick={() => setPosition(position === "right" ? "left" : "right")}
-        className={`fixed top-[calc(50%+3rem)] z-50 flex flex-col items-center justify-center 
-    w-8 h-8 rounded-md bg-black/30 backdrop-blur-lg border border-white/10 text-white/70 
-    hover:text-white hover:bg-white/10 transition-all duration-200 ${
-      position === "right" ? "right-0" : "left-0"
-    }`}
-      >
-        <ArrowLeftRight className="w-4 h-4" />
-      </button>
-
-      {/* Theme Toggle (below switch button) */}
-      <div
-        className={`fixed top-[calc(50%+6rem)] z-50 ${
-          position === "right" ? "right-0" : "left-0"
-        }`}
-      >
-        <ModeToggle />
-      </div>
     </>
   );
 }

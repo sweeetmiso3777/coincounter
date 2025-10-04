@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-
 import { useState, useEffect } from "react";
 import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -92,9 +91,9 @@ export default function AddBranchModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <div className="bg-card rounded-lg shadow-lg w-full max-w-md p-6 border border-border">
-        <h2 className="text-xl font-semibold mb-4 text-foreground">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-gradient-to-b from-white/90 to-white/80 dark:from-gray-800/90 dark:to-gray-700/80 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-600 w-full max-w-md p-6">
+        <h2 className="text-xl font-semibold mb-4 text-foreground drop-shadow-sm">
           {existingBranch ? "Edit Branch" : "Add New Branch"}
         </h2>
 
@@ -108,7 +107,7 @@ export default function AddBranchModal({
               value={branchManager}
               onChange={(e) => setBranchManager(e.target.value)}
               required
-              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 text-foreground transition-all"
               placeholder="Enter manager name"
             />
           </div>
@@ -122,7 +121,7 @@ export default function AddBranchModal({
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               required
-              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 text-foreground transition-all"
               placeholder="Enter branch location"
             />
           </div>
@@ -138,7 +137,7 @@ export default function AddBranchModal({
               value={harvestDayOfMonth}
               onChange={(e) => setHarvestDayOfMonth(e.target.value)}
               required
-              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 text-foreground transition-all"
               placeholder="Enter day (1-31)"
             />
             <p className="text-xs text-muted-foreground mt-1">
@@ -159,7 +158,7 @@ export default function AddBranchModal({
               value={share}
               onChange={(e) => setShare(e.target.value)}
               required
-              className="mt-1 w-full border border-input rounded-md p-2 bg-background text-foreground"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 text-foreground transition-all"
               placeholder="Enter share percentage"
             />
           </div>
@@ -170,14 +169,14 @@ export default function AddBranchModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-md border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+              className="px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 text-foreground hover:bg-gray-100 dark:hover:bg-gray-600 transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50"
             >
               {loading ? "Saving..." : existingBranch ? "Update" : "Add Branch"}
             </button>

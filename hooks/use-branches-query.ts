@@ -20,9 +20,6 @@ import {
 } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-// -----------------------------
-// Types
-// -----------------------------
 export interface BranchData {
   id: string;
   branch_manager: string;
@@ -50,9 +47,6 @@ function transformBranchDoc(docSnap: any): BranchData {
   };
 }
 
-// -----------------------------
-// Hook
-// -----------------------------
 export function useBranches() {
   const queryClient = useQueryClient();
 
@@ -92,7 +86,7 @@ export function useBranches() {
     staleTime: Infinity,
   });
 
-  // Cache state logging
+  
   if (queryResult.isFetching) {
     console.log(
       "%c[useBranches] Fetching data...",
@@ -108,7 +102,7 @@ export function useBranches() {
     }
   }
 
-  // Keep real-time sync after initial fetch
+ 
   useEffect(() => {
     console.log(
       "%c[useBranches] Subscribing to Firestore with onSnapshot...",

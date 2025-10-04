@@ -1,11 +1,10 @@
 export interface Unit {
   deviceId: string
-  // Add other common fields that might exist in your units
-  status?: "active" | "inactive" | "maintenance"
-  lastSeen?: Date
+  branchId: string
   location?: string
   model?: string
   firmware?: string
+  alias?: string
   [key: string]: any // Allow for additional dynamic fields
 }
 

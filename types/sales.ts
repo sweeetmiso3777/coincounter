@@ -11,6 +11,7 @@ export interface SalesDocument {
   total: number
   timestamp: Timestamp | Date | string | { seconds: number; nanoseconds: number }
   isRecovered?: boolean
+  
 
 }
 

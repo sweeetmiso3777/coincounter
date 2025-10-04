@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { BranchesQueryProvider } from "@/providers/BranchesQueryProvider";
 import { UserProvider, useUser } from "@/providers/UserProvider";
-
+import { UnitsQueryProvider } from "@/providers/UnitsQueryProvider";
+import { Providers } from "@/providers/Sales-Query-Provider";
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, loading, isApproved } = useUser();
@@ -36,9 +37,13 @@ export default function ProtectedLayout({
 }) {
   return (
     <UserProvider>
-      <BranchesQueryProvider>
-        <LayoutContent>{children}</LayoutContent>
-      </BranchesQueryProvider>
+      <Providers>
+        <BranchesQueryProvider>
+          <UnitsQueryProvider>
+            <LayoutContent>{children}</LayoutContent>
+          </UnitsQueryProvider>
+        </BranchesQueryProvider>
+      </Providers>
     </UserProvider>
   );
 }

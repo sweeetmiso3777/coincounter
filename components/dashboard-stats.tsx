@@ -9,14 +9,11 @@ function getNextHarvestDate(harvestDay: number): Date {
   const now = new Date();
   let harvestDate = new Date(now.getFullYear(), now.getMonth(), harvestDay);
 
-  // If the harvest day this month has already passed, move to next month
   if (harvestDate < now) {
     harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, harvestDay);
   }
 
-  // Handle cases where the day might not exist in next month (e.g., 31st in Feb)
   if (harvestDate.getDate() !== harvestDay) {
-    // Set to last day of next month
     harvestDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
   }
 
