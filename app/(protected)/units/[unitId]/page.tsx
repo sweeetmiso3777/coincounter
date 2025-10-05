@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   TrendingUp,
   Wallet,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,12 +38,21 @@ const UnitHeader = ({
   alias?: string;
 }) => (
   <div className="mb-8">
-    <Button asChild variant="ghost" className="mb-4">
-      <Link href="/units">
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Units
-      </Link>
-    </Button>
+    <div className="flex justify-between items-center mb-4">
+      <Button asChild variant="ghost">
+        <Link href="/units">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Units
+        </Link>
+      </Button>
+
+      <Button asChild variant="ghost">
+        <Link href="/real-time">
+          Back to Real-Time
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </Link>
+      </Button>
+    </div>
 
     <div className="flex items-center gap-3 mb-4">
       <div className="p-2 bg-secondary/10 rounded-lg">

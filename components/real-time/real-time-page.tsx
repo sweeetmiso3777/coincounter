@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import { animate, motion, useMotionValue, useTransform } from "framer-motion";
-import { useSalesQuery } from "@/hooks/use-sales-query";
+import { useEnrichedSales } from "@/hooks/use-sales-alias";
 import { SalesCard } from "@/components/real-time/sales-card";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,12 +27,20 @@ function AnimatedNumber({
     decimals > 0 ? Number(latest.toFixed(decimals)) : Math.round(latest)
   );
 
+  // Format the number with commas
+  const formatted = useTransform(rounded, (num) =>
+    num.toLocaleString("en-US", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })
+  );
+
   useEffect(() => {
     const controls = animate(count, value, { duration: 2.5, ease: "easeOut" });
     return controls.stop;
   }, [value, count, decimals]);
 
-  return <motion.span>{rounded}</motion.span>;
+  return <motion.span>{formatted}</motion.span>;
 }
 
 export function RealTimePage() {
@@ -42,7 +50,7 @@ export function RealTimePage() {
     error,
     isError,
     refetch,
-  } = useSalesQuery();
+  } = useEnrichedSales(); // 👈 CHANGED HOOK
 
   // Reload button refetches today's sales
   const handleReloadSales = () => {

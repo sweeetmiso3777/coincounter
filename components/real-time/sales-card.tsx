@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Coins, Clock, Monitor, RotateCcw } from "lucide-react";
 import type { SalesDocument } from "@/types/sales";
 import type { Timestamp as FirestoreTimestamp } from "firebase/firestore";
+import Link from "next/link";
 
 interface SalesCardProps {
   sale: SalesDocument & {
@@ -108,10 +109,13 @@ export function SalesCard({ sale }: SalesCardProps) {
                   </Badge>
                 )}
               </div>
-              {/* Device ID directly below */}
-              <span className="font-mono text-[11px] text-muted-foreground mt-0.5 ml-1">
+              {/* Device ID as blue link */}
+              <Link
+                href={`/units/${sale.deviceId}`}
+                className="font-mono text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors mt-0.5 ml-1"
+              >
                 {sale.deviceId}
-              </span>
+              </Link>
             </div>
           </div>
 
