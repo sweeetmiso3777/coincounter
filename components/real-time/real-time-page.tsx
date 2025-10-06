@@ -129,18 +129,20 @@ export function RealTimePage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-[2px] mb-4">
-          <div className="flex flex-col border-l-2 border-current pl-2">
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-[2px] mb-4">
+          <div className="flex flex-col border-l-2  border-current pl-2">
             <div className="flex items-center gap-1">
               <TrendingUp className="h-4 w-4 text-green-500" />
               <span className="text-sm text-muted-foreground">Total Sales</span>
             </div>
-            <div className="text-xl font-bold text-foreground">
+            <div className="text-xl font-extrabold text-green-600">
               ₱<AnimatedNumber value={totalSales} />
             </div>
-            <p className="text-xs text-muted-foreground">Within This Day</p>
+            <p className="text-xs text-muted-foreground">Today</p>
           </div>
 
+          {/* Transactions */}
           <div className="flex flex-col border-l-2 border-current pl-2">
             <div className="flex items-center gap-1">
               <Coins className="h-4 w-4 text-blue-500" />
@@ -148,25 +150,66 @@ export function RealTimePage() {
                 Transactions
               </span>
             </div>
-            <div className="text-xl font-bold text-foreground">
+            <div className="text-xl font-extrabold text-blue-600">
               <AnimatedNumber value={totalTransactions} />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Total transactions Within This Day
-            </p>
+            <p className="text-xs text-muted-foreground">Count</p>
           </div>
 
+          {/* ₱1 */}
           <div className="flex flex-col border-l-2 border-current pl-2">
             <div className="flex items-center gap-1">
-              <TrendingUp className="h-4 w-4 text-amber-500" />
-              <span className="text-sm text-muted-foreground">
-                Average Sale
-              </span>
+              <Coins className="h-4 w-4 text-gray-500" />
+              <span className="text-sm text-muted-foreground">₱1</span>
             </div>
-            <div className="text-xl font-bold text-foreground">
-              ₱<AnimatedNumber value={averageTransaction} decimals={2} />
+            <div className="text-lg font-bold text-gray-600">
+              <AnimatedNumber
+                value={sales.reduce((sum, s) => sum + (s.coins_1 ?? 0), 0)}
+              />
             </div>
-            <p className="text-xs text-muted-foreground">Per transaction</p>
+            <p className="text-xs text-muted-foreground">coins</p>
+          </div>
+
+          {/* ₱5 */}
+          <div className="flex flex-col border-l-2 border-current pl-2">
+            <div className="flex items-center gap-1">
+              <Coins className="h-4 w-4 text-purple-500" />
+              <span className="text-sm text-muted-foreground">₱5</span>
+            </div>
+            <div className="text-lg font-bold text-purple-600">
+              <AnimatedNumber
+                value={sales.reduce((sum, s) => sum + (s.coins_5 ?? 0), 0)}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">coins</p>
+          </div>
+
+          {/* ₱10 */}
+          <div className="flex flex-col border-l-2 border-current pl-2">
+            <div className="flex items-center gap-1">
+              <Coins className="h-4 w-4 text-amber-500" />
+              <span className="text-sm text-muted-foreground">₱10</span>
+            </div>
+            <div className="text-lg font-bold text-amber-600">
+              <AnimatedNumber
+                value={sales.reduce((sum, s) => sum + (s.coins_10 ?? 0), 0)}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">coins</p>
+          </div>
+
+          {/* ₱20 */}
+          <div className="flex flex-col border-l-2 border-current pl-2">
+            <div className="flex items-center gap-1">
+              <Coins className="h-4 w-4 text-green-600" />
+              <span className="text-sm text-muted-foreground">₱20</span>
+            </div>
+            <div className="text-lg font-bold text-green-700">
+              <AnimatedNumber
+                value={sales.reduce((sum, s) => sum + (s.coins_20 ?? 0), 0)}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">coins</p>
           </div>
         </div>
 

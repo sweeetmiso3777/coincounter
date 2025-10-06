@@ -1,47 +1,60 @@
 "use client";
 
 import { useState, useEffect, ReactNode } from "react";
-import { QueryClient } from "@tanstack/react-query";
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const localStorageAsync = {
-  getItem: (key: string) => Promise.resolve(localStorage.getItem(key)),
-  setItem: (key: string, value: string) =>
-    Promise.resolve(localStorage.setItem(key, value)),
-  removeItem: (key: string) => Promise.resolve(localStorage.removeItem(key)),
-};
-
-const asyncStoragePersister = createAsyncStoragePersister({
-  storage: localStorageAsync,
-});
-
+// Create a single QueryClient instance
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: Infinity, // cache never considered stale
-      gcTime: 1000 * 60 * 60 * 24 * 30, // garbage collect after 30 days
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes in-memory cache
       refetchOnWindowFocus: false,
+      retry: 2,
+    },
+    mutations: {
+      retry: 1,
     },
   },
 });
 
-export function Providers({ children }: { children: ReactNode }) {
-  const [isReady, setIsReady] = useState(false);
+interface ProvidersProps {
+  children: ReactNode;
+}
+
+export function Providers({ children }: ProvidersProps) {
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    // make sure localStorage is available on client
-    setIsReady(true);
+    // Only render on client to avoid SSR issues
+    setIsClient(true);
   }, []);
 
-  if (!isReady) return null;
+  if (!isClient) return <>{children}</>;
 
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister: asyncStoragePersister }}
-    >
+    <QueryClientProvider client={queryClient}>
       {children}
-    </PersistQueryClientProvider>
+      {process.env.NODE_ENV === "development" && <LazyReactQueryDevtools />}
+    </QueryClientProvider>
   );
 }
+
+// Lazy-load React Query Devtools in development only
+const LazyReactQueryDevtools = () => {
+  const [DevTools, setDevTools] = useState<React.ComponentType<{
+    initialIsOpen?: boolean;
+  }> | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    import("@tanstack/react-query-devtools").then((module) => {
+      setDevTools(() => module.ReactQueryDevtools);
+    });
+  }, []);
+
+  if (!DevTools) return null;
+
+  return <DevTools initialIsOpen={false} />;
+};

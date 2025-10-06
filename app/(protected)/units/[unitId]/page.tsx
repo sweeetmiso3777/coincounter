@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import React from "react";
+import React, { useEffect } from "react";
 import { useUnitAggregates } from "@/hooks/use-unit-aggregates";
 import { useUnitsContext } from "@/providers/UnitsQueryProvider";
 import {
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 
 interface UnitAggregate {
   id: string;
@@ -28,7 +29,33 @@ interface UnitAggregate {
   coins_20: number;
   timestamp: string | Date;
 }
+function AnimatedNumber({
+  value,
+  decimals = 0,
+}: {
+  value: number;
+  decimals?: number;
+}) {
+  const count = useMotionValue(0);
+  const rounded = useTransform(count, (latest) =>
+    decimals > 0 ? Number(latest.toFixed(decimals)) : Math.round(latest)
+  );
 
+  // Format the number with commas
+  const formatted = useTransform(rounded, (num) =>
+    num.toLocaleString("en-US", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })
+  );
+
+  useEffect(() => {
+    const controls = animate(count, value, { duration: 2.5, ease: "easeOut" });
+    return controls.stop;
+  }, [value, count, decimals]);
+
+  return <motion.span>{formatted}</motion.span>;
+}
 // Header for the unit page
 const UnitHeader = ({
   deviceId,
@@ -95,8 +122,9 @@ const UnitAggregatesTable = ({ data }: { data: UnitAggregate[] }) => {
             </h2>
           </div>
           <p className="text-2xl font-bold text-green-700">
-            ₱{grandTotal.toFixed(2)}
+            ₱<AnimatedNumber value={grandTotal} decimals={2} />
           </p>
+
           <p className="text-sm text-muted-foreground mt-1">
             From {totalSales}{" "}
             {totalSales === 1 ? "transaction" : "transactions"} across{" "}

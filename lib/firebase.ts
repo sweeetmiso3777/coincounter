@@ -17,7 +17,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Configure Firestore with offline persistence
+// configure Firestore with offline persistence
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
@@ -28,13 +28,13 @@ export const auth = getAuth(app);
 // export const functions = getFunctions(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Your existing signInWithGoogle function remains unchanged
+//  existing signInWithGoogle function remains unchanged
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
     console.log('Signed in with Google:', user.email);
-    // Optional: Force token refresh after sign-in to pick up claims immediately
+    // force token refresh after sign-in to pick up claims immediately
     if (user) {
       await user.getIdToken(true);
     }
