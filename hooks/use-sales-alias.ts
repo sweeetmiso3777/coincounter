@@ -8,20 +8,30 @@ export function useEnrichedSales() {
   const salesQuery = useSalesQuery();
   const unitsQuery = useUnits();
 
-  // Create a lookup map for device aliases (this is the "deduplication" of device info)
+  // Create lookup maps for device aliases and branch locations
   const deviceAliasMap = new Map();
+  const deviceBranchLocationMap = new Map();
+  
   if (unitsQuery.units) {
     unitsQuery.units.forEach(unit => {
-      if (unit.deviceId && unit.alias?.trim()) {
-        deviceAliasMap.set(unit.deviceId, unit.alias.trim());
+      if (unit.deviceId) {
+        // Set alias if available
+        if (unit.alias?.trim()) {
+          deviceAliasMap.set(unit.deviceId, unit.alias.trim());
+        }
+        // Set branch location if available
+        if (unit.branchLocation?.trim()) {
+          deviceBranchLocationMap.set(unit.deviceId, unit.branchLocation.trim());
+        }
       }
     });
   }
 
-  // Keep ALL sales records, just enrich them with aliases
+  // Keep ALL sales records, just enrich them with aliases and branch locations
   const enrichedSales = salesQuery.data ? salesQuery.data.map(sale => ({
     ...sale,
-    alias: deviceAliasMap.get(sale.deviceId) || "Alias" // Fallback if not found
+    alias: deviceAliasMap.get(sale.deviceId) || "Alias", // Fallback if not found
+    branchLocation: deviceBranchLocationMap.get(sale.deviceId) || "No Branch" // Fallback if not found
   })) : [];
 
   return {
