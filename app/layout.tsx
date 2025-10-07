@@ -4,15 +4,24 @@ import { ThemeProvider } from "@/providers/ThemeProvider";
 import { QueryProvider } from "@/providers/query-client";
 import { Toaster } from "@/components/sonner";
 import { UserProvider } from "@/providers/UserProvider";
-import { Metadata } from "next";
+import { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 
+// Separate viewport export
+export const viewport: Viewport = {
+  themeColor: "#000000",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
+// Clean metadata without viewport/themeColor
 export const metadata: Metadata = {
   title: "Real-Time Tracker PWA",
   description: "A Capstone Project by Lory",
   manifest: "/manifest.json",
-  themeColor: "#000000",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -30,12 +39,6 @@ export const metadata: Metadata = {
       { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
     ],
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
 };
 
 export default function RootLayout({
@@ -46,7 +49,8 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <head>
-        <meta name="theme-color" content="#000000" />
+        {/* You can remove these meta tags as they're now handled by the viewport export */}
+        {/* <meta name="theme-color" content="#000000" /> */}
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
