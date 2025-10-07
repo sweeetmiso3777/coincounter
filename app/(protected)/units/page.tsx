@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { UnitsPageCards } from "@/components/Unit/units-card";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 import Link from "next/link";
 
 import { Metadata } from "next";
@@ -24,9 +24,22 @@ export default function Home() {
           <h1 className="text-3xl font-mono text-foreground">
             Device Management
           </h1>
-          <p className="text-muted-foreground font-mono">
-            View and manage all units from your Firestore collection.
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-muted-foreground font-mono">
+              Branch harvest only counts sales from assigned devices.
+            </p>
+            <div className="group relative">
+              <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-popover text-popover-foreground text-sm rounded-md shadow-lg border w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+                When a Branch harvest happens, it scans all the units assigned
+                to it and only counts the daily sales documents that contains
+                its ID. Click the{" "}
+                <p className="text-blue-700 font-mono">View Details</p> to know
+                which daily sales are under which Branch.
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-popover"></div>
+              </div>
+            </div>
+          </div>
         </div>
         <UnitsPageCards />
       </div>

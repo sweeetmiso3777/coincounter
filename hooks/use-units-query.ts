@@ -9,16 +9,28 @@ import {
   orderBy,
   updateDoc,
   deleteField,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+
+export interface Branch {
+  id: string;
+  branch_manager: string;
+  created_at: any;
+  harvest_day_of_month: number;
+  location: string;
+  share: number;
+  totalUnits: number;
+}
 
 export interface Unit {
   deviceId: string;
   branch: string;
   branchId: string;
   alias: string;
+  branchLocation: string; // 👈 ADD THIS - location is now directly on unit
 }
 
 export interface UnitsState {
@@ -38,41 +50,116 @@ export function useUnits() {
 
   const queryClient = useQueryClient();
 
-  // real-time subscription
+  // real-time subscription for Units and Branches
   useEffect(() => {
-    const q = query(collection(db, "Units"), orderBy("branch"));
+    const unitsQuery = query(collection(db, "Units"), orderBy("branch"));
+    const branchesQuery = query(collection(db, "Branches")); // Capital B
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const unitsData: Unit[] = snapshot.docs.map((doc) => ({
-          deviceId: doc.id,
-          branch: doc.data().branch || "",
-          branchId: doc.data().branchId || "",
-          alias: doc.data().alias || "",
-        }));
+    let unsubscribeUnits: () => void;
+    let unsubscribeBranches: () => void;
 
-        setState({
-          units: unitsData,
-          loading: false,
-          error: null,
-          fromCache: snapshot.metadata.fromCache,
-        });
+    const setupListeners = () => {
+      unsubscribeUnits = onSnapshot(
+        unitsQuery,
+        (unitsSnapshot) => {
+          unsubscribeBranches = onSnapshot(
+            branchesQuery,
+            (branchesSnapshot) => {
+              const branchesMap = new Map();
+              branchesSnapshot.docs.forEach((doc) => {
+                const data = doc.data();
+                branchesMap.set(doc.id, {
+                  id: doc.id,
+                  location: data.location,
+                  branch_manager: data.branch_manager,
+                  created_at: data.created_at,
+                  harvest_day_of_month: data.harvest_day_of_month,
+                  share: data.share,
+                  totalUnits: data.totalUnits,
+                } as Branch);
+              });
 
-        queryClient.setQueryData(["units"], unitsData);
-      },
-      (err) => {
-        console.error("Units listener error:", err);
-        setState((prev) => ({
-          ...prev,
-          loading: false,
-          error: "Failed to fetch units.",
-        }));
-      }
-    );
+              const unitsData: Unit[] = unitsSnapshot.docs.map((doc) => {
+                const unitData = doc.data();
+                const branchId = unitData.branchId || "";
+                const branchData = branchesMap.get(branchId);
 
-    return () => unsubscribe();
+                return {
+                  deviceId: doc.id,
+                  branch: unitData.branch || "",
+                  branchId: branchId,
+                  alias: unitData.alias || "",
+                  branchLocation: branchData?.location || "", // 👈 ADD THIS
+                };
+              });
+
+              setState({
+                units: unitsData,
+                loading: false,
+                error: null,
+                fromCache: unitsSnapshot.metadata.fromCache || branchesSnapshot.metadata.fromCache,
+              });
+
+              queryClient.setQueryData(["units"], unitsData);
+            },
+            (branchesErr) => {
+              console.error("Branches listener error:", branchesErr);
+              // Even if branches fail, still return units without branch location
+              const unitsData: Unit[] = unitsSnapshot.docs.map((doc) => {
+                const unitData = doc.data();
+                return {
+                  deviceId: doc.id,
+                  branch: unitData.branch || "",
+                  branchId: unitData.branchId || "",
+                  alias: unitData.alias || "",
+                  branchLocation: "", // 👈 EMPTY IF BRANCHES FAIL
+                };
+              });
+
+              setState({
+                units: unitsData,
+                loading: false,
+                error: "Failed to fetch branch details, but units loaded.",
+                fromCache: unitsSnapshot.metadata.fromCache,
+              });
+
+              queryClient.setQueryData(["units"], unitsData);
+            }
+          );
+        },
+        (unitsErr) => {
+          console.error("Units listener error:", unitsErr);
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            error: "Failed to fetch units.",
+          }));
+        }
+      );
+    };
+
+    setupListeners();
+
+    return () => {
+      unsubscribeUnits?.();
+      unsubscribeBranches?.();
+    };
   }, [queryClient]);
+
+  // Helper to get branch location
+  const getBranchLocation = async (branchId: string): Promise<string> => {
+    if (!branchId) return "";
+    try {
+      const branchDoc = await getDoc(doc(db, "Branches", branchId));
+      if (branchDoc.exists()) {
+        return branchDoc.data().location || "";
+      }
+      return "";
+    } catch (error) {
+      console.error("Error fetching branch location:", error);
+      return "";
+    }
+  };
 
   // mutation for assigning branch
   const assignUnit = useMutation({
@@ -84,17 +171,31 @@ export function useUnits() {
       branchId: string;
     }) => {
       const ref = doc(db, "Units", deviceId);
+      const branchLocation = await getBranchLocation(branchId);
       await updateDoc(ref, { branchId });
+      return { branchLocation }; // 👈 RETURN LOCATION FOR OPTIMISTIC UPDATE
     },
     onSuccess: (_data, { deviceId, branchId }) => {
+      // The real-time listener will update this automatically
+    },
+    onMutate: async ({ deviceId, branchId }) => {
+      await queryClient.cancelQueries({ queryKey: ["units"] });
+      const prev = queryClient.getQueryData<Unit[]>(["units"]) || [];
+      
+      // Optimistically update with branch location
+      const branchLocation = await getBranchLocation(branchId);
+      
       queryClient.setQueryData<Unit[]>(["units"], (old) =>
         old?.map((u) =>
-          u.deviceId === deviceId ? { ...u, branchId } : u
+          u.deviceId === deviceId 
+            ? { ...u, branchId, branchLocation } 
+            : u
         )
       );
-      toast.success("Unit assigned successfully!");
+      return { prev };
     },
-    onError: () => {
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["units"], ctx.prev);
       toast.error("Failed to assign unit.");
     },
   });
@@ -106,14 +207,23 @@ export function useUnits() {
       await updateDoc(ref, { branchId: deleteField() });
     },
     onSuccess: (_data, { deviceId }) => {
+      // Real-time listener will handle this
+    },
+    onMutate: async ({ deviceId }) => {
+      await queryClient.cancelQueries({ queryKey: ["units"] });
+      const prev = queryClient.getQueryData<Unit[]>(["units"]) || [];
+      
       queryClient.setQueryData<Unit[]>(["units"], (old) =>
         old?.map((u) =>
-          u.deviceId === deviceId ? { ...u, branchId: "" } : u
+          u.deviceId === deviceId 
+            ? { ...u, branchId: "", branchLocation: "" } 
+            : u
         )
       );
-      toast.success("Unit decommissioned successfully!");
+      return { prev };
     },
-    onError: () => {
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["units"], ctx.prev);
       toast.error("Failed to decommission unit.");
     },
   });

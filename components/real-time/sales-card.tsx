@@ -1,14 +1,15 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Coins, Clock, Monitor, RotateCcw } from "lucide-react";
+import { Coins, Clock, Monitor, RotateCcw, MapPin } from "lucide-react";
 import type { SalesDocument } from "@/types/sales";
 import type { Timestamp as FirestoreTimestamp } from "firebase/firestore";
 import Link from "next/link";
 
 interface SalesCardProps {
   sale: SalesDocument & {
-    branchName?: string;
+    branchLocation?: string;
     alias?: string;
+    branchId?: string;
   };
 }
 
@@ -62,7 +63,7 @@ export function SalesCard({ sale }: SalesCardProps) {
     { denomination: "₱20", count: sale.coins_20 },
   ].filter((coin) => coin.count > 0);
 
-  const branchName = sale.branchName || "";
+  const branchLocation = sale.branchLocation || "No Branch";
   const deviceAlias =
     sale.alias && sale.alias.trim() !== "" ? sale.alias : "Alias";
 
@@ -80,7 +81,7 @@ export function SalesCard({ sale }: SalesCardProps) {
       <CardContent className="px-3 flex items-center justify-between">
         {/* Left side */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
-          {/* Monitor + Branch & Alias */}
+          {/* Monitor + Branch Location & Alias */}
           <div className="flex items-start space-x-2">
             <div className="flex items-center space-x-2">
               <Monitor
@@ -93,10 +94,16 @@ export function SalesCard({ sale }: SalesCardProps) {
               )}
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center space-x-2">
+              {/* Branch Location */}
+              <div className="flex items-center space-x-2 mb-1">
+                <MapPin className="h-3 w-3 text-muted-foreground" />
                 <span className="text-sm font-semibold text-foreground">
-                  {branchName}
+                  {branchLocation}
                 </span>
+              </div>
+
+              {/* Device Alias and ID */}
+              <div className="flex items-center space-x-2">
                 <span className="font-mono text-sm font-medium text-foreground">
                   {deviceAlias}
                 </span>
@@ -109,6 +116,7 @@ export function SalesCard({ sale }: SalesCardProps) {
                   </Badge>
                 )}
               </div>
+
               {/* Device ID as blue link */}
               <Link
                 href={`/units/${sale.deviceId}`}

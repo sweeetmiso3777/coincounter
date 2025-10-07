@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useUnits } from "@/hooks/use-units-query";
+import { Info } from "lucide-react";
 
 interface DecommissionModalProps {
   deviceId: string;
@@ -21,8 +22,13 @@ export function DecommissionModal({
   deviceId,
   onClose,
 }: DecommissionModalProps) {
-  const { decommissionUnit } = useUnits();
+  const { decommissionUnit, units } = useUnits();
   const [confirmation, setConfirmation] = useState("");
+
+  // Get the current unit to show branch info in confirmation
+  const currentUnit = units.find((unit) => unit.deviceId === deviceId);
+  const currentBranchLocation =
+    currentUnit?.branchLocation || currentUnit?.branch;
 
   const handleDecommission = () => {
     if (confirmation === "CONFIRM") {
@@ -44,9 +50,26 @@ export function DecommissionModal({
             <CardTitle className="text-sm text-center text-red-600">
               Confirm Decommission
             </CardTitle>
-            <CardDescription className="text-xs text-center text-foreground">
-              Please type <strong>CONFIRM</strong> to decommission this unit.
-            </CardDescription>
+
+            {currentBranchLocation && (
+              <CardDescription className="text-xs text-center text-foreground">
+                Remove from: <strong>{currentBranchLocation}</strong>
+              </CardDescription>
+            )}
+
+            <div className="flex items-center justify-center gap-1">
+              <CardDescription className="text-xs text-center text-foreground">
+                Please type <strong>CONFIRM</strong> to decommission this unit.
+              </CardDescription>
+              <div className="group relative">
+                <Info className="h-3 w-3 text-muted-foreground cursor-help shrink-0" />
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-popover text-popover-foreground text-sm rounded-md shadow-lg border w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+                  Decommissioning a unit means its sales will not be counted in
+                  any of the branch harvests.
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-popover"></div>
+                </div>
+              </div>
+            </div>
 
             <Input
               value={confirmation}

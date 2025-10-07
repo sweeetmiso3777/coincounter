@@ -213,9 +213,9 @@ export function UnitsPageCards() {
         <div className="w-72 sticky top-20 h-fit space-y-2 border-l border-muted p-4 bg-card/90 backdrop-blur-sm">
           <h2 className="text-lg font-semibold">Unassigned Units</h2>
           {unitsWithoutBranch.map((unit) => (
-            <Card key={unit.deviceId} className="p-2 bg-card/80">
-              <CardTitle className="text-sm flex items-center gap-1">
-                {unit.alias || "No Alias Yet"}
+            <Card key={unit.deviceId} className="p-3 bg-card/80">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <span>{unit.alias || "No Alias Yet"}</span>
                 <Button
                   size="icon"
                   variant="ghost"
@@ -225,9 +225,17 @@ export function UnitsPageCards() {
                   <Pencil className="w-3 h-3" />
                 </Button>
               </CardTitle>
-              <CardDescription className="text-xs">
+              <CardDescription className="text-xs mb-2">
                 Device ID: {unit.deviceId}
               </CardDescription>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={() => setAssignModalUnitId(unit.deviceId)}
+              >
+                Assign to Branch
+              </Button>
             </Card>
           ))}
         </div>

@@ -189,7 +189,7 @@ export function useSalesQuery() {
                 const now = Date.now()
                 if (now - toastCooldown.current > 1000) { // 1 second cooldown
                   toast.success(`₱${sale.total} received`, {
-                    description: `Branch: ${sale.branchId || "Unassigned"} | Device: ${sale.deviceId}`,
+                    description: `Device: ${sale.deviceId}`,
                   })
                   toastCooldown.current = now
                 }

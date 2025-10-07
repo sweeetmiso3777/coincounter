@@ -49,6 +49,9 @@ export function AssignBranchModal({
               <CardDescription className="text-xs line-clamp-1">
                 {b.branch_manager}
               </CardDescription>
+              <CardDescription className="text-xs text-muted-foreground">
+                Share: {b.share}%
+              </CardDescription>
             </CardContent>
           </Card>
         ))}
