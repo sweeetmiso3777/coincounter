@@ -7,7 +7,6 @@ import {
   MapPin,
   Grid,
   Activity,
-  User,
   LogOut,
   X,
   Menu,
