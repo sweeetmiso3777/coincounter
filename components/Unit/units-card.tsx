@@ -11,7 +11,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Monitor, MoreVertical, Pencil } from "lucide-react";
+import { Loader2, Monitor, MoreVertical, Pencil } from "lucide-react";
 import Link from "next/link";
 import {
   animate,
@@ -198,9 +198,15 @@ export function UnitsPageCards() {
                   onClick={() => setDecommissionModalUnitId(unit.deviceId)}
                   disabled={decommissionUnit.isPending}
                 >
-                  {decommissionUnit.isPending
-                    ? "Decommissioning..."
-                    : "Decommission"}
+                  {decommissionUnit.isPending &&
+                  decommissionUnit.variables?.deviceId === unit.deviceId ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                      Processing...
+                    </>
+                  ) : (
+                    "Decommission"
+                  )}
                 </Button>
               </div>
             </div>

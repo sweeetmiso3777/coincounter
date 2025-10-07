@@ -9,10 +9,13 @@ import type { SalesDocument } from "@/types/sales"
 
 const CACHE_KEY = ["sales", "today"]
 
-// GLOBAL REF COUNT TRACKING (outside hook, but only for this module)
+// GLOBAL REF COUNT TRACKING
 const listenerRefCount = new Map<string, number>()
 const activeListeners = new Map<string, () => void>()
-const processedSales = new Set<string>() // Track sales that have already been toasted
+const processedSales = new Set<string>()
+
+// Track components using the hook
+const componentRefCount = { count: 0 }
 
 function getTodayKey() {
   return new Date().toLocaleDateString("en-CA")
@@ -42,33 +45,30 @@ async function fetchSalesWithCacheFallback(todayKey: string): Promise<SalesDocum
   )
 
   try {
-    // try to get from cache first
-    console.log(`Attempting to read from cache for ${todayKey}`)
+    console.log(`%c[useSalesQuery] Checking cache for ${todayKey}`, "color: blue; font-weight: bold;")
     const cacheSnapshot = await getDocsFromCache(q)
     
     if (!cacheSnapshot.empty) {
-      console.log(`Cache hit: ${cacheSnapshot.docs.length} documents found in cache`)
+      console.log(`%c[useSalesQuery] Cache HIT: ${cacheSnapshot.docs.length} documents`, "color: green; font-weight: bold;")
       return cacheSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SalesDocument))
     }
     
-    console.log(`Cache miss: No documents found in cache, fetching from server`)
+    console.log(`%c[useSalesQuery] Cache MISS: Fetching from server`, "color: orange; font-weight: bold;")
   } catch (cacheError) {
-    console.warn(`Cache read failed:`, cacheError)
+    console.warn(`%c[useSalesQuery] Cache read failed:`, "color: red; font-weight: bold;", cacheError)
   }
 
-  // Fallback to server - THIS MUST RETURN
   try {
     const serverSnapshot = await getDocsFromServer(q)
-    console.log(`YYY Server fetch: ${serverSnapshot.docs.length} documents retrieved`)
+    console.log(`%c[useSalesQuery] Server fetch: ${serverSnapshot.docs.length} documents`, "color: lime; font-weight: bold;")
     
-    // Mark all initial sales as processed to avoid toasting them
     serverSnapshot.docs.forEach(doc => {
       processedSales.add(doc.id)
     })
     
     return serverSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SalesDocument))
   } catch (serverError) {
-    console.error(`XXX Server fetch failed:`, serverError)
+    console.error(`%c[useSalesQuery] Server fetch failed:`, "color: red; font-weight: bold;", serverError)
     throw serverError 
   }
 }
@@ -79,12 +79,29 @@ export function useSalesQuery() {
   const isInitialLoad = useRef(true)
   const toastCooldown = useRef<number>(0)
 
+  // Track component usage
+  useEffect(() => {
+    componentRefCount.count++
+    console.log(
+      `%c[useSalesQuery] Components using hook: ${componentRefCount.count}`,
+      "color: yellow; font-weight: bold; background: #333; padding: 2px 4px;"
+    )
+    
+    return () => {
+      componentRefCount.count--
+      console.log(
+        `%c[useSalesQuery] Components using hook: ${componentRefCount.count} (unmount)`,
+        "color: orange; font-weight: bold; background: #333; padding: 2px 4px;"
+      )
+    }
+  }, [])
+
   const queryResult = useQuery<SalesDocument[], Error>({
     queryKey: [...CACHE_KEY, todayKey],
     queryFn: async () => {
-      console.log(`Fetching sales for ${todayKey}`)
+      console.log(`%c[useSalesQuery] Initial fetch for ${todayKey}`, "color: cyan; font-weight: bold;")
       const sales = await fetchSalesWithCacheFallback(todayKey)
-      console.log(`Fetch completed: ${sales.length} sales retrieved`)
+      console.log(`%c[useSalesQuery] Fetch completed: ${sales.length} sales`, "color: green; font-weight: bold;")
       return sales
     },
     staleTime: 5 * 60 * 1000,
@@ -94,15 +111,20 @@ export function useSalesQuery() {
 
   // REAL-TIME LISTENER WITH REF COUNTING
   useEffect(() => {
-    // track how many components want this listener
     const refCount = (listenerRefCount.get(todayKey) || 0) + 1
     listenerRefCount.set(todayKey, refCount)
     
-    console.log(` Ref count for ${todayKey}: ${refCount}`)
+    console.log(
+      `%c[useSalesQuery] Firestore Listener Ref Count: ${refCount}`,
+      "color: magenta; font-weight: bold; background: #333; padding: 2px 4px;"
+    )
 
-    // only setup listener if first component
+    // Only setup listener if first component
     if (refCount === 1) {
-      console.log(` Setting up SINGLE listener for ${todayKey} (first component)`)
+      console.log(
+        `%c[useSalesQuery] SETTING UP SINGLE FIRESTORE LISTENER`,
+        "color: lime; font-weight: bold; background: #333; padding: 2px 4px;"
+      )
       
       const startOfDay = getStartOfDay()
       const currentData = queryClient.getQueryData<SalesDocument[]>([...CACHE_KEY, todayKey])
@@ -110,12 +132,10 @@ export function useSalesQuery() {
       let realTimeQuery
       
       if (currentData && currentData.length > 0) {
-        // query logic to determine latest timestamp
         const latest = currentData[0]
         let latestTimestamp: Date
         
         try {
-          // parsing timestamp logic
           if (latest.timestamp && typeof latest.timestamp === 'object' && 'toDate' in latest.timestamp) {
             latestTimestamp = latest.timestamp.toDate()
           } else if (latest.timestamp && typeof latest.timestamp === 'object' && 'seconds' in latest.timestamp) {
@@ -131,17 +151,16 @@ export function useSalesQuery() {
             throw new Error('Unable to parse timestamp')
           }
           
-          // listen only for today
           const effectiveTimestamp = latestTimestamp > startOfDay ? latestTimestamp : startOfDay
           
-          console.log(`Real-time listener watching for sales after:`, effectiveTimestamp)
+          console.log(`%c[useSalesQuery] Listening for sales after:`, "color: blue; font-weight: bold;", effectiveTimestamp)
           realTimeQuery = query(
             collection(db, "sales"),
             where("timestamp", ">", effectiveTimestamp),
             orderBy("timestamp", "desc")
           )
         } catch (error) {
-          console.warn(`Failed to parse latest timestamp, falling back to today:`, error)
+          console.warn(`%c[useSalesQuery] Failed to parse timestamp, falling back to today:`, "color: orange; font-weight: bold;", error)
           realTimeQuery = query(
             collection(db, "sales"),
             where("timestamp", ">=", startOfDay),
@@ -164,30 +183,24 @@ export function useSalesQuery() {
           )
 
           if (fresh.length > 0) {
-            console.log(`Real-time update: ${fresh.length} new sales detected`)
+            console.log(`%c[useSalesQuery] Real-time update: ${fresh.length} new sales`, "color: green; font-weight: bold;")
             
             const currentCache = queryClient.getQueryData<SalesDocument[]>([...CACHE_KEY, todayKey])
             const currentIds = new Set(currentCache?.map(sale => sale.id) || [])
             const newSales = fresh.filter(sale => !currentIds.has(sale.id))
             
-            // SMART TOASTING: Only toast truly new sales that haven't been processed before
             const newSalesForToast = newSales.filter(sale => {
-              if (processedSales.has(sale.id)) {
-                return false // Already toasted this sale
-              }
-              processedSales.add(sale.id) // Mark as processed
+              if (processedSales.has(sale.id)) return false
+              processedSales.add(sale.id)
               return true
             })
 
-            // RATE LIMIT TOASTS: Only show toasts if we're not in initial load and not too many at once
             if (!isInitialLoad.current && newSalesForToast.length > 0) {
-              // Show maximum 3 toasts at once to avoid spam
               const toastsToShow = newSalesForToast.slice(0, 3)
               
               toastsToShow.forEach((sale) => {
-                // Additional cooldown check to prevent rapid-fire toasts
                 const now = Date.now()
-                if (now - toastCooldown.current > 1000) { // 1 second cooldown
+                if (now - toastCooldown.current > 1000) {
                   toast.success(`₱${sale.total} received`, {
                     description: `Device: ${sale.deviceId}`,
                   })
@@ -195,7 +208,6 @@ export function useSalesQuery() {
                 }
               })
 
-              // If there are more than 3 new sales, show a summary toast
               if (newSalesForToast.length > 3) {
                 setTimeout(() => {
                   toast.info(`${newSalesForToast.length} new sales`, {
@@ -206,7 +218,6 @@ export function useSalesQuery() {
               }
             }
 
-            // Update cache (this happens regardless of toasts)
             queryClient.setQueryData<SalesDocument[]>([...CACHE_KEY, todayKey], (old) => {
               if (!old) return fresh
               
@@ -218,40 +229,45 @@ export function useSalesQuery() {
                 return timeB.getTime() - timeA.getTime()
               })
               
-              console.log(`Cache updated: ${old.length} → ${updated.length} items`)
+              console.log(`%c[useSalesQuery] 💾 Cache updated: ${old.length} → ${updated.length} items`, "color: cyan; font-weight: bold;")
               return updated
             })
           }
         },
         (error) => {
-          console.error(`Real-time listener error:`, error)
+          console.error(`%c[useSalesQuery] Listener error:`, "color: red; font-weight: bold;", error)
         }
       )
 
       activeListeners.set(todayKey, unsub)
     }
 
-    // Mark initial load as complete after first render
+    // Mark initial load as complete
     setTimeout(() => {
       isInitialLoad.current = false
+      console.log(`%c[useSalesQuery] Initial load complete - toasts enabled`, "color: green; font-weight: bold;")
     }, 2000)
 
     return () => {
-      // decrease ref count
       const newRefCount = (listenerRefCount.get(todayKey) || 1) - 1
       listenerRefCount.set(todayKey, newRefCount)
       
-      console.log(` Ref count for ${todayKey}: ${newRefCount} (after unmount)`)
+      console.log(
+        `%c[useSalesQuery] Firestore Listener Ref Count: ${newRefCount} (unmount)`,
+        "color: magenta; font-weight: bold; background: #333; padding: 2px 4px;"
+      )
 
-      // only cleanup if last component
       if (newRefCount === 0) {
-        console.log(` Cleaning up listener for ${todayKey} (last component unmounted)`)
-        activeListeners.get(todayKey)!()
+        console.log(
+          `%c[useSalesQuery] CLEANING UP FIRESTORE LISTENER`,
+          "color: red; font-weight: bold; background: #333; padding: 2px 4px;"
+        )
+        activeListeners.get(todayKey)?.()
         activeListeners.delete(todayKey)
         listenerRefCount.delete(todayKey)
       }
     }
-  }, [todayKey, queryClient, queryResult.data])
+  }, [todayKey, queryClient]) 
 
   return queryResult
 }
