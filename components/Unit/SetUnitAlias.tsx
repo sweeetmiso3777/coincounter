@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useUnits } from "@/hooks/use-units-query";
+import { Loader2 } from "lucide-react";
 
 interface SetUnitAliasProps {
   deviceId: string;
@@ -18,13 +19,22 @@ interface SetUnitAliasProps {
 }
 
 export function SetUnitAlias({ deviceId, onClose }: SetUnitAliasProps) {
-  const { updateAlias } = useUnits(); // 👈 using your hook mutation
+  const { updateAlias, units } = useUnits();
   const [alias, setAlias] = useState("");
+
+  const currentUnit = units.find((unit) => unit.deviceId === deviceId);
+  const currentAlias = currentUnit?.alias || "";
 
   const handleSetAlias = () => {
     if (alias.trim()) {
-      updateAlias.mutate({ deviceId, alias });
-      onClose();
+      updateAlias.mutate(
+        { deviceId, alias: alias.trim() },
+        {
+          onSuccess: () => {
+            setTimeout(onClose, 300);
+          },
+        }
+      );
     }
   };
 
@@ -38,9 +48,21 @@ export function SetUnitAlias({ deviceId, onClose }: SetUnitAliasProps) {
       <div className="bg-card rounded-lg shadow-lg p-4 max-w-md w-full">
         <Card className="p-3">
           <CardContent className="flex flex-col gap-3">
-            <CardTitle className="text-sm text-center">
-              Set Unit Alias
-            </CardTitle>
+            <div className="flex items-center justify-center gap-2">
+              {updateAlias.isPending && (
+                <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+              )}
+              <CardTitle className="text-sm text-center">
+                Set Unit Alias
+              </CardTitle>
+            </div>
+
+            {currentAlias && (
+              <CardDescription className="text-xs text-center text-muted-foreground">
+                Current: &ldquo;{currentAlias}&rdquo;
+              </CardDescription>
+            )}
+
             <CardDescription className="text-xs text-center text-foreground">
               Enter a new alias for this unit.
             </CardDescription>
@@ -50,17 +72,39 @@ export function SetUnitAlias({ deviceId, onClose }: SetUnitAliasProps) {
               onChange={(e) => setAlias(e.target.value)}
               placeholder="Enter alias"
               className="text-center text-foreground"
+              disabled={updateAlias.isPending}
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  alias.trim() &&
+                  !updateAlias.isPending
+                ) {
+                  handleSetAlias();
+                }
+              }}
             />
 
             <div className="flex gap-2 mt-2">
               <Button
-                className="flex-1"
+                className="flex-1 relative"
                 onClick={handleSetAlias}
-                disabled={!alias.trim()}
+                disabled={!alias.trim() || updateAlias.isPending}
               >
-                Save Alias
+                {updateAlias.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Alias"
+                )}
               </Button>
-              <Button variant="outline" className="flex-1" onClick={onClose}>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={onClose}
+                disabled={updateAlias.isPending}
+              >
                 Cancel
               </Button>
             </div>

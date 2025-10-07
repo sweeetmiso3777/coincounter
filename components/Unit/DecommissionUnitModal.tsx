@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useUnits } from "@/hooks/use-units-query";
-import { Info } from "lucide-react";
+import { useBranches } from "@/hooks/use-branches-query";
+import { Info, Loader2 } from "lucide-react";
 
 interface DecommissionModalProps {
   deviceId: string;
@@ -23,17 +24,23 @@ export function DecommissionModal({
   onClose,
 }: DecommissionModalProps) {
   const { decommissionUnit, units } = useUnits();
+  const { data: branches = [] } = useBranches();
   const [confirmation, setConfirmation] = useState("");
 
-  // Get the current unit to show branch info in confirmation
   const currentUnit = units.find((unit) => unit.deviceId === deviceId);
-  const currentBranchLocation =
-    currentUnit?.branchLocation || currentUnit?.branch;
+  const currentBranch = branches.find((b) => b.id === currentUnit?.branchId);
+  const currentBranchLocation = currentBranch?.location || "No Branch Assigned";
 
   const handleDecommission = () => {
     if (confirmation === "CONFIRM") {
-      decommissionUnit.mutate({ deviceId });
-      onClose();
+      decommissionUnit.mutate(
+        { deviceId },
+        {
+          onSuccess: () => {
+            setTimeout(onClose, 300);
+          },
+        }
+      );
     }
   };
 
@@ -47,9 +54,14 @@ export function DecommissionModal({
       <div className="bg-card rounded-lg shadow-lg p-4 max-w-md w-full">
         <Card className="p-3">
           <CardContent className="flex flex-col gap-3">
-            <CardTitle className="text-sm text-center text-red-600">
-              Confirm Decommission
-            </CardTitle>
+            <div className="flex items-center justify-center gap-2">
+              {decommissionUnit.isPending && (
+                <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+              )}
+              <CardTitle className="text-sm text-center text-red-600">
+                Confirm Decommission
+              </CardTitle>
+            </div>
 
             {currentBranchLocation && (
               <CardDescription className="text-xs text-center text-foreground">
@@ -76,18 +88,33 @@ export function DecommissionModal({
               onChange={(e) => setConfirmation(e.target.value)}
               placeholder="Type CONFIRM"
               className="text-center text-foreground"
+              disabled={decommissionUnit.isPending}
             />
 
             <div className="flex gap-2 mt-2">
               <Button
                 variant="destructive"
-                className="flex-1 text-foreground"
-                disabled={confirmation !== "CONFIRM"}
+                className="flex-1 text-foreground relative"
+                disabled={
+                  confirmation !== "CONFIRM" || decommissionUnit.isPending
+                }
                 onClick={handleDecommission}
               >
-                Decommission
+                {decommissionUnit.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Decommissioning...
+                  </>
+                ) : (
+                  "Decommission"
+                )}
               </Button>
-              <Button variant="outline" className="flex-1" onClick={onClose}>
+              <Button
+                variant="outline"
+                className="flex-1 bg-transparent"
+                onClick={onClose}
+                disabled={decommissionUnit.isPending}
+              >
                 Cancel
               </Button>
             </div>

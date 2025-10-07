@@ -50,7 +50,7 @@ export function RealTimePage() {
     error,
     isError,
     refetch,
-  } = useEnrichedSales(); // 👈 CHANGED HOOK
+  } = useEnrichedSales(); //  CHANGED HOOK
 
   // Reload button refetches today's sales
   const handleReloadSales = () => {
