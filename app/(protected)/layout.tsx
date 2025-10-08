@@ -8,6 +8,8 @@ import { BranchesQueryProvider } from "@/providers/BranchesQueryProvider";
 import { UserProvider, useUser } from "@/providers/UserProvider";
 import { UnitsQueryProvider } from "@/providers/UnitsQueryProvider";
 import { Providers } from "@/providers/Sales-Query-Provider";
+import "leaflet/dist/leaflet.css";
+
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, loading, isApproved } = useUser();

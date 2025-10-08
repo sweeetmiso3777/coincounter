@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { collection, getDocs, query, orderBy, limit, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useQueryClient } from "@tanstack/react-query";
+import { useBranches } from "@/hooks/use-branches-query";
 
 export interface Aggregate {
   id: string;
@@ -13,7 +14,9 @@ export interface Aggregate {
   coins_20: number;
   sales_count: number;
   total: number;
+  branchId: string;
   timestamp: Date;
+  harvested: boolean;
 }
 
 export interface UnitWithAggregates {
@@ -30,9 +33,19 @@ export interface AggregatesState {
   error: string | null;
 }
 
+// Helper function to get branch location from branchId
+function useBranchLocationMap() {
+  const { data: branches = [] } = useBranches();
+  
+  const branchMap = branches.reduce((acc, branch) => {
+    acc[branch.id] = branch.location;
+    return acc;
+  }, {} as Record<string, string>);
+
+  return branchMap;
+}
 
 // aggregates Only
-
 export function useUnitsAggregates() {
   const [state, setState] = useState<AggregatesState>({
     aggregates: [],
@@ -41,6 +54,7 @@ export function useUnitsAggregates() {
   });
 
   const queryClient = useQueryClient();
+  const branchMap = useBranchLocationMap();
 
   // Fetch aggregates for a specific unit
   const fetchAggregates = useCallback(async (deviceId: string): Promise<Aggregate[]> => {
@@ -60,9 +74,9 @@ export function useUnitsAggregates() {
             data.timestamp instanceof Timestamp
               ? data.timestamp.toDate()
               : data.timestamp,
+          harvested: data.harvested || false, // Default to false if not present
         } as Aggregate;
       });
-
 
       setState({ aggregates, loading: false, error: null });
       queryClient.setQueryData(["aggregates", deviceId], aggregates);
@@ -82,7 +96,6 @@ export function useUnitsAggregates() {
     }
   }, [queryClient]);
 
-
   const clearAggregates = useCallback(() => {
     setState({ aggregates: [], loading: false, error: null });
   }, []);
@@ -91,12 +104,12 @@ export function useUnitsAggregates() {
     ...state,
     fetchAggregates,
     clearAggregates,
+    branchMap,
   };
 }
 
-
 export function useUnitAggregates(deviceId: string | null) {
-  const { aggregates, loading, error, fetchAggregates, clearAggregates } = useUnitsAggregates();
+  const { aggregates, loading, error, fetchAggregates, clearAggregates, branchMap } = useUnitsAggregates();
 
   // Auto-fetch when deviceId changes
   const fetchForUnit = useCallback(async () => {
@@ -113,5 +126,6 @@ export function useUnitAggregates(deviceId: string | null) {
     error,
     fetchAggregates: fetchForUnit,
     clearAggregates,
+    branchMap,
   };
 }

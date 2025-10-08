@@ -24,6 +24,8 @@ export interface BranchData {
   created_at: Date
   share: number
   totalUnits: number
+  latitude?: number | null
+  longitude?: number | null
 }
 
 const listenerRefCount = { count: 0 }
@@ -40,6 +42,8 @@ function transformBranchDoc(docSnap: any): BranchData {
     created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(),
     share: data.share ?? 0,
     totalUnits: data.totalUnits ?? 0,
+    latitude: data.latitude ?? null,
+    longitude: data.longitude ?? null,
   }
 }
 
@@ -52,13 +56,12 @@ export function useBranches() {
       console.log("%c[useBranches] Running queryFn (initial fetch)...", "color: orange; font-weight: bold;")
       const q = query(collection(db, "Branches"), orderBy("created_at", "desc"))
 
-      // Simple promise-based fetch for initial load
       return new Promise<BranchData[]>((resolve, reject) => {
         const unsubscribe = onSnapshot(
           q,
           (snapshot) => {
             console.log("%c[useBranches] Initial data loaded.", "color: teal; font-weight: bold;")
-            unsubscribe() // Immediately unsubscribe after first load
+            unsubscribe()
             resolve(snapshot.docs.map(transformBranchDoc))
           },
           (err) => {
@@ -71,21 +74,10 @@ export function useBranches() {
     staleTime: Number.POSITIVE_INFINITY,
   })
 
-  if (queryResult.isFetching) {
-    console.log("%c[useBranches] Fetching data...", "color: blue; font-weight: bold;")
-  }
-  if (queryResult.isSuccess && queryResult.data) {
-    if (queryResult.isFetched && !queryResult.isFetching) {
-      console.log("%c[useBranches] Using cached data (from react-query).", "color: green; font-weight: bold;")
-    }
-  }
-
   useEffect(() => {
-    // Increment ref count
     listenerRefCount.count++
     console.log(`[useBranches] Ref count: ${listenerRefCount.count}`)
 
-    // Only setup listener if first component
     if (listenerRefCount.count === 1) {
       console.log("%c[useBranches] Setting up SINGLE listener (first component)", "color: purple; font-weight: bold;")
 
@@ -99,23 +91,17 @@ export function useBranches() {
     }
 
     return () => {
-      // Decrement ref count
       listenerRefCount.count--
       console.log(`[useBranches] Ref count: ${listenerRefCount.count} (after unmount)`)
 
-      // Only cleanup if last component
       if (listenerRefCount.count === 0 && activeListener) {
-        console.log(
-          "%c[useBranches] Cleaning up listener (last component unmounted)",
-          "color: gray; font-weight: bold;",
-        )
+        console.log("%c[useBranches] Cleaning up listener (last component unmounted)", "color: gray; font-weight: bold;")
         activeListener()
         activeListener = null
       }
     }
   }, [queryClient])
 
-  // Mutations (optimistic updates)
   const createBranch = useMutation({
     mutationFn: async ({
       id,
@@ -127,20 +113,14 @@ export function useBranches() {
       console.log("%c[useBranches] createBranch -> Firestore setDoc", "color: orange; font-weight: bold;")
       const ref = doc(db, "Branches", id)
       const existing = await getDoc(ref)
-      if (existing.exists()) {
-        throw new Error("Branch ID already exists")
-      }
+      if (existing.exists()) throw new Error("Branch ID already exists")
       await setDoc(ref, { ...data, created_at: Timestamp.now() })
     },
     onMutate: async ({ id, data }) => {
       console.log("%c[useBranches] Optimistic update (createBranch)", "color: green; font-weight: bold;")
       await queryClient.cancelQueries({ queryKey: ["branches"] })
       const prev = queryClient.getQueryData<BranchData[]>(["branches"]) || []
-      const optimistic: BranchData = {
-        id,
-        ...data,
-        created_at: new Date(),
-      }
+      const optimistic: BranchData = { id, ...data, created_at: new Date() }
       queryClient.setQueryData(["branches"], [optimistic, ...prev])
       return { prev }
     },
@@ -160,19 +140,14 @@ export function useBranches() {
     }) => {
       console.log("%c[useBranches] updateBranch -> Firestore updateDoc", "color: orange; font-weight: bold;")
       const ref = doc(db, "Branches", id)
-      if (!(await getDoc(ref)).exists()) {
-        throw new Error("Branch does not exist")
-      }
+      if (!(await getDoc(ref)).exists()) throw new Error("Branch does not exist")
       await updateDoc(ref, data)
     },
     onMutate: async ({ id, data }) => {
       console.log("%c[useBranches] Optimistic update (updateBranch)", "color: green; font-weight: bold;")
       await queryClient.cancelQueries({ queryKey: ["branches"] })
       const prev = queryClient.getQueryData<BranchData[]>(["branches"]) || []
-      queryClient.setQueryData<BranchData[]>(
-        ["branches"],
-        prev.map((b) => (b.id === id ? { ...b, ...data } : b)),
-      )
+      queryClient.setQueryData(["branches"], prev.map((b) => (b.id === id ? { ...b, ...data } : b)))
       return { prev }
     },
     onError: (_err, _vars, ctx) => {
@@ -185,19 +160,14 @@ export function useBranches() {
     mutationFn: async (id: string) => {
       console.log("%c[useBranches] deleteBranch -> Firestore deleteDoc", "color: orange; font-weight: bold;")
       const ref = doc(db, "Branches", id)
-      if (!(await getDoc(ref)).exists()) {
-        throw new Error("Branch does not exist")
-      }
+      if (!(await getDoc(ref)).exists()) throw new Error("Branch does not exist")
       await deleteDoc(ref)
     },
     onMutate: async (id) => {
       console.log("%c[useBranches] Optimistic update (deleteBranch)", "color: green; font-weight: bold;")
       await queryClient.cancelQueries({ queryKey: ["branches"] })
       const prev = queryClient.getQueryData<BranchData[]>(["branches"]) || []
-      queryClient.setQueryData(
-        ["branches"],
-        prev.filter((b) => b.id !== id),
-      )
+      queryClient.setQueryData(["branches"], prev.filter((b) => b.id !== id))
       return { prev }
     },
     onError: (_err, _id, ctx) => {
@@ -206,10 +176,5 @@ export function useBranches() {
     },
   })
 
-  return {
-    ...queryResult,
-    createBranch,
-    updateBranch,
-    deleteBranch,
-  }
+  return { ...queryResult, createBranch, updateBranch, deleteBranch }
 }

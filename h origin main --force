@@ -1,0 +1,46 @@
+* [33m8adc434[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m device status
+* [33m7d5083c[m before unit status implemented
+* [33m775e6ce[m refactored
+* [33m4b2edaf[m before refactoring the entire branch+units+sales relationship
+* [33m6e6fb38[m added PWA but no offline mode
+* [33m18f8f36[m added alias to sales cards
+* [33mf2e1481[m before alias implementation on sales card in real-time page
+* [33m6db296f[m changes
+* [33ma74561e[m new units page
+* [33m893734d[m sidebar
+* [33m0d39ed0[m full calendar
+* [33ma1c6020[m added harvest page only sidebar for now
+* [33m7e03b72[m harvest page sidebar for now
+* [33m13f2979[m cron jobs
+* [33m454348a[m fixed branch CRUD
+* [33m279aa96[m fixes
+* [33m6ad8326[m lightning hue slider
+* [33m4251d03[m epic lightning login
+* [33mf86e41b[m Dan Derek Bumotad
+* [33mc41b722[m cloud functions aggregates per branch
+* [33mda40e35[m settings page
+* [33m4caacc6[m mobile mode navigation
+* [33m1fe4023[m Added per branch sales breakdown
+* [33mfc98e83[m Optimized sales query with tanstack caching + 30 days expiration
+* [33me476f08[m Added real-time sales tracking
+*   [33me9554ef[m changed to tanstack query + table instead of firebase hooks
+[32m|[m[33m\[m  
+[32m|[m * [33m11b0fd4[m Update firestore.rules/ only add with my acc for now
+* [33m|[m [33m93e75fd[m theme color + rearranged branch card details
+[33m|[m[33m/[m  
+* [33mab35a00[m ...
+*   [33mdd52b81[m responsive na sa size guizzzz
+[34m|[m[35m\[m  
+[34m|[m * [33md572b63[m tung tung tung sahur on read me file!!! ❗❗❗❗❗❗❗
+* [35m|[m [33m8d90213[m responsive sizing na sha guys
+[35m|[m[35m/[m  
+* [33m4d954ba[m Added theme toggling
+* [33m0d3b086[m fixed typescript errors
+* [33m78b6fd3[m Added Branch CRUD function
+* [33mec90c78[m Changed from sidebar to navbar
+* [33mc029bd1[m Remove firebase-debug.log and add to gitignore
+* [33m2d8f921[m Update app
+* [33m2239ed7[m Initial commit - push local code to gapuz repo
+* [33m6e4199c[m first commit
+* [33mef5d95f[m Initial commit with app code
+* [33m8612ab5[m[33m ([m[1;32mmaster[m[33m)[m Initial commit: Next.js project
