@@ -51,9 +51,11 @@ export function Nav() {
               JD
             </AvatarFallback>
           </Avatar>
-          <span className="text-md font-semibold font-mono text-foreground hidden sm:block">
-            Coin Tracking System
-          </span>
+          <Link href="/dashboard">
+            <span className="text-md font-semibold font-mono text-foreground hidden sm:block">
+              Coin Tracking System
+            </span>
+          </Link>
           <span className="text-md font-semibold text-foreground sm:hidden">
             GTS
           </span>

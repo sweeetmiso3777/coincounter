@@ -7,6 +7,8 @@ export interface Branch {
   harvest_day_of_month: number;
   location: string;
   share: number;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface BranchData {
@@ -16,4 +18,6 @@ export interface BranchData {
   harvest_day_of_month: number;
   location: string;
   share: number;
+  latitude?: number | null;
+  longitude?: number | null;
 }

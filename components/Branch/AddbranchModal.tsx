@@ -5,6 +5,18 @@ import { useState, useEffect } from "react";
 import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { toast } from "sonner";
+import { MapPin } from "lucide-react";
+import dynamic from "next/dynamic";
+
+// Dynamically import the map with no SSR
+const CompactMap = dynamic(() => import("@/components/Branch/CompactMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+      <p className="text-gray-500">Loading map...</p>
+    </div>
+  ),
+});
 
 interface AddBranchModalProps {
   open: boolean;
@@ -16,6 +28,8 @@ interface AddBranchModalProps {
     location: string;
     harvest_day_of_month: number;
     share: number;
+    latitude?: number;
+    longitude?: number;
   };
 }
 
@@ -28,8 +42,11 @@ export default function AddBranchModal({
   const [location, setLocation] = useState("");
   const [harvestDayOfMonth, setHarvestDayOfMonth] = useState("");
   const [share, setShare] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     if (existingBranch) {
@@ -37,15 +54,32 @@ export default function AddBranchModal({
       setLocation(existingBranch.location);
       setHarvestDayOfMonth(existingBranch.harvest_day_of_month.toString());
       setShare(existingBranch.share.toString());
+      setLatitude(existingBranch.latitude?.toString() || "");
+      setLongitude(existingBranch.longitude?.toString() || "");
     } else {
       setBranchManager("");
       setLocation("");
       setHarvestDayOfMonth("");
       setShare("");
+      setLatitude("");
+      setLongitude("");
     }
+    setShowMap(false);
   }, [existingBranch, open]);
 
-  if (!open) return null;
+  const handleLocationSelect = (coords: [number, number]) => {
+    setLatitude(coords[0].toFixed(6));
+    setLongitude(coords[1].toFixed(6));
+  };
+
+  const handleUseThisLocation = () => {
+    if (latitude && longitude) {
+      setShowMap(false);
+      toast.success("Location selected!", {
+        description: `Coordinates: ${latitude}, ${longitude}`,
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,19 +93,41 @@ export default function AddBranchModal({
         throw new Error("Day of month must be between 1 and 31");
       }
 
-      await addDoc(collection(db, "Branches"), {
+      // Prepare branch data
+      const branchData: {
+        branch_manager: string;
+        location: string;
+        harvest_day_of_month: number;
+        share: number;
+        created_at: Timestamp;
+        totalUnits: number;
+        latitude?: number;
+        longitude?: number;
+      } = {
         branch_manager: branchManager,
         location,
         harvest_day_of_month: dayOfMonth,
         share: Number(share),
         created_at: Timestamp.now(),
         totalUnits: 0,
-      });
+      };
 
+      // Add coordinates only if provided
+      if (latitude && longitude) {
+        branchData.latitude = parseFloat(latitude);
+        branchData.longitude = parseFloat(longitude);
+      }
+
+      await addDoc(collection(db, "Branches"), branchData);
+
+      // Reset form
       setBranchManager("");
       setLocation("");
       setHarvestDayOfMonth("");
       setShare("");
+      setLatitude("");
+      setLongitude("");
+      setShowMap(false);
 
       toast.success("Branch has been added successfully!", {
         style: {
@@ -90,9 +146,11 @@ export default function AddBranchModal({
     }
   };
 
+  if (!open) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-gradient-to-b from-white/90 to-white/80 dark:from-gray-800/90 dark:to-gray-700/80 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-600 w-full max-w-md p-6">
+      <div className="bg-gradient-to-b from-white/90 to-white/80 dark:from-gray-800/90 dark:to-gray-700/80 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-600 w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4 text-foreground drop-shadow-sm">
           {existingBranch ? "Edit Branch" : "Add New Branch"}
         </h2>
@@ -124,6 +182,98 @@ export default function AddBranchModal({
               className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 text-foreground transition-all"
               placeholder="Enter branch location"
             />
+          </div>
+
+          {/* Geolocation Section */}
+          <div className="border-t pt-4 mt-2">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-blue-500" />
+                <label className="block text-sm font-medium text-foreground">
+                  Add a Geolocation!
+                </label>
+              </div>
+              {!showMap && (
+                <button
+                  type="button"
+                  onClick={() => setShowMap(true)}
+                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Open Map
+                </button>
+              )}
+            </div>
+
+            {showMap ? (
+              <div className="space-y-3">
+                <CompactMap
+                  onLocationSelect={handleLocationSelect}
+                  initialCoords={
+                    latitude && longitude
+                      ? [parseFloat(latitude), parseFloat(longitude)]
+                      : undefined
+                  }
+                  className="mb-2"
+                />
+
+                <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      Selected Coordinates
+                    </p>
+                    <p className="text-xs font-mono text-blue-600 dark:text-blue-300">
+                      {latitude && longitude
+                        ? `Lat: ${latitude}, Lng: ${longitude}`
+                        : "Click on map to select location"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleUseThisLocation}
+                    disabled={!latitude || !longitude}
+                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Use This Location
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Optional: Add coordinates to enable map view for this branch
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-foreground">
+                      Latitude
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={latitude}
+                      onChange={(e) => setLatitude(e.target.value)}
+                      className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 text-foreground transition-all text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-foreground">
+                      Longitude
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={longitude}
+                      onChange={(e) => setLongitude(e.target.value)}
+                      className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 text-foreground transition-all text-sm"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Or click &quot;Open Map&quot; to select location visually
+                </p>
+              </>
+            )}
           </div>
 
           <div>
@@ -165,7 +315,7 @@ export default function AddBranchModal({
 
           {error && <p className="text-destructive text-sm">{error}</p>}
 
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 pt-4">
             <button
               type="button"
               onClick={onClose}

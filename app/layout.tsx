@@ -71,7 +71,7 @@ export default function RootLayout({
           <QueryProvider>
             <UserProvider>
               <main>{children}</main>
-              <Toaster position="bottom-right" />
+              <Toaster position="top-right" />
             </UserProvider>
           </QueryProvider>
         </ThemeProvider>
