@@ -20,7 +20,7 @@ export function BranchPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl  text-foreground">
+          <h1 className="text-3xl text-foreground">
             Branch Management Dashboard
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -28,11 +28,14 @@ export function BranchPage() {
           </p>
         </div>
 
-        {/* Branches Grid */}
+        {/* Branches Section */}
         <div>
-          <h2 className="text-xl font-mono text-foreground mb-4">
-            All Branches ({branches.length})
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-mono text-foreground">
+              All Branches ({branches.length})
+            </h2>
+            {isAdmin && branches.length > 0 && <AddBranchCard />}
+          </div>
 
           {branches.length === 0 ? (
             <div className="text-center py-16">
@@ -49,7 +52,6 @@ export function BranchPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {isAdmin && <AddBranchCard />}
               {branches.map((branch) => (
                 <BranchCard
                   key={branch.id}

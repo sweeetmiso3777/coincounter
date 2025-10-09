@@ -26,6 +26,7 @@ export interface BranchData {
   totalUnits: number
   latitude?: number | null
   longitude?: number | null
+  affiliates?: string[] // New optional field
 }
 
 const listenerRefCount = { count: 0 }
@@ -44,6 +45,7 @@ function transformBranchDoc(docSnap: any): BranchData {
     totalUnits: data.totalUnits ?? 0,
     latitude: data.latitude ?? null,
     longitude: data.longitude ?? null,
+    affiliates: data.affiliates ?? undefined, // New field transformation
   }
 }
 
@@ -114,13 +116,33 @@ export function useBranches() {
       const ref = doc(db, "Branches", id)
       const existing = await getDoc(ref)
       if (existing.exists()) throw new Error("Branch ID already exists")
-      await setDoc(ref, { ...data, created_at: Timestamp.now() })
+      
+      // Prepare data for Firestore, handling optional fields
+      const firestoreData: any = {
+        branch_manager: data.branch_manager,
+        location: data.location,
+        harvest_day_of_month: data.harvest_day_of_month,
+        share: data.share,
+        totalUnits: data.totalUnits,
+        created_at: Timestamp.now(),
+      }
+
+      // Add optional fields only if they exist
+      if (data.latitude !== undefined) firestoreData.latitude = data.latitude
+      if (data.longitude !== undefined) firestoreData.longitude = data.longitude
+      if (data.affiliates !== undefined) firestoreData.affiliates = data.affiliates
+
+      await setDoc(ref, firestoreData)
     },
     onMutate: async ({ id, data }) => {
       console.log("%c[useBranches] Optimistic update (createBranch)", "color: green; font-weight: bold;")
       await queryClient.cancelQueries({ queryKey: ["branches"] })
       const prev = queryClient.getQueryData<BranchData[]>(["branches"]) || []
-      const optimistic: BranchData = { id, ...data, created_at: new Date() }
+      const optimistic: BranchData = { 
+        id, 
+        ...data, 
+        created_at: new Date() 
+      }
       queryClient.setQueryData(["branches"], [optimistic, ...prev])
       return { prev }
     },
@@ -141,7 +163,23 @@ export function useBranches() {
       console.log("%c[useBranches] updateBranch -> Firestore updateDoc", "color: orange; font-weight: bold;")
       const ref = doc(db, "Branches", id)
       if (!(await getDoc(ref)).exists()) throw new Error("Branch does not exist")
-      await updateDoc(ref, data)
+      
+      // Prepare update data, handling null values for removal
+      const updateData: any = {}
+      
+      // Only include fields that are provided
+      if (data.branch_manager !== undefined) updateData.branch_manager = data.branch_manager
+      if (data.location !== undefined) updateData.location = data.location
+      if (data.harvest_day_of_month !== undefined) updateData.harvest_day_of_month = data.harvest_day_of_month
+      if (data.share !== undefined) updateData.share = data.share
+      if (data.totalUnits !== undefined) updateData.totalUnits = data.totalUnits
+      
+      // Handle optional fields - including null for removal
+      if (data.latitude !== undefined) updateData.latitude = data.latitude
+      if (data.longitude !== undefined) updateData.longitude = data.longitude
+      if (data.affiliates !== undefined) updateData.affiliates = data.affiliates
+
+      await updateDoc(ref, updateData)
     },
     onMutate: async ({ id, data }) => {
       console.log("%c[useBranches] Optimistic update (updateBranch)", "color: green; font-weight: bold;")

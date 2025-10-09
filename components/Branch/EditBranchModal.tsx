@@ -2,10 +2,13 @@
 
 import type React from "react";
 import { useState, useEffect } from "react";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { toast } from "sonner";
 import { useBranches } from "@/hooks/use-branches-query";
-import { MapPin } from "lucide-react";
+import { MapPin, User, X } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useUser } from "@/providers/UserProvider";
 
 // Dynamically import the map with no SSR
 const CompactMap = dynamic(() => import("@/components/Branch/CompactMap"), {
@@ -16,6 +19,14 @@ const CompactMap = dynamic(() => import("@/components/Branch/CompactMap"), {
     </div>
   ),
 });
+
+interface UserData {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  approvedAt: any;
+}
 
 interface EditBranchModalProps {
   open: boolean;
@@ -28,6 +39,7 @@ interface EditBranchModalProps {
     share: number;
     latitude?: number;
     longitude?: number;
+    affiliates?: string[];
   };
 }
 
@@ -36,16 +48,58 @@ export default function EditBranchModal({
   onClose,
   existingBranch,
 }: EditBranchModalProps) {
+  const { user: currentUser } = useUser();
   const { updateBranch } = useBranches();
+
   const [branchManager, setBranchManager] = useState("");
   const [location, setLocation] = useState("");
   const [harvestDayOfMonth, setHarvestDayOfMonth] = useState("");
   const [share, setShare] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
+  const [affiliates, setAffiliates] = useState<string[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  // Fetch approved users for affiliates selection
+  useEffect(() => {
+    const fetchApprovedUsers = async () => {
+      if (!open) return;
+
+      setUsersLoading(true);
+      try {
+        const usersQuery = query(
+          collection(db, "users"),
+          where("status", "==", "approved")
+        );
+        const querySnapshot = await getDocs(usersQuery);
+        const users: UserData[] = [];
+
+        querySnapshot.forEach((doc) => {
+          const userData = doc.data();
+          users.push({
+            id: doc.id,
+            email: userData.email,
+            role: userData.role,
+            status: userData.status,
+            approvedAt: userData.approvedAt,
+          });
+        });
+
+        setAvailableUsers(users);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        toast.error("Failed to load users");
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+
+    fetchApprovedUsers();
+  }, [open]);
 
   useEffect(() => {
     if (existingBranch && open) {
@@ -55,6 +109,7 @@ export default function EditBranchModal({
       setShare(existingBranch.share.toString());
       setLatitude(existingBranch.latitude?.toString() || "");
       setLongitude(existingBranch.longitude?.toString() || "");
+      setAffiliates(existingBranch.affiliates || []);
     }
   }, [existingBranch, open]);
 
@@ -70,6 +125,16 @@ export default function EditBranchModal({
         description: `New coordinates: ${latitude}, ${longitude}`,
       });
     }
+  };
+
+  const handleAddAffiliate = (email: string) => {
+    if (!affiliates.includes(email)) {
+      setAffiliates([...affiliates, email]);
+    }
+  };
+
+  const handleRemoveAffiliate = (email: string) => {
+    setAffiliates(affiliates.filter((affiliate) => affiliate !== email));
   };
 
   if (!open || !existingBranch) return null;
@@ -93,6 +158,7 @@ export default function EditBranchModal({
         share: number;
         latitude?: number | null;
         longitude?: number | null;
+        affiliates?: string[];
       } = {
         branch_manager: branchManager,
         location,
@@ -108,6 +174,13 @@ export default function EditBranchModal({
         // If both are empty, remove coordinates
         updateData.latitude = null;
         updateData.longitude = null;
+      }
+
+      // Add affiliates if any selected, or remove if empty
+      if (affiliates.length > 0) {
+        updateData.affiliates = affiliates;
+      } else {
+        updateData.affiliates = undefined; // Remove affiliates field if empty
       }
 
       await updateBranch.mutateAsync({
@@ -181,6 +254,80 @@ export default function EditBranchModal({
               required
               className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-inner transition-all"
             />
+          </div>
+
+          {/* Affiliates Section */}
+          <div className="border-t pt-4 mt-2">
+            <div className="flex items-center gap-2 mb-3">
+              <User className="h-5 w-5 text-purple-500" />
+              <label className="block text-sm font-medium text-foreground">
+                Affiliates (Optional)
+              </label>
+            </div>
+
+            {usersLoading ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">
+                  Loading users...
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Selected Affiliates */}
+                {affiliates.length > 0 && (
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-foreground mb-2">
+                      Selected Affiliates:
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {affiliates.map((email) => (
+                        <div
+                          key={email}
+                          className="flex items-center gap-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 px-2 py-1 rounded-full text-xs"
+                        >
+                          {email}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAffiliate(email)}
+                            className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Available Users Dropdown */}
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-2">
+                    Add Affiliate:
+                  </label>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleAddAffiliate(e.target.value);
+                        e.target.value = ""; // Reset selection
+                      }
+                    }}
+                    className="w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-400 text-foreground transition-all text-sm"
+                  >
+                    <option value="">Select a user...</option>
+                    {availableUsers
+                      .filter((user) => !affiliates.includes(user.email))
+                      .map((user) => (
+                        <option key={user.id} value={user.email}>
+                          {user.email} ({user.role})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Optional: Add approved users as affiliates to this branch
+                </p>
+              </>
+            )}
           </div>
 
           {/* Geolocation Section */}
@@ -333,10 +480,12 @@ export default function EditBranchModal({
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || updateBranch.isPending}
               className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50"
             >
-              {loading ? "Updating..." : "Update Branch"}
+              {loading || updateBranch.isPending
+                ? "Updating..."
+                : "Update Branch"}
             </button>
           </div>
         </form>

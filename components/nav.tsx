@@ -118,9 +118,11 @@ export function Nav() {
               <Button variant="ghost" size="icon">
                 <Search className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon">
-                <Bell className="h-4 w-4" />
-              </Button>
+              <Link href="/changelogs">
+                <Button variant="ghost" size="icon">
+                  <Bell className="h-4 w-4" />
+                </Button>
+              </Link>
               <ModeToggle />
 
               {/* Avatar + Dropdown */}

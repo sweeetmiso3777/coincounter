@@ -3,32 +3,22 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import AddBranchModal from "./AddbranchModal";
+import { Button } from "@/components/ui/button";
 
 export function AddBranchCard() {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <div
+      <Button
         onClick={() => setOpen(true)}
-        className="bg-card rounded-lg border-2 border-dashed border-border hover:border-muted-foreground transition-colors cursor-pointer group"
+        variant="outline"
+        size="sm"
+        className="bg-foreground/90 gap-2 border-lime-500 text-lime-600 hover:bg-lime-50 hover:text-lime-700 dark:border-lime-400 dark:text-lime-400 dark:hover:bg-lime-950 dark:hover:text-lime-300"
       >
-        <div className="p-6 h-full flex flex-col items-center justify-center min-h-[280px]">
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-muted group-hover:bg-accent transition-colors flex items-center justify-center">
-              <Plus className="h-8 w-8 text-muted-foreground group-hover:text-accent-foreground transition-colors" />
-            </div>
-            <div className="text-center">
-              <h3 className="text-lg font-medium text-foreground group-hover:text-muted-foreground transition-colors">
-                Add New Branch
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Click to create a new branch
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+        <Plus className="h-4 w-4" />
+        Add Branch
+      </Button>
 
       <AddBranchModal open={open} onClose={() => setOpen(false)} />
     </>

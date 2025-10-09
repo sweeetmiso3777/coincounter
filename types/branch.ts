@@ -9,6 +9,7 @@ export interface Branch {
   share: number;
   latitude?: number | null;
   longitude?: number | null;
+  affiliates?: string[]; // Optional array of email strings
 }
 
 export interface BranchData {
@@ -20,4 +21,5 @@ export interface BranchData {
   share: number;
   latitude?: number | null;
   longitude?: number | null;
+  affiliates?: string[]; // Optional array of email strings
 }
