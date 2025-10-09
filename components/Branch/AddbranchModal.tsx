@@ -2,11 +2,13 @@
 
 import type React from "react";
 import { useState, useEffect } from "react";
-import { addDoc, collection, Timestamp } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { toast } from "sonner";
-import { MapPin } from "lucide-react";
+import { MapPin, User, X } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useUser } from "@/providers/UserProvider";
+import { useBranches } from "@/hooks/use-branches-query";
 
 // Dynamically import the map with no SSR
 const CompactMap = dynamic(() => import("@/components/Branch/CompactMap"), {
@@ -17,6 +19,14 @@ const CompactMap = dynamic(() => import("@/components/Branch/CompactMap"), {
     </div>
   ),
 });
+
+interface UserData {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  approvedAt: any;
+}
 
 interface AddBranchModalProps {
   open: boolean;
@@ -30,6 +40,7 @@ interface AddBranchModalProps {
     share: number;
     latitude?: number;
     longitude?: number;
+    affiliates?: string[];
   };
 }
 
@@ -38,15 +49,58 @@ export default function AddBranchModal({
   onClose,
   existingBranch,
 }: AddBranchModalProps) {
+  const { user: currentUser } = useUser();
+  const { createBranch } = useBranches();
+
   const [branchManager, setBranchManager] = useState("");
   const [location, setLocation] = useState("");
   const [harvestDayOfMonth, setHarvestDayOfMonth] = useState("");
   const [share, setShare] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
+  const [affiliates, setAffiliates] = useState<string[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  // Fetch approved users for affiliates selection
+  useEffect(() => {
+    const fetchApprovedUsers = async () => {
+      if (!open) return;
+
+      setUsersLoading(true);
+      try {
+        const usersQuery = query(
+          collection(db, "users"),
+          where("status", "==", "approved")
+        );
+        const querySnapshot = await getDocs(usersQuery);
+        const users: UserData[] = [];
+
+        querySnapshot.forEach((doc) => {
+          const userData = doc.data();
+          users.push({
+            id: doc.id,
+            email: userData.email,
+            role: userData.role,
+            status: userData.status,
+            approvedAt: userData.approvedAt,
+          });
+        });
+
+        setAvailableUsers(users);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        toast.error("Failed to load users");
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+
+    fetchApprovedUsers();
+  }, [open]);
 
   useEffect(() => {
     if (existingBranch) {
@@ -56,6 +110,7 @@ export default function AddBranchModal({
       setShare(existingBranch.share.toString());
       setLatitude(existingBranch.latitude?.toString() || "");
       setLongitude(existingBranch.longitude?.toString() || "");
+      setAffiliates(existingBranch.affiliates || []);
     } else {
       setBranchManager("");
       setLocation("");
@@ -63,6 +118,7 @@ export default function AddBranchModal({
       setShare("");
       setLatitude("");
       setLongitude("");
+      setAffiliates([]);
     }
     setShowMap(false);
   }, [existingBranch, open]);
@@ -81,6 +137,16 @@ export default function AddBranchModal({
     }
   };
 
+  const handleAddAffiliate = (email: string) => {
+    if (!affiliates.includes(email)) {
+      setAffiliates([...affiliates, email]);
+    }
+  };
+
+  const handleRemoveAffiliate = (email: string) => {
+    setAffiliates(affiliates.filter((affiliate) => affiliate !== email));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -94,31 +160,28 @@ export default function AddBranchModal({
       }
 
       // Prepare branch data
-      const branchData: {
-        branch_manager: string;
-        location: string;
-        harvest_day_of_month: number;
-        share: number;
-        created_at: Timestamp;
-        totalUnits: number;
-        latitude?: number;
-        longitude?: number;
-      } = {
+      const branchData = {
         branch_manager: branchManager,
         location,
         harvest_day_of_month: dayOfMonth,
         share: Number(share),
-        created_at: Timestamp.now(),
         totalUnits: 0,
+        ...(latitude &&
+          longitude && {
+            latitude: parseFloat(latitude),
+            longitude: parseFloat(longitude),
+          }),
+        ...(affiliates.length > 0 && { affiliates }),
       };
 
-      // Add coordinates only if provided
-      if (latitude && longitude) {
-        branchData.latitude = parseFloat(latitude);
-        branchData.longitude = parseFloat(longitude);
-      }
+      // Generate a unique ID for the new branch
+      const branchId = `branch_${Date.now()}`;
 
-      await addDoc(collection(db, "Branches"), branchData);
+      // Use the createBranch mutation from the hook
+      await createBranch.mutateAsync({
+        id: branchId,
+        data: branchData,
+      });
 
       // Reset form
       setBranchManager("");
@@ -127,6 +190,7 @@ export default function AddBranchModal({
       setShare("");
       setLatitude("");
       setLongitude("");
+      setAffiliates([]);
       setShowMap(false);
 
       toast.success("Branch has been added successfully!", {
@@ -182,6 +246,80 @@ export default function AddBranchModal({
               className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 text-foreground transition-all"
               placeholder="Enter branch location"
             />
+          </div>
+
+          {/* Affiliates Section */}
+          <div className="border-t pt-4 mt-2">
+            <div className="flex items-center gap-2 mb-3">
+              <User className="h-5 w-5 text-purple-500" />
+              <label className="block text-sm font-medium text-foreground">
+                Affiliates (Optional)
+              </label>
+            </div>
+
+            {usersLoading ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">
+                  Loading users...
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Selected Affiliates */}
+                {affiliates.length > 0 && (
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-foreground mb-2">
+                      Selected Affiliates:
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {affiliates.map((email) => (
+                        <div
+                          key={email}
+                          className="flex items-center gap-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 px-2 py-1 rounded-full text-xs"
+                        >
+                          {email}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAffiliate(email)}
+                            className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Available Users Dropdown */}
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-2">
+                    Add Affiliate:
+                  </label>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleAddAffiliate(e.target.value);
+                        e.target.value = ""; // Reset selection
+                      }
+                    }}
+                    className="w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-400 text-foreground transition-all text-sm"
+                  >
+                    <option value="">Select a user...</option>
+                    {availableUsers
+                      .filter((user) => !affiliates.includes(user.email))
+                      .map((user) => (
+                        <option key={user.id} value={user.email}>
+                          {user.email} ({user.role})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Optional: Add approved users as affiliates to this branch
+                </p>
+              </>
+            )}
           </div>
 
           {/* Geolocation Section */}
@@ -325,10 +463,14 @@ export default function AddBranchModal({
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || createBranch.isPending}
               className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50"
             >
-              {loading ? "Saving..." : existingBranch ? "Update" : "Add Branch"}
+              {loading || createBranch.isPending
+                ? "Saving..."
+                : existingBranch
+                ? "Update"
+                : "Add Branch"}
             </button>
           </div>
         </form>

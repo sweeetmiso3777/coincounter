@@ -47,6 +47,11 @@ export function CompactSlideOutNav({
       href: "/settings",
       label: "Settings",
     },
+    {
+      icon: <LayoutDashboard className="w-5 h-5" />,
+      href: "/changelogs",
+      label: "Changelogs",
+    },
   ];
 
   if (!isNavVisible)

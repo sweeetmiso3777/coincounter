@@ -11,6 +11,7 @@ import {
   ChevronRight,
   SquareArrowOutUpRight,
   MapPin,
+  Users,
 } from "lucide-react";
 import { CardMenu } from "./card-menu";
 import Link from "next/link";
@@ -26,6 +27,7 @@ interface BranchCardProps {
 export function BranchCard({ branch }: BranchCardProps) {
   const [editing, setEditing] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
+  const [showAffiliateTooltip, setShowAffiliateTooltip] = useState(false);
 
   const formatDate = (date: Date | null | undefined) => {
     if (!date || !(date instanceof Date) || isNaN(date.getTime()))
@@ -83,6 +85,7 @@ export function BranchCard({ branch }: BranchCardProps) {
   };
 
   const harvestInfo = formatHarvestSchedule(branch.harvest_day_of_month);
+  const affiliateCount = branch.affiliates?.length || 0;
 
   return (
     <>
@@ -111,6 +114,41 @@ export function BranchCard({ branch }: BranchCardProps) {
                 <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
                   {branch.branch_manager}
                 </span>
+
+                {/* Affiliate Count */}
+                {affiliateCount > 0 && (
+                  <div className="relative">
+                    <button
+                      onMouseEnter={() => setShowAffiliateTooltip(true)}
+                      onMouseLeave={() => setShowAffiliateTooltip(false)}
+                      className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors"
+                    >
+                      <Users className="h-3 w-3" />+{affiliateCount}
+                    </button>
+
+                    {/* Affiliate Tooltip */}
+                    {showAffiliateTooltip && (
+                      <div className="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[200px]">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Users className="h-4 w-4 text-blue-500" />
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                            Affiliates ({affiliateCount})
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          {branch.affiliates?.map((affiliate, index) => (
+                            <div
+                              key={index}
+                              className="text-xs text-gray-600 dark:text-gray-400 py-1 px-2 bg-gray-50 dark:bg-gray-700/50 rounded"
+                            >
+                              {affiliate}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <CardMenu
