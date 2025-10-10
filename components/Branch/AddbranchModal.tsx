@@ -2,7 +2,13 @@
 
 import type React from "react";
 import { useState, useEffect } from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { toast } from "sonner";
 import { MapPin, User, X } from "lucide-react";
@@ -25,7 +31,7 @@ interface UserData {
   email: string;
   role: string;
   status: string;
-  approvedAt: any;
+  approvedAt?: string | undefined;
 }
 
 interface AddBranchModalProps {
@@ -37,6 +43,7 @@ interface AddBranchModalProps {
     branch_manager: string;
     location: string;
     harvest_day_of_month: number;
+    last_harvest_date?: Timestamp | string | undefined;
     share: number;
     latitude?: number;
     longitude?: number;
@@ -166,6 +173,9 @@ export default function AddBranchModal({
         harvest_day_of_month: dayOfMonth,
         share: Number(share),
         totalUnits: 0,
+        last_harvest_date: existingBranch
+          ? existingBranch.last_harvest_date
+          : "",
         ...(latitude &&
           longitude && {
             latitude: parseFloat(latitude),

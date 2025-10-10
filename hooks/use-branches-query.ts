@@ -21,6 +21,7 @@ export interface BranchData {
   branch_manager: string
   location: string
   harvest_day_of_month: number
+  last_harvest_date: Timestamp | string | undefined
   created_at: Date
   share: number
   totalUnits: number
@@ -39,6 +40,7 @@ function transformBranchDoc(docSnap: any): BranchData {
     id: docSnap.id,
     branch_manager: data.branch_manager,
     location: data.location,
+    last_harvest_date: data.last_harvest_date ?? undefined,
     harvest_day_of_month: data.harvest_day_of_month,
     created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(),
     share: data.share ?? 0,

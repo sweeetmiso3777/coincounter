@@ -46,14 +46,14 @@ export function Nav() {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Avatar className="h-8 w-8 lg:h-9 lg:w-9">
-            <AvatarImage src="/gapuz.png" alt="Profile" />
+            <AvatarImage src="/gapuzlogo.png" alt="Profile" />
             <AvatarFallback className="bg-muted text-muted-foreground">
-              JD
+              Coinsync
             </AvatarFallback>
           </Avatar>
           <Link href="/dashboard">
             <span className="text-md font-semibold font-mono text-foreground hidden sm:block">
-              Coin Tracking System
+              Coinsynchro
             </span>
           </Link>
           <span className="text-md font-semibold text-foreground sm:hidden">
