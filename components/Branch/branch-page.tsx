@@ -55,7 +55,15 @@ export function BranchPage() {
               {branches.map((branch) => (
                 <BranchCard
                   key={branch.id}
-                  branch={branch}
+                  branch={{
+                    ...branch,
+                    last_harvest_date:
+                      typeof branch.last_harvest_date === "string"
+                        ? branch.last_harvest_date
+                        : branch.last_harvest_date
+                        ? branch.last_harvest_date.toDate().toISOString()
+                        : null,
+                  }}
                   totalUnits={branch.totalUnits || 0} // ensure default
                 />
               ))}

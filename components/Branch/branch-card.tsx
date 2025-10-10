@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import { motion } from "framer-motion";
 import type { BranchData } from "@/types/branch";
 import {
@@ -12,22 +14,131 @@ import {
   SquareArrowOutUpRight,
   MapPin,
   Users,
+  CalendarClock,
+  DollarSign,
+  AlertTriangle,
+  Clock,
 } from "lucide-react";
 import { CardMenu } from "./card-menu";
 import Link from "next/link";
 import { useState } from "react";
 import EditBranchModal from "./EditBranchModal";
 import { MapModal } from "./MapModal";
+import { useBranchHarvest } from "@/hooks/use-branch-harvest";
+import { toast } from "sonner";
 
 interface BranchCardProps {
-  branch: BranchData;
+  branch: BranchData & {
+    last_harvest_date?: string | null;
+  };
   totalUnits: number;
 }
+
+// Color themes for different cards
+const cardThemes = [
+  {
+    primary: "blue",
+    primaryLight: "bg-blue-50 dark:bg-blue-950/30",
+    primaryBorder: "border-blue-200 dark:border-blue-800",
+    primaryHover: "hover:bg-blue-100 dark:hover:bg-blue-900/40",
+    icon: "text-blue-500",
+    accent: "text-blue-600 dark:text-blue-400",
+    triangle:
+      "border-l-blue-200 dark:border-l-blue-700 border-t-blue-200 dark:border-t-blue-700",
+  },
+  {
+    primary: "green",
+    primaryLight: "bg-green-50 dark:bg-green-950/30",
+    primaryBorder: "border-green-200 dark:border-green-800",
+    primaryHover: "hover:bg-green-100 dark:hover:bg-green-900/40",
+    icon: "text-green-500",
+    accent: "text-green-600 dark:text-green-400",
+    triangle:
+      "border-l-green-200 dark:border-l-green-700 border-t-green-200 dark:border-t-green-700",
+  },
+  {
+    primary: "purple",
+    primaryLight: "bg-purple-50 dark:bg-purple-950/30",
+    primaryBorder: "border-purple-200 dark:border-purple-800",
+    primaryHover: "hover:bg-purple-100 dark:hover:bg-purple-900/40",
+    icon: "text-purple-500",
+    accent: "text-purple-600 dark:text-purple-400",
+    triangle:
+      "border-l-purple-200 dark:border-l-purple-700 border-t-purple-200 dark:border-t-purple-700",
+  },
+  {
+    primary: "amber",
+    primaryLight: "bg-amber-50 dark:bg-amber-950/30",
+    primaryBorder: "border-amber-200 dark:border-amber-800",
+    primaryHover: "hover:bg-amber-100 dark:hover:bg-amber-900/40",
+    icon: "text-amber-500",
+    accent: "text-amber-600 dark:text-amber-400",
+    triangle:
+      "border-l-amber-200 dark:border-l-amber-700 border-t-amber-200 dark:border-t-amber-700",
+  },
+  {
+    primary: "indigo",
+    primaryLight: "bg-indigo-50 dark:bg-indigo-950/30",
+    primaryBorder: "border-indigo-200 dark:border-indigo-800",
+    primaryHover: "hover:bg-indigo-100 dark:hover:bg-indigo-900/40",
+    icon: "text-indigo-500",
+    accent: "text-indigo-600 dark:text-indigo-400",
+    triangle:
+      "border-l-indigo-200 dark:border-l-indigo-700 border-t-indigo-200 dark:border-t-indigo-700",
+  },
+  {
+    primary: "rose",
+    primaryLight: "bg-rose-50 dark:bg-rose-950/30",
+    primaryBorder: "border-rose-200 dark:border-rose-800",
+    primaryHover: "hover:bg-rose-100 dark:hover:bg-rose-900/40",
+    icon: "text-rose-500",
+    accent: "text-rose-600 dark:text-rose-400",
+    triangle:
+      "border-l-rose-200 dark:border-l-rose-700 border-t-rose-200 dark:border-t-rose-700",
+  },
+  {
+    primary: "emerald",
+    primaryLight: "bg-emerald-50 dark:bg-emerald-950/30",
+    primaryBorder: "border-emerald-200 dark:border-emerald-800",
+    primaryHover: "hover:bg-emerald-100 dark:hover:bg-emerald-900/40",
+    icon: "text-emerald-500",
+    accent: "text-emerald-600 dark:text-emerald-400",
+    triangle:
+      "border-l-emerald-200 dark:border-l-emerald-700 border-t-emerald-200 dark:border-t-emerald-700",
+  },
+  {
+    primary: "cyan",
+    primaryLight: "bg-cyan-50 dark:bg-cyan-950/30",
+    primaryBorder: "border-cyan-200 dark:border-cyan-800",
+    primaryHover: "hover:bg-cyan-100 dark:hover:bg-cyan-900/40",
+    icon: "text-cyan-500",
+    accent: "text-cyan-600 dark:text-cyan-400",
+    triangle:
+      "border-l-cyan-200 dark:border-l-cyan-700 border-t-cyan-200 dark:border-t-cyan-700",
+  },
+];
+
+// Helper function to get consistent color based on branch ID
+const getCardTheme = (branchId: string) => {
+  const hash = branchId
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return cardThemes[hash % cardThemes.length];
+};
 
 export function BranchCard({ branch }: BranchCardProps) {
   const [editing, setEditing] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
   const [showAffiliateTooltip, setShowAffiliateTooltip] = useState(false);
+  const [showBackdateModal, setShowBackdateModal] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [backdateValue, setBackdateValue] = useState("");
+  const [pendingHarvestType, setPendingHarvestType] = useState<
+    "today" | "backdate"
+  >("today");
+  const { harvestToday, harvestBackdate, isHarvesting } = useBranchHarvest();
+
+  const theme = getCardTheme(branch.id);
 
   const formatDate = (date: Date | null | undefined) => {
     if (!date || !(date instanceof Date) || isNaN(date.getTime()))
@@ -84,19 +195,124 @@ export function BranchCard({ branch }: BranchCardProps) {
     };
   };
 
+  // Check if last harvest date has passed
+  const isHarvested = () => {
+    if (!branch.last_harvest_date) return false;
+
+    const lastHarvestDate = new Date(branch.last_harvest_date);
+    const today = new Date();
+
+    // Reset time parts for accurate date comparison
+    const lastHarvest = new Date(
+      lastHarvestDate.getFullYear(),
+      lastHarvestDate.getMonth(),
+      lastHarvestDate.getDate()
+    );
+    const currentDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+
+    return lastHarvest < currentDate;
+  };
+
+  const handleHarvestToday = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPendingHarvestType("today");
+    setShowConfirmationModal(true);
+  };
+
+  const handleBackdateHarvest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPendingHarvestType("backdate");
+    setShowConfirmationModal(true);
+  };
+
+  const executeHarvest = async () => {
+    try {
+      let result;
+
+      if (pendingHarvestType === "today") {
+        result = await harvestToday(branch.id);
+        toast.success(
+          `Harvested ${
+            result.summary.aggregatesHarvested
+          } aggregates. Total: ₱${result.summary.totalAmount.toFixed(2)}`
+        );
+      } else {
+        result = await harvestBackdate(branch.id, backdateValue);
+        toast.success(
+          `Harvested ${result.summary.aggregatesHarvested} aggregates for ${
+            result.harvestDate
+          }. Total: ₱${result.summary.totalAmount.toFixed(2)}`
+        );
+        setShowBackdateModal(false);
+        setBackdateValue("");
+      }
+
+      setShowConfirmationModal(false);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Harvest failed";
+      toast.error(errorMessage);
+      setShowConfirmationModal(false);
+    }
+  };
+
   const harvestInfo = formatHarvestSchedule(branch.harvest_day_of_month);
   const affiliateCount = branch.affiliates?.length || 0;
+
+  const getHarvestConfirmationMessage = () => {
+    if (pendingHarvestType === "today") {
+      return {
+        title: "Harvest Today?",
+        description:
+          "This will collect all unharvested aggregates up to yesterday's date and update the monthly totals.",
+        icon: <DollarSign className="h-6 w-6 text-amber-500" />,
+        buttonText: "Yes, Harvest Now",
+        buttonColor: "bg-amber-600 hover:bg-amber-700",
+      };
+    } else {
+      return {
+        title: "Late Harvest?",
+        description: `This will collect aggregates for ${backdateValue}. Use this if you forgot to harvest on the scheduled date.`,
+        icon: <Clock className="h-6 w-6 text-blue-500" />,
+        buttonText: "Yes, Process Late Harvest",
+        buttonColor: "bg-blue-600 hover:bg-blue-700",
+      };
+    }
+  };
 
   return (
     <>
       <motion.div
-        className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden w-full"
+        className={`bg-white dark:bg-gray-800 rounded-xl border ${theme.primaryBorder} shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden w-full relative`}
         whileHover={{ scale: 1.02 }}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.15 }}
       >
-        <div className="flex flex-col h-full p-4">
+        {/* Triangle Header */}
+        <div
+          className={`absolute top-0 left-0 w-0 h-0 border-l-[20px] border-t-[20px] border-r-[20px] border-r-transparent border-b-[20px] border-b-transparent ${theme.triangle}`}
+        />
+
+        {/* Harvested Watermark */}
+        {isHarvested() && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+            <div className="text-red-200 dark:text-red-800/40 text-4xl font-bold rotate-[-45deg] opacity-25 select-none tracking-widest">
+              HARVESTED
+            </div>
+          </div>
+        )}
+
+        <div
+          className={`flex flex-col h-full p-4 ${
+            isHarvested() ? "relative z-20" : ""
+          }`}
+        >
           {/* Header */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
@@ -104,13 +320,17 @@ export function BranchCard({ branch }: BranchCardProps) {
                 onClick={() => setShowMapModal(true)}
                 className="flex items-center gap-2 text-left w-full group"
               >
-                <MapPin className="h-5 w-5 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate group-hover:text-blue-500 transition-colors">
+                <MapPin
+                  className={`h-5 w-5 ${theme.icon} group-hover:${theme.accent} transition-colors flex-shrink-0`}
+                />
+                <h3
+                  className={`text-lg font-semibold text-gray-900 dark:text-white truncate group-hover:${theme.accent} transition-colors`}
+                >
                   {branch.location}
                 </h3>
               </button>
               <div className="flex items-center gap-2 mt-1">
-                <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                <User className={`h-4 w-4 ${theme.icon} flex-shrink-0`} />
                 <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
                   {branch.branch_manager}
                 </span>
@@ -121,7 +341,7 @@ export function BranchCard({ branch }: BranchCardProps) {
                     <button
                       onMouseEnter={() => setShowAffiliateTooltip(true)}
                       onMouseLeave={() => setShowAffiliateTooltip(false)}
-                      className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-800/50 transition-colors"
+                      className={`flex items-center gap-1 ${theme.primaryLight} ${theme.accent} px-2 py-1 rounded-full text-xs font-medium ${theme.primaryHover} transition-colors`}
                     >
                       <Users className="h-3 w-3" />+{affiliateCount}
                     </button>
@@ -130,7 +350,7 @@ export function BranchCard({ branch }: BranchCardProps) {
                     {showAffiliateTooltip && (
                       <div className="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[200px]">
                         <div className="flex items-center gap-2 mb-2">
-                          <Users className="h-4 w-4 text-blue-500" />
+                          <Users className={`h-4 w-4 ${theme.icon}`} />
                           <span className="text-sm font-semibold text-gray-900 dark:text-white">
                             Affiliates ({affiliateCount})
                           </span>
@@ -161,43 +381,49 @@ export function BranchCard({ branch }: BranchCardProps) {
           {/* Share Info */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-500 flex-shrink-0" />
+              <TrendingUp className={`h-4 w-4 ${theme.icon} flex-shrink-0`} />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Share:
               </span>
             </div>
-            <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 px-2.5 py-0.5 text-xs font-semibold text-green-800 dark:text-green-400">
+            <span
+              className={`inline-flex items-center rounded-full ${theme.primaryLight} px-2.5 py-0.5 text-xs font-semibold ${theme.accent}`}
+            >
               {branch.share}%
             </span>
           </div>
 
           {/* Body Content */}
           <div className="space-y-3 flex-1">
-            <Link
-              href="/units"
-              className="block rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 cursor-pointer">
+            <div className="flex items-center justify-between p-2">
+              <Link
+                href={`/branches/${branch.id}`}
+                prefetch={true}
+                className="flex items-center justify-between group"
+              >
                 <div className="flex items-center gap-2">
-                  <Monitor className="h-4 w-4 text-purple-500 flex-shrink-0" />
+                  <Monitor className={`h-4 w-4 ${theme.icon} flex-shrink-0`} />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    See Units
+                    See Performance
                   </span>
                 </div>
-                <SquareArrowOutUpRight className="h-4 w-4 text-gray-400" />
-              </div>
-            </Link>
+              </Link>
+            </div>
 
-            {/* Created Date */}
+            {/* Last Harvest Date */}
             <div className="flex items-center justify-between p-2">
               <div className="flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                <CalendarDays
+                  className={`h-4 w-4 ${theme.icon} flex-shrink-0`}
+                />
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Created:
+                  Last Harvest:
                 </span>
               </div>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                {formatDate(branch.created_at)}
+                {branch.last_harvest_date
+                  ? formatDate(new Date(branch.last_harvest_date))
+                  : "Never"}
               </span>
             </div>
 
@@ -208,7 +434,7 @@ export function BranchCard({ branch }: BranchCardProps) {
             >
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                  <Calendar className={`h-4 w-4 ${theme.icon} flex-shrink-0`} />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Harvest:
                   </span>
@@ -217,7 +443,7 @@ export function BranchCard({ branch }: BranchCardProps) {
                   {harvestInfo.shortDate}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Next:
@@ -228,7 +454,7 @@ export function BranchCard({ branch }: BranchCardProps) {
                     className={`text-sm font-medium ${
                       harvestInfo.isThisMonth
                         ? "text-green-600 dark:text-green-400"
-                        : "text-blue-600 dark:text-blue-400"
+                        : theme.accent
                     }`}
                   >
                     {harvestInfo.nextDate}
@@ -245,6 +471,31 @@ export function BranchCard({ branch }: BranchCardProps) {
                   )}
                 </div>
               </div>
+
+              <div className="flex items-center gap-2 justify-between">
+                <button
+                  onClick={handleHarvestToday}
+                  disabled={isHarvesting}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium ${theme.accent} ${theme.primaryLight} ${theme.primaryHover} transition-colors disabled:opacity-50 ${theme.primaryBorder}`}
+                  title="Harvest Today"
+                >
+                  <DollarSign className="h-3.5 w-3.5" />
+                  Harvest
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowBackdateModal(true);
+                  }}
+                  disabled={isHarvesting}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium ${theme.accent} ${theme.primaryLight} ${theme.primaryHover} transition-colors disabled:opacity-50 ${theme.primaryBorder}`}
+                  title="Late Harvest"
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  Late Harvest
+                </button>
+              </div>
             </Link>
           </div>
 
@@ -260,9 +511,9 @@ export function BranchCard({ branch }: BranchCardProps) {
               </span>
               <motion.div
                 animate={{ x: [0, 2, 0] }}
-                transition={{ repeat: Infinity, duration: 1 }}
+                transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1 }}
               >
-                <ChevronRight className="h-4 w-4 text-gray-400" />
+                <ChevronRight className={`h-4 w-4 ${theme.icon}`} />
               </motion.div>
             </Link>
           </div>
@@ -288,6 +539,95 @@ export function BranchCard({ branch }: BranchCardProps) {
             longitude: branch.longitude !== null ? branch.longitude : undefined,
           }}
         />
+      )}
+
+      {/* Backdate Modal */}
+      {showBackdateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Late Harvest
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Use this if you forgot to harvest on the scheduled date. Select
+              the date you want to harvest up to.
+            </p>
+            <form onSubmit={handleBackdateHarvest}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Select Harvest Date
+                </label>
+                <input
+                  type="date"
+                  value={backdateValue}
+                  onChange={(e) => setBackdateValue(e.target.value)}
+                  max={new Date().toISOString().split("T")[0]}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBackdateModal(false);
+                    setBackdateValue("");
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isHarvesting || !backdateValue}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Continue
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmationModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-full">
+                <AlertTriangle className="h-6 w-6 text-amber-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {getHarvestConfirmationMessage().title}
+              </h3>
+            </div>
+
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              {getHarvestConfirmationMessage().description}
+            </p>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowConfirmationModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeHarvest}
+                disabled={isHarvesting}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 ${
+                  getHarvestConfirmationMessage().buttonColor
+                }`}
+              >
+                {isHarvesting
+                  ? "Processing..."
+                  : getHarvestConfirmationMessage().buttonText}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

@@ -25,7 +25,7 @@ interface UserData {
   email: string;
   role: string;
   status: string;
-  approvedAt: any;
+  approvedAt?: string | undefined;
 }
 
 interface EditBranchModalProps {

@@ -10,7 +10,8 @@ interface Aggregate {
   total: number;
   sales_count: number;
   branchId: string;
-  timestamp: admin.firestore.Timestamp;
+  timestamp: admin.firestore.Timestamp; // This represents the date of the data
+  createdAt: admin.firestore.Timestamp; // This tracks when the aggregate was created
   harvested: boolean;
 }
 
@@ -44,6 +45,7 @@ export async function GET(request: NextRequest) {
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
     const todayDateId = getDateId(today);
+    const currentTimestamp = admin.firestore.Timestamp.now();
 
     // Fetch all units first to create deviceId -> branchId mapping
     const unitsSnapshot = await db.collection("Units").get();
@@ -78,7 +80,8 @@ export async function GET(request: NextRequest) {
           total: 0,
           sales_count: 0,
           branchId: branchId,
-          timestamp: admin.firestore.Timestamp.fromDate(today),
+          timestamp: admin.firestore.Timestamp.fromDate(today), // Date the data represents
+          createdAt: currentTimestamp, // When this aggregate was created
           harvested: false
         };
       }
@@ -112,7 +115,8 @@ export async function GET(request: NextRequest) {
         totalUnits: unitsSnapshot.size,
         activeUnitsToday: Object.keys(deviceAggregates).length,
         salesProcessed: salesSnapshot.size,
-        branchCoverage: Object.keys(branchMap).length
+        branchCoverage: Object.keys(branchMap).length,
+        processedAt: currentTimestamp.toDate().toISOString()
       }
     });
   } catch (err) {
