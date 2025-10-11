@@ -13,6 +13,7 @@ export interface Branch {
 }
 
 export interface BranchData {
+  last_harvest_date: any;
   id: string;
   branch_manager: string;
   created_at: Date; // JS Date

@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { BranchesQueryProvider } from "@/providers/BranchesQueryProvider";
 import { UserProvider, useUser } from "@/providers/UserProvider";
@@ -12,22 +12,33 @@ import "leaflet/dist/leaflet.css";
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, loading, isApproved } = useUser();
+
+  const allowedForPartners = ["/dashboard", "/branches"];
 
   useEffect(() => {
     if (!loading) {
       if (!user) router.push("/"); // not logged in
       else if (!isApproved) router.push("/sorry"); // pending/rejected
+      else if (
+        user.role === "partner" &&
+        !allowedForPartners.includes(pathname.toLowerCase())
+      ) {
+        router.push("/dashboard");
+      }
     }
-  }, [user, isApproved, loading, router]);
+  }, [user, isApproved, loading, router, pathname]);
 
   if (loading || !user || !isApproved) return null;
 
   return (
-    <>
+    <div className="h-screen flex flex-col [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <Nav />
-      <main className="min-h-screen bg-background">{children}</main>
-    </>
+      <main className="flex-1 bg-background overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {children}
+      </main>
+    </div>
   );
 }
 
