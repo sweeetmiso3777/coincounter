@@ -124,6 +124,57 @@ function StatusBadge({
   );
 }
 
+// Compact Mobile Status badge component
+function MobileStatusBadge({
+  status,
+  lastPing,
+}: {
+  status: "online" | "offline" | "unknown";
+  lastPing?: string;
+}) {
+  const getTimeAgo = (timestamp: string) => {
+    if (!timestamp) return "";
+    try {
+      const now = new Date();
+      const pingTime = new Date(timestamp);
+      if (isNaN(pingTime.getTime())) return "";
+      const diffMinutes = Math.floor(
+        (now.getTime() - pingTime.getTime()) / (1000 * 60)
+      );
+      if (diffMinutes < 1) return "Now";
+      if (diffMinutes < 60) return `${diffMinutes}m`;
+      if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)}h`;
+      return `${Math.floor(diffMinutes / 1440)}d`;
+    } catch {
+      return "";
+    }
+  };
+
+  const timeAgo = getTimeAgo(lastPing || "");
+
+  if (status === "unknown") {
+    return (
+      <div className="flex items-center gap-1">
+        <span className="w-2 h-2 rounded-full bg-gray-400" />
+        <span className="text-xs text-muted-foreground">-</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <span
+        className={`w-2 h-2 rounded-full ${
+          status === "online" ? "bg-green-500" : "bg-red-500"
+        }`}
+      />
+      <span className="text-xs text-muted-foreground">
+        {status === "online" ? "On" : timeAgo || "Off"}
+      </span>
+    </div>
+  );
+}
+
 function HarvestErrorDialog({
   open,
   onClose,
@@ -425,7 +476,8 @@ export function UnitsPageCards({
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {/* Desktop Grid - Unchanged */}
+        <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredUnitsWithBranch.map((unit) => {
             const branch = branchMap.get(unit.branchId);
             const branchLocation = branch?.location || "Unknown Location";
@@ -462,8 +514,6 @@ export function UnitsPageCards({
                         )}
                       </div>
 
-                      {/* Removed harvest icon button from top right */}
-
                       <Monitor className="w-10 h-10 text-muted-foreground mb-2" />
 
                       {/* Alias with pencil button */}
@@ -485,9 +535,12 @@ export function UnitsPageCards({
                         {unit.deviceId}
                       </CardDescription>
 
-                      <div className="text-xs text-green-600 font-medium mb-2 line-clamp-2">
+                      <Link
+                        href={`/branches/${branch?.id}`}
+                        className="text-xs text-green-600 font-medium mb-2 line-clamp-2 hover:underline"
+                      >
                         {branchLocation}
-                      </div>
+                      </Link>
 
                       {/* Simple total earned today */}
                       <div className="mt-auto pt-2 text-sm font-medium text-foreground">
@@ -603,6 +656,150 @@ export function UnitsPageCards({
                     )}
                   </Button>
                 </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Mobile Grid - Compact */}
+        <div className="lg:hidden grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {filteredUnitsWithBranch.map((unit) => {
+            const branch = branchMap.get(unit.branchId);
+            const branchLocation = branch?.location || "Unknown";
+
+            const unitStatus = statusData[unit.deviceId] || {
+              status: "unknown" as const,
+              lastPing: "",
+            };
+
+            const totalToday = sales
+              .filter((s) => s.deviceId === unit.deviceId)
+              .reduce((sum, sale) => sum + (sale.total || 0), 0);
+
+            const isHarvesting = harvestingDevice === unit.deviceId;
+
+            return (
+              <div key={unit.deviceId} className="relative">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                >
+                  <Card className="bg-card border shadow-sm hover:shadow-md transition-all flex flex-col w-full aspect-square">
+                    <CardContent className="flex-1 flex flex-col p-3">
+                      {/* Header with Status and Menu */}
+                      <div className="flex items-center justify-center mb-2">
+                        {statusLoading ? (
+                          <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+                        ) : (
+                          <MobileStatusBadge
+                            status={unitStatus.status}
+                            lastPing={unitStatus.lastPing}
+                          />
+                        )}
+
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="w-6 h-6 p-0"
+                            >
+                              <MoreVertical className="w-3 h-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="text-xs">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setConfirmingHarvest(unit.deviceId)
+                              }
+                              className="text-xs"
+                            >
+                              <CircleDollarSign className="w-3 h-3 mr-2 text-yellow-600" />
+                              Harvest
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setAssignModalUnitId(unit.deviceId)
+                              }
+                              className="text-xs"
+                            >
+                              Reassign
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setAliasModalUnitId(unit.deviceId)}
+                              className="text-xs"
+                            >
+                              <Pencil className="w-3 h-3 mr-2" />
+                              Edit Alias
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setDecommissionModalUnitId(unit.deviceId)
+                              }
+                              className="text-red-600 text-xs"
+                            >
+                              Decommission
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      {/* Device Icon and Alias */}
+                      <div className="flex flex-col items-center text-center flex-1 justify-center">
+                        <Monitor className="w-6 h-6 text-muted-foreground mb-1" />
+
+                        <div className="flex items-center gap-1 mb-1">
+                          <CardTitle className="text-xs font-medium line-clamp-2 leading-tight">
+                            {unit.alias || "No Alias"}
+                          </CardTitle>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="w-3 h-3 p-0 min-h-0"
+                            onClick={() => setAliasModalUnitId(unit.deviceId)}
+                          >
+                            <Pencil className="w-2 h-2" />
+                          </Button>
+                        </div>
+
+                        <CardDescription className="text-[10px] text-muted-foreground mb-1 truncate w-full">
+                          {unit.deviceId.slice(0, 8)}...
+                        </CardDescription>
+
+                        <Link
+                          href={`/branches/${branch?.id}`}
+                          className="text-xs text-green-600 font-medium mb-2 line-clamp-2 hover:underline"
+                        >
+                          {branchLocation}
+                        </Link>
+                      </div>
+
+                      {/* Footer with Earnings and Action */}
+                      <div className="mt-auto space-y-1">
+                        <div className="text-xs font-medium text-foreground text-center">
+                          <span className="text-green-600">₱</span>
+                          <span className="text-green-600 text-xs">
+                            <AnimatedNumber value={totalToday} />
+                          </span>
+                        </div>
+
+                        <Link
+                          href={`/units/${unit.deviceId}`}
+                          passHref
+                          className="block"
+                        >
+                          <Button
+                            size="sm"
+                            variant="link"
+                            className="text-blue-500 p-0 h-auto text-[10px] w-full"
+                          >
+                            Details
+                          </Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               </div>
             );
           })}
