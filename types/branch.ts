@@ -34,5 +34,6 @@ export interface BranchData {
   managerName?: string;
   contactNumber?: string;
   phone?: string;
+  sharePercentage?: number;
 
 }

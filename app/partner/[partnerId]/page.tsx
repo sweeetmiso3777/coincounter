@@ -2,18 +2,18 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useBranchAggregatesHistory } from "@/hooks/use-branch-aggregates-history";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
   MapPin,
   Activity,
-  Calendar,
   BarChart3,
   DollarSign,
   Users,
   TrendingUp,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import Link from "next/link";
 import React, { useState, useEffect, useCallback } from "react";
@@ -22,159 +22,30 @@ import { MapModal } from "@/components/Branch/MapModal";
 import CompactMap from "@/components/Branch/CompactMap";
 import { BranchUnitsStatus } from "@/components/Branch/branch-units";
 import type { BranchData } from "@/hooks/use-branches-query";
-import type { HistoricalAggregate } from "@/types/aggregates";
+import { useBranchHarvestData } from "@/hooks/use-branch-harvest-data";
+import { useUnits } from "@/hooks/use-units-query";
 
-interface PartnerBranchCardProps {
-  branch: {
-    id: string;
-    location: string;
-    last_harvest_date?: Date | null;
-    // ... other properties
-  };
-}
+// ========== DATE FORMATTING FUNCTION ==========
+const formatDate = (dateString: string): string => {
+  if (!dateString || dateString === "N/A") return "N/A";
 
-// ========== MOBILE CARDS ==========
-function PartnerMobileAggregatesCards({
-  data,
-  location,
-  branchShare,
-}: {
-  data: HistoricalAggregate[];
-  location: string;
-  branchShare: number;
-}) {
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-PH", {
-      style: "currency",
-      currency: "PHP",
-    }).format(amount);
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "N/A";
+  }
+};
 
-  const formatNumber = (num: number) =>
-    new Intl.NumberFormat("en-PH").format(num);
-
-  const calculatePartnerEarnings = (totalRevenue: number) => {
-    return totalRevenue * (branchShare / 100);
-  };
-
-  return (
-    <div className="space-y-4 md:hidden z-40 overflow-hidden">
-      <div className="text-center mb-4">
-        <h2 className="text-lg font-semibold text-foreground">
-          Monthly Reports
-        </h2>
-        <p className="text-sm text-muted-foreground">{location}</p>
-        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-          Your Share: {branchShare}%
-        </p>
-      </div>
-
-      {data.map((aggregate, index) => {
-        const partnerEarnings = calculatePartnerEarnings(
-          aggregate.totalRevenue
-        );
-
-        return (
-          <Card
-            key={index}
-            className="shadow-sm hover:shadow-md transition-shadow border-l-4 border-l-blue-500 z-50 overflow-auto"
-          >
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-base font-semibold">
-                  {aggregate.date}
-                </CardTitle>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-primary">
-                    {formatCurrency(aggregate.totalRevenue)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatNumber(aggregate.totalTransactions)} transactions
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-
-            <CardContent className="pt-0">
-              {/* Partner Earnings */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-3">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                      Your Earnings:
-                    </span>
-                  </div>
-                  <span className="text-lg font-bold text-blue-700 dark:text-blue-400">
-                    {formatCurrency(partnerEarnings)}
-                  </span>
-                </div>
-                <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                  Based on your {branchShare}% share
-                </div>
-              </div>
-
-              {/* Coin Breakdown */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">₱1 Coins:</span>
-                    <span className="font-medium">
-                      {formatNumber(aggregate.coinBreakdown.peso1)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">₱5 Coins:</span>
-                    <span className="font-medium">
-                      {formatNumber(aggregate.coinBreakdown.peso5)}
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">₱10 Coins:</span>
-                    <span className="font-medium">
-                      {formatNumber(aggregate.coinBreakdown.peso10)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">₱20 Coins:</span>
-                    <span className="font-medium">
-                      {formatNumber(aggregate.coinBreakdown.peso20)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Totals */}
-              <div className="grid grid-cols-2 gap-4 pt-3 border-t">
-                <div className="text-center">
-                  <div className="text-xs text-muted-foreground mb-1">
-                    Total Coins
-                  </div>
-                  <div className="text-sm font-semibold">
-                    {formatNumber(aggregate.totalCoins ?? 0)}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs text-muted-foreground mb-1">
-                    Avg. Transaction
-                  </div>
-                  <div className="text-sm font-semibold">
-                    {aggregate.totalTransactions > 0
-                      ? formatCurrency(
-                          aggregate.totalRevenue / aggregate.totalTransactions
-                        )
-                      : formatCurrency(0)}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  );
-}
+const formatDateRange = (start: string, end: string): string => {
+  const formattedStart = formatDate(start);
+  const formattedEnd = formatDate(end);
+  return `${formattedStart} To ${formattedEnd}`;
+};
 
 // ========== PARTNER BRANCH HEADER ==========
 const PartnerBranchHeader = React.memo(
@@ -222,9 +93,9 @@ const PartnerBranchHeader = React.memo(
 
     return (
       <>
-        <div className="mb-8">
+        <div className="mb-6">
           {/* Back Button */}
-          <Button asChild variant="ghost" className="mb-6">
+          <Button asChild variant="ghost" className="mb-4" size="sm">
             <Link href="/partner">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Partner Dashboard
@@ -232,26 +103,26 @@ const PartnerBranchHeader = React.memo(
           </Button>
 
           {/* Title */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <MapPin className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+          <div className="mb-4">
+            <div className="flex items-center gap-3 mb-2 font-mono">
+              <div className="p-2 bg-secondary/10 rounded-lg">
+                <MapPin className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-foreground text-balance">
+                <h1 className="text-2xl font-bold text-foreground text-balance">
                   {location}
                 </h1>
                 {branch && (
-                  <div className="flex items-center gap-4 mt-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2 text-sm">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      <span className="font-medium text-green-600">
                         Your Share: {branch.share}%
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-gray-600" />
-                      <span className="text-sm text-muted-foreground">
+                      <Users className="h-4 w-4 text-foreground" />
+                      <span className="text-foreground">
                         Managed by: {branch.branch_manager}
                       </span>
                     </div>
@@ -259,14 +130,13 @@ const PartnerBranchHeader = React.memo(
                 )}
               </div>
             </div>
-
-            <p className="text-muted-foreground text-lg">
+            <p className="text-foreground text-sm font-mono">
               Your affiliate branch performance and earnings summary
             </p>
           </div>
 
           {/* FLEX CONTAINER — Units left, Map right */}
-          <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch">
             {/* Units Status */}
             <div className="lg:flex-1">
               <BranchUnitsStatus branchId={branchId} />
@@ -277,7 +147,7 @@ const PartnerBranchHeader = React.memo(
               <button
                 data-map-trigger
                 onClick={() => setShowMapModal(true)}
-                className="w-full h-64 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all bg-gray-50 dark:bg-gray-800 hover:scale-[1.02]"
+                className="w-full h-48 rounded-lg border border-border overflow-hidden hover:shadow-lg transition-all bg-card hover:scale-[1.02]"
               >
                 {branch?.latitude && branch?.longitude ? (
                   <div className="w-full h-full pointer-events-none">
@@ -289,13 +159,13 @@ const PartnerBranchHeader = React.memo(
                     />
                   </div>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-700">
-                    <MapPin className="h-8 w-8 text-gray-400" />
+                  <div className="w-full h-full flex items-center justify-center bg-muted">
+                    <MapPin className="h-6 w-6 text-foreground" />
                     <span className="sr-only">No location data</span>
                   </div>
                 )}
               </button>
-              <p className="text-xs text-muted-foreground text-center mt-2">
+              <p className="text-xs text-foreground text-center mt-1">
                 Click map to expand
               </p>
             </div>
@@ -318,126 +188,346 @@ const PartnerBranchHeader = React.memo(
 
 PartnerBranchHeader.displayName = "PartnerBranchHeader";
 
-// ========== PARTNER AGGREGATES TABLE ==========
-function PartnerAggregatesTable({
-  data,
-  location,
-  branchShare,
-}: {
-  data: HistoricalAggregate[];
-  location: string;
-  branchShare: number;
-}) {
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-PH", {
-      style: "currency",
-      currency: "PHP",
-    }).format(amount);
-
-  const formatNumber = (num: number) =>
-    new Intl.NumberFormat("en-PH").format(num);
-
-  const calculatePartnerEarnings = (totalRevenue: number) => {
-    return totalRevenue * (branchShare / 100);
+// ========== UNIT BREAKDOWN COMPONENT ==========
+interface UnitSummary {
+  unitId: string;
+  aggregates_count: number;
+  total_sales: number;
+  total_amount: number;
+  coins_1: number;
+  coins_5: number;
+  coins_10: number;
+  coins_20: number;
+  date_range: {
+    start: string;
+    end: string;
   };
+}
+
+const UnitBreakdown = ({
+  unit,
+  isExpanded,
+  onToggle,
+  unitAlias,
+}: {
+  unit: UnitSummary;
+  isExpanded: boolean;
+  onToggle: () => void;
+  unitAlias: string;
+}) => {
+  const unitDateRange = unit.date_range || { start: "N/A", end: "N/A" };
 
   return (
-    <div className="w-full overflow-hidden">
-      <div className="mb-4">
-        <h2 className="text-2xl font-bold text-foreground">
-          Monthly Performance
-        </h2>
-        <p className="text-muted-foreground">
-          {location} • Your Share:{" "}
-          <span className="text-blue-600 font-semibold">{branchShare}%</span>
-        </p>
+    <div className="border rounded-xl bg-card">
+      {/* Unit Header */}
+      <div
+        className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+        onClick={onToggle}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <div>
+            <span className="font-medium text-sm">{unitAlias}</span>
+            <span className="text-xs text-foreground ml-2 font-mono">
+              ({unit.unitId})
+            </span>
+          </div>
+          <span className="text-sm font-bold text-green-600">
+            ₱{(unit.total_amount || 0).toFixed(2)}
+          </span>
+        </div>
+        <div className="flex items-center gap-4 text-xs text-foreground">
+          <span>{unit.aggregates_count || 0} aggregates</span>
+          <span>{unit.total_sales || 0} sales</span>
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </div>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-muted/50">
-              <th className="text-left p-4 font-semibold">Month</th>
-              <th className="text-right p-4 font-semibold">Total Revenue</th>
-              <th className="text-right p-4 font-semibold">Your Earnings</th>
-              <th className="text-right p-4 font-semibold">Transactions</th>
-              <th className="text-right p-4 font-semibold">Total Coins</th>
-              <th className="text-right p-4 font-semibold">Avg. Transaction</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((aggregate, index) => {
-              const partnerEarnings = calculatePartnerEarnings(
-                aggregate.totalRevenue
-              );
-              const avgTransaction =
-                aggregate.totalTransactions > 0
-                  ? aggregate.totalRevenue / aggregate.totalTransactions
-                  : 0;
+      {/* Expanded Content */}
+      {isExpanded && (
+        <div className="px-3 pb-3 border-t">
+          {/* Coin Breakdown */}
+          <div className="grid grid-cols-4 gap-2 mt-3 text-xs">
+            <div className="text-center p-2 bg-muted rounded-lg">
+              <div className="font-bold">{unit.coins_1 || 0}</div>
+              <div className="text-foreground">₱1</div>
+              <div className="text-green-600 font-medium">
+                ₱{(unit.coins_1 || 0).toFixed(2)}
+              </div>
+            </div>
+            <div className="text-center p-2 bg-muted rounded-lg">
+              <div className="font-bold">{unit.coins_5 || 0}</div>
+              <div className="text-foreground">₱5</div>
+              <div className="text-green-600 font-medium">
+                ₱{((unit.coins_5 || 0) * 5).toFixed(2)}
+              </div>
+            </div>
+            <div className="text-center p-2 bg-muted rounded-lg">
+              <div className="font-bold">{unit.coins_10 || 0}</div>
+              <div className="text-foreground">₱10</div>
+              <div className="text-green-600 font-medium">
+                ₱{((unit.coins_10 || 0) * 10).toFixed(2)}
+              </div>
+            </div>
+            <div className="text-center p-2 bg-muted rounded-lg">
+              <div className="font-bold">{unit.coins_20 || 0}</div>
+              <div className="text-foreground">₱20</div>
+              <div className="text-green-600 font-medium">
+                ₱{((unit.coins_20 || 0) * 20).toFixed(2)}
+              </div>
+            </div>
+          </div>
 
-              return (
-                <tr
-                  key={index}
-                  className="border-t hover:bg-muted/30 transition-colors"
-                >
-                  <td className="p-4 font-medium">{aggregate.date}</td>
-                  <td className="p-4 text-right font-semibold">
-                    {formatCurrency(aggregate.totalRevenue)}
-                  </td>
-                  <td className="p-4 text-right">
-                    <div className="font-bold text-blue-700 dark:text-blue-400">
-                      {formatCurrency(partnerEarnings)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {branchShare}% share
-                    </div>
-                  </td>
-                  <td className="p-4 text-right">
-                    {formatNumber(aggregate.totalTransactions)}
-                  </td>
-                  <td className="p-4 text-right">
-                    {formatNumber(aggregate.totalCoins ?? 0)}
-                  </td>
-                  <td className="p-4 text-right">
-                    {formatCurrency(avgTransaction)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+          {/* Date Range */}
+          <div className="mt-2 text-xs text-foreground text-center">
+            {formatDateRange(unitDateRange.start, unitDateRange.end)}
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+// ========== HARVEST DATA DISPLAY ==========
+const HarvestDataDisplay = React.memo(
+  ({ branchId, branchShare }: { branchId: string; branchShare: number }) => {
+    const {
+      data: harvestData,
+      isLoading,
+      error,
+    } = useBranchHarvestData(branchId);
+
+    const { units } = useUnits();
+    const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
+    const [showUnitPerformance, setShowUnitPerformance] = useState(true);
+
+    const toggleUnit = (unitId: string) => {
+      const newExpanded = new Set(expandedUnits);
+      if (newExpanded.has(unitId)) {
+        newExpanded.delete(unitId);
+      } else {
+        newExpanded.add(unitId);
+      }
+      setExpandedUnits(newExpanded);
+    };
+
+    // Get unit alias from deviceId
+    const getUnitAlias = (deviceId: string) => {
+      const unit = units.find((u) => u.deviceId === deviceId);
+      return unit?.alias || deviceId;
+    };
+
+    if (isLoading) {
+      return (
+        <div className="space-y-3">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="animate-pulse bg-muted rounded-xl p-4">
+              <div className="h-5 bg-muted/50 rounded w-1/4 mb-3"></div>
+              <div className="space-y-2">
+                <div className="h-4 bg-muted/50 rounded w-3/4"></div>
+                <div className="h-4 bg-muted/50 rounded w-1/2"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="border border-destructive/20 bg-destructive/5 rounded-xl p-6">
+          <div className="flex flex-col items-center text-center">
+            <Activity className="h-6 w-6 text-destructive mb-2" />
+            <h3 className="text-base font-semibold mb-1">Error Loading Data</h3>
+            <p className="text-foreground text-sm">{error}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (!harvestData || harvestData.length === 0) {
+      return (
+        <div className="border border-dashed rounded-xl p-8 text-center">
+          <BarChart3 className="h-6 w-6 text-foreground mb-2 mx-auto" />
+          <h3 className="text-base font-semibold mb-1">
+            No Harvest Data Available
+          </h3>
+          <p className="text-foreground text-sm">
+            No harvest records found for this branch.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {harvestData.map((harvest) => {
+          const dateRange = harvest.date_range || { start: "N/A", end: "N/A" };
+          const unitSummaries = harvest.unit_summaries || [];
+          const partnerEarnings = (harvest.total || 0) * (branchShare / 100);
+
+          return (
+            <div
+              key={harvest.id}
+              className="border rounded-xl bg-card shadow-sm"
+            >
+              {/* Header */}
+              <div className="border-b p-4 bg-muted/50">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <h3 className="font-bold text-lg text-foreground">
+                      {formatDateRange(dateRange.start, dateRange.end)}
+                    </h3>
+                    <p className="text-sm text-foreground font-mono">
+                      {harvest.month || "N/A"} •{" "}
+                      {harvest.aggregates_included || 0} aggregates
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-green-600">
+                      ₱{partnerEarnings.toFixed(2)}
+                    </div>
+                    <div className="text-sm text-foreground">
+                      Your Earnings • {harvest.sales_count || 0} sales
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4">
+                {/* Summary Stats - Compact */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                  <div className="text-center p-3 bg-muted rounded-xl">
+                    <div className="text-2xl font-bold text-foreground">
+                      {harvest.coins_1 || 0}
+                    </div>
+                    <div className="text-xs text-foreground">₱1 Coins</div>
+                    <div className="text-xs text-green-600 font-medium">
+                      ₱{(harvest.coins_1 || 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="text-center p-3 bg-muted rounded-xl">
+                    <div className="text-2xl font-bold text-foreground">
+                      {harvest.coins_5 || 0}
+                    </div>
+                    <div className="text-xs text-foreground">₱5 Coins</div>
+                    <div className="text-xs text-green-600 font-medium">
+                      ₱{((harvest.coins_5 || 0) * 5).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="text-center p-3 bg-muted rounded-xl">
+                    <div className="text-2xl font-bold text-foreground">
+                      {harvest.coins_10 || 0}
+                    </div>
+                    <div className="text-xs text-foreground">₱10 Coins</div>
+                    <div className="text-xs text-green-600 font-medium">
+                      ₱{((harvest.coins_10 || 0) * 10).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="text-center p-3 bg-muted rounded-xl">
+                    <div className="text-2xl font-bold text-foreground">
+                      {harvest.coins_20 || 0}
+                    </div>
+                    <div className="text-xs text-foreground">₱20 Coins</div>
+                    <div className="text-xs text-green-600 font-medium">
+                      ₱{((harvest.coins_20 || 0) * 20).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Revenue Share - Partner Focused */}
+                <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-xl border border-green-200 dark:border-green-800">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 text-sm">
+                    <span className="font-medium text-green-700">
+                      Your Revenue Share
+                    </span>
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+                      <span className="text-green-600 font-bold">
+                        Your Earnings ({branchShare}%): ₱
+                        {partnerEarnings.toFixed(2)}
+                      </span>
+                      <span className="text-foreground">
+                        Total Revenue: ₱{(harvest.total || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Unit Summaries - Collapsible */}
+                {unitSummaries.length > 0 && (
+                  <div>
+                    <button
+                      onClick={() =>
+                        setShowUnitPerformance(!showUnitPerformance)
+                      }
+                      className="flex items-center gap-2 text-sm font-semibold mb-3 text-foreground hover:text-foreground transition-colors"
+                    >
+                      {showUnitPerformance ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                      Unit Performance ({unitSummaries.length} units)
+                    </button>
+
+                    {showUnitPerformance && (
+                      <div className="space-y-2">
+                        {unitSummaries.map((unit, idx) => (
+                          <UnitBreakdown
+                            key={`${unit.unitId}-${idx}`}
+                            unit={unit}
+                            unitAlias={getUnitAlias(unit.unitId)}
+                            isExpanded={expandedUnits.has(unit.unitId)}
+                            onToggle={() => toggleUnit(unit.unitId)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div className="mt-4 pt-3 border-t text-xs text-foreground flex justify-between">
+                  <span>
+                    Last updated:{" "}
+                    {formatDate(harvest.last_harvest_date || "N/A")}
+                  </span>
+                  <span>Units: {harvest.units_count || 0}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+);
+
+HarvestDataDisplay.displayName = "HarvestDataDisplay";
 
 // ========== MAIN PARTNER PAGE ==========
 function PartnerBranchDetailPage() {
   const { partnerId } = useParams<{ partnerId: string }>();
   const { branches, isLoading: branchesLoading } = useAffiliatedBranches();
-  const {
-    data: historyData,
-    isLoading: historyLoading,
-    isError,
-    error,
-  } = useBranchAggregatesHistory(partnerId as string, 30);
 
   const branch = branches?.find((b) => b.id === partnerId);
   const branchLocation = branch?.location || `Branch ${partnerId}`;
-  const location =
-    historyData.length > 0 ? historyData[0].location : branchLocation;
 
-  const isLoading = branchesLoading || historyLoading;
+  const isLoading = branchesLoading;
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-6xl mx-auto px-4 py-8 animate-pulse space-y-6">
-          <div className="h-8 bg-muted rounded w-1/3"></div>
-          <div className="h-10 bg-muted rounded-md"></div>
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-10 bg-muted rounded-md"></div>
+        <div className="max-w-6xl mx-auto px-4 py-6 animate-pulse space-y-4">
+          <div className="h-6 bg-muted rounded w-1/4"></div>
+          <div className="h-8 bg-muted rounded-md"></div>
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-8 bg-muted rounded-md"></div>
             ))}
           </div>
         </div>
@@ -445,47 +535,22 @@ function PartnerBranchDetailPage() {
     );
   }
 
-  if (isError)
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          <PartnerBranchHeader
-            branchId={partnerId as string}
-            location={location}
-            branch={branch}
-          />
-          <Card className="border-destructive/20 bg-destructive/5">
-            <CardContent className="flex flex-col items-center py-16">
-              <Activity className="h-8 w-8 text-destructive mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
-                Error Loading Branch Data
-              </h3>
-              <p className="text-muted-foreground text-center mb-6">
-                {error?.message}
-              </p>
-              <Button asChild variant="outline">
-                <Link href="/partner">
-                  <ArrowLeft className="h-4 w-4 mr-2" /> Back to Partner
-                  Dashboard
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-
   if (!branch)
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          <div className="text-center py-16">
-            <Activity className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold mb-4">Branch Not Found</h2>
-            <p className="text-muted-foreground mb-6">
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          <PartnerBranchHeader
+            branchId={partnerId as string}
+            location={branchLocation}
+            branch={branch}
+          />
+          <div className="border border-destructive/20 bg-destructive/5 rounded-xl p-8 text-center">
+            <Activity className="h-8 w-8 text-destructive mb-3 mx-auto" />
+            <h3 className="text-lg font-semibold mb-2">Branch Not Found</h3>
+            <p className="text-foreground text-sm mb-4">
               You do not have access to this branch or it does not exist.
             </p>
-            <Button asChild>
+            <Button asChild variant="outline" size="sm">
               <Link href="/partner">
                 <ArrowLeft className="h-4 w-4 mr-2" /> Back to Partner Dashboard
               </Link>
@@ -495,67 +560,18 @@ function PartnerBranchDetailPage() {
       </div>
     );
 
-  if (historyData.length === 0)
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          <PartnerBranchHeader
-            branchId={partnerId as string}
-            location={location}
-            branch={branch}
-          />
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center py-16">
-              <BarChart3 className="h-8 w-8 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold">
-                No Monthly Data Available
-              </h3>
-              <p className="text-muted-foreground text-center mb-6">
-                No monthly aggregates found for {branchLocation}.<br />
-                Monthly reports are generated after harvest operations.
-              </p>
-              <Button asChild variant="outline">
-                <Link href="/partner">
-                  <ArrowLeft className="h-4 w-4 mr-2" /> Back to Partner
-                  Dashboard
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-6">
         <PartnerBranchHeader
           branchId={partnerId as string}
-          location={location}
+          location={branchLocation}
           branch={branch}
         />
-
-        <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-800 dark:text-blue-300 flex items-center gap-2">
-          <BarChart3 className="h-4 w-4" />
-          <span>
-            Showing your monthly earnings data. Your share:{" "}
-            <strong>{branch.share}%</strong> of total revenue.
-          </span>
-        </div>
-
-        <PartnerMobileAggregatesCards
-          data={historyData}
-          location={location}
+        <HarvestDataDisplay
+          branchId={partnerId as string}
           branchShare={branch.share}
         />
-
-        <div className="hidden md:block">
-          <PartnerAggregatesTable
-            data={historyData}
-            location={location}
-            branchShare={branch.share}
-          />
-        </div>
       </div>
     </div>
   );

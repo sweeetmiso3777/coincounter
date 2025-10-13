@@ -292,6 +292,7 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
       branchAddress: branch.address || "Address not specified",
       managerName: branch.branch_manager,
       contactNumber: branch.contact_number || "Contact not specified",
+      sharePercentage: branch.share,
     };
   };
 

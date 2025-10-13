@@ -5,6 +5,21 @@ import { db } from "@/lib/firebase"
 import { collection, query, where, getDocs, writeBatch, doc, getDoc, Timestamp, setDoc } from "firebase/firestore"
 import { generateBranchHarvestPDF, generateCompactBranchHarvestPDF } from "@/lib/branch-reports"
 
+export interface UnitSummary {
+  unitId: string
+  aggregates_count: number
+  total_sales: number
+  total_amount: number
+  coins_1: number
+  coins_5: number
+  coins_10: number
+  coins_20: number
+  date_range: {
+    start: string
+    end: string
+  }
+}
+
 export interface HarvestResult {
   success: boolean
   branchId: string
@@ -19,6 +34,9 @@ export interface HarvestResult {
     totalCoins20: number
     totalSales: number
     totalAmount: number
+    branchSharePercentage: number // CHANGED: Now always included
+    branchShareAmount: number
+    companyShareAmount: number
   }
   monthlyAggregate: {
     month: string
@@ -28,6 +46,11 @@ export interface HarvestResult {
     coins_20: number
     sales_count: number
     total: number
+    aggregates_included: number
+    units_count: number
+    last_harvest_date: string
+    branchSharePercentage: number // NEW: Include share in aggregate
+    unit_summaries: UnitSummary[]
   }
 }
 
@@ -36,6 +59,7 @@ export interface BranchInfo {
   branchAddress: string
   managerName: string
   contactNumber: string
+  sharePercentage: number // CHANGED: Now required
 }
 
 interface UseBranchHarvest {
@@ -57,30 +81,31 @@ export function useBranchHarvest(): UseBranchHarvest {
   const addDays = (timestamp: unknown, days: number): string => {
     let date: Date;
     
-    // Handle Firestore Timestamp
     if (timestamp && typeof timestamp === 'object' && 'toDate' in timestamp && typeof timestamp.toDate === 'function') {
       date = timestamp.toDate();
-    } 
-    // Handle string dates (like "2025-09-01")
-    else if (typeof timestamp === 'string') {
+    } else if (typeof timestamp === 'string') {
       date = new Date(timestamp + "T00:00:00+08:00");
-    } 
-    // Handle Date objects
-    else if (timestamp instanceof Date) {
+    } else if (timestamp instanceof Date) {
       date = new Date(timestamp);
-    }
-    // Fallback - try to create date from whatever we have
-    else {
+    } else {
       date = new Date(String(timestamp));
     }
     
-    // Add days and return Manila date string
     date.setDate(date.getDate() + days);
     return getManilaDateString(date);
   }
 
   const getMonthKey = (dateString: string) => {
-    return dateString.substring(0, 7) // Returns YYYY-MM
+    return dateString.substring(0, 7)
+  }
+
+  const getDateRangeDocumentId = (startDate: string | null, endDate: string): string => {
+    if (!startDate) {
+      return `Beginning-To-${endDate}`
+    }
+
+    const displayStartDate = addDays(startDate, 1)
+    return `${displayStartDate}-To-${endDate}`
   }
 
   const getBranchInfo = async (branchId: string): Promise<BranchInfo> => {
@@ -97,8 +122,9 @@ export function useBranchHarvest(): UseBranchHarvest {
       return {
         branchName: branchData?.name || branchData?.branchName || "Unknown Branch",
         branchAddress: branchData?.address || branchData?.location || "Address not specified",
-        managerName: branchData?.managerName || branchData?.manager || "Manager not specified",
-        contactNumber: branchData?.contactNumber || branchData?.phone || "Contact not specified"
+        managerName: branchData?.managerName || branchData?.branch_manager || "Manager not specified",
+        contactNumber: branchData?.contactNumber || branchData?.phone || "Contact not specified",
+        sharePercentage: branchData?.sharePercentage || branchData?.share || 0 // Get from "share" field
       }
     } catch (error) {
       console.warn("Could not fetch branch info, using defaults:", error)
@@ -106,8 +132,20 @@ export function useBranchHarvest(): UseBranchHarvest {
         branchName: `Branch ${branchId}`,
         branchAddress: "Address not available",
         managerName: "Manager not specified",
-        contactNumber: "Contact not specified"
+        contactNumber: "Contact not specified",
+        sharePercentage: 0
       }
+    }
+  }
+
+  const calculateShares = (totalAmount: number, sharePercentage: number = 0) => {
+    const branchShareAmount = totalAmount * (sharePercentage / 100)
+    const companyShareAmount = totalAmount - branchShareAmount
+    
+    return {
+      branchSharePercentage: sharePercentage,
+      branchShareAmount,
+      companyShareAmount
     }
   }
 
@@ -127,7 +165,7 @@ export function useBranchHarvest(): UseBranchHarvest {
 
       console.log(`Starting harvest for branch ${branchId} up to ${harvestDateStr}`)
 
-      // 1. Get branch data to find last_harvest_date
+      // 1. Get branch data to find last_harvest_date AND share percentage
       const branchRef = doc(db, "Branches", branchId)
       const branchDoc = await getDoc(branchRef)
 
@@ -137,47 +175,30 @@ export function useBranchHarvest(): UseBranchHarvest {
 
       const branchData = branchDoc.data()
       const lastHarvest = branchData?.last_harvest_date
+      const branchSharePercentage = branchData?.sharePercentage || branchData?.share || 0 // Get from "share" field
       
-      // Handle lastHarvest properly to avoid .toDate() error
       let previousHarvestDateStr: string | null = null
       
       if (lastHarvest) {
-        // If it's a Firestore Timestamp
         if (lastHarvest instanceof Timestamp) {
           previousHarvestDateStr = getManilaDateString(lastHarvest.toDate())
-        } 
-        // If it's already a Date object
-        else if (lastHarvest instanceof Date) {
+        } else if (lastHarvest instanceof Date) {
           previousHarvestDateStr = getManilaDateString(lastHarvest)
-        }
-        // If it's a string
-        else if (typeof lastHarvest === 'string') {
+        } else if (typeof lastHarvest === 'string') {
           previousHarvestDateStr = getManilaDateString(new Date(lastHarvest))
-        }
-        // Log for debugging if it's something unexpected
-        else {
+        } else {
           console.warn('Unexpected lastHarvest type:', typeof lastHarvest, lastHarvest)
         }
       }
 
-      // FIXED: Calculate start date properly
-      // If there's a previous harvest AND it's before the harvest date, start from day after
-      // If previous harvest is after or equal to harvest date, there's nothing to harvest
-      let startDate: string
+      let startDate: string | null = null
       if (previousHarvestDateStr) {
         const dayAfterLastHarvest = addDays(previousHarvestDateStr, 1)
-        
-        // Only use dayAfterLastHarvest if it's <= harvestDateStr
-        // If dayAfterLastHarvest is after harvestDateStr, there's nothing to harvest
         if (dayAfterLastHarvest <= harvestDateStr) {
           startDate = dayAfterLastHarvest
         } else {
-          // No data to harvest - start date would be after end date
           throw new Error(`No data to harvest. Last harvest was on ${previousHarvestDateStr} and you're trying to harvest up to ${harvestDateStr}`)
         }
-      } else {
-        // No previous harvest - start from beginning of time
-        startDate = ""
       }
 
       console.log(`Last harvest: ${previousHarvestDateStr || 'never'}, starting from: ${startDate || 'beginning of time'}, up to: ${harvestDateStr}`)
@@ -199,13 +220,16 @@ export function useBranchHarvest(): UseBranchHarvest {
       let totalCoins20 = 0
       let totalSales = 0
       let totalAmount = 0
+      
+      const unitSummaries: UnitSummary[] = []
+      let earliestDate: string | null = null
+      let latestDate: string | null = null
 
-      // 3. For each unit, scan their aggregates collection
+      // 3. For each unit, scan their aggregates collection and create summaries
       for (const unitDoc of unitsSnapshot.docs) {
         const unitId = unitDoc.id
         console.log(`Scanning aggregates for unit: ${unitId}`)
 
-        // Get ALL aggregates for this unit that are not harvested yet
         const aggregatesQuery = query(
           collection(db, "Units", unitId, "aggregates"),
           where("harvested", "==", false)
@@ -214,11 +238,18 @@ export function useBranchHarvest(): UseBranchHarvest {
         const aggregatesSnapshot = await getDocs(aggregatesQuery)
         console.log(`Found ${aggregatesSnapshot.size} unharvested aggregates for unit ${unitId}`)
 
-        // Filter aggregates by date range
+        let unitAggregatesCount = 0
+        let unitSales = 0
+        let unitAmount = 0
+        let unitCoins1 = 0
+        let unitCoins5 = 0
+        let unitCoins10 = 0
+        let unitCoins20 = 0
+        let unitEarliestDate: string | null = null
+        let unitLatestDate: string | null = null
+
         aggregatesSnapshot.forEach((aggDoc) => {
           const agg = aggDoc.data()
-          
-          // Use createdAt field as per your instruction
           const aggregateDate = agg.createdAt?.toDate?.()
           
           if (!aggregateDate) {
@@ -227,19 +258,42 @@ export function useBranchHarvest(): UseBranchHarvest {
           }
 
           const aggregateDateStr = getManilaDateString(aggregateDate)
-          
-          // Check if this aggregate is within our harvest date range
           const isWithinRange = startDate 
             ? (aggregateDateStr >= startDate && aggregateDateStr <= harvestDateStr)
-            : (aggregateDateStr <= harvestDateStr) // Include all dates up to harvest date
+            : (aggregateDateStr <= harvestDateStr)
 
           if (isWithinRange) {
             console.log(`Including aggregate ${aggDoc.id} from ${aggregateDateStr}`)
             
+            // Track date range for this unit
+            if (!unitEarliestDate || aggregateDateStr < unitEarliestDate) {
+              unitEarliestDate = aggregateDateStr
+            }
+            if (!unitLatestDate || aggregateDateStr > unitLatestDate) {
+              unitLatestDate = aggregateDateStr
+            }
+            
+            // Track overall date range
+            if (!earliestDate || aggregateDateStr < earliestDate) {
+              earliestDate = aggregateDateStr
+            }
+            if (!latestDate || aggregateDateStr > latestDate) {
+              latestDate = aggregateDateStr
+            }
+
+            // Sum unit totals
+            unitAggregatesCount++
+            unitCoins1 += agg.coins_1 || 0
+            unitCoins5 += agg.coins_5 || 0
+            unitCoins10 += agg.coins_10 || 0
+            unitCoins20 += agg.coins_20 || 0
+            unitSales += agg.sales_count || 0
+            unitAmount += agg.total || 0
+
             // Mark as harvested
             batch.update(aggDoc.ref, { harvested: true })
 
-            // Sum totals
+            // Sum overall totals
             totalAggregates++
             totalCoins1 += agg.coins_1 || 0
             totalCoins5 += agg.coins_5 || 0
@@ -251,6 +305,24 @@ export function useBranchHarvest(): UseBranchHarvest {
             console.log(`Skipping aggregate ${aggDoc.id} from ${aggregateDateStr} (outside range ${startDate || 'beginning'} to ${harvestDateStr})`)
           }
         })
+
+        // Create unit summary if this unit had aggregates to harvest
+        if (unitAggregatesCount > 0) {
+          unitSummaries.push({
+            unitId,
+            aggregates_count: unitAggregatesCount,
+            total_sales: unitSales,
+            total_amount: unitAmount,
+            coins_1: unitCoins1,
+            coins_5: unitCoins5,
+            coins_10: unitCoins10,
+            coins_20: unitCoins20,
+            date_range: {
+              start: unitEarliestDate!,
+              end: unitLatestDate!
+            }
+          })
+        }
       }
 
       if (totalAggregates === 0) {
@@ -259,17 +331,26 @@ export function useBranchHarvest(): UseBranchHarvest {
 
       console.log(`Harvesting ${totalAggregates} aggregates with totals: ${totalAmount} amount, ${totalSales} sales`)
 
-      // 4. Create/update monthly aggregate under Branches/{branchId}/aggregates/{YYYY-MM}
-      const branchAggregateRef = doc(db, "Branches", branchId, "aggregates", monthKey)
-      
-      // Get existing monthly aggregate if it exists
+      // Calculate shares
+      const shareCalculation = calculateShares(totalAmount, branchSharePercentage)
+
+      // 4. Generate date range document ID
+      const documentId = getDateRangeDocumentId(startDate, harvestDateStr)
+      console.log(`Creating harvest document with ID: ${documentId}`)
+
+      // 5. Create/update monthly aggregate under Branches/{branchId}/aggregates/{date-range}
+      const branchAggregateRef = doc(db, "Branches", branchId, "aggregates", documentId)
       const existingAggDoc = await getDoc(branchAggregateRef)
       const existingData = existingAggDoc.exists() ? existingAggDoc.data() : {}
 
-      // Prepare monthly aggregate data
+      // Prepare monthly aggregate data WITH unit summaries and share percentage
       const monthlyAggregate = {
         branchId,
         month: monthKey,
+        date_range: {
+          start: startDate ? addDays(startDate, 1) : "Beginning",
+          end: harvestDateStr
+        },
         coins_1: (existingData.coins_1 || 0) + totalCoins1,
         coins_5: (existingData.coins_5 || 0) + totalCoins5,
         coins_10: (existingData.coins_10 || 0) + totalCoins10,
@@ -277,22 +358,28 @@ export function useBranchHarvest(): UseBranchHarvest {
         sales_count: (existingData.sales_count || 0) + totalSales,
         total: (existingData.total || 0) + totalAmount,
         last_updated: Timestamp.now(),
-        // Track harvest details
         last_harvest_date: harvestDateStr,
         aggregates_included: (existingData.aggregates_included || 0) + totalAggregates,
-        units_count: unitsSnapshot.size
+        units_count: unitsSnapshot.size,
+        branchSharePercentage: branchSharePercentage, // NEW: Store share percentage
+        unit_summaries: [
+          ...(existingData.unit_summaries || []),
+          ...unitSummaries
+        ]
       }
 
       // Use setDoc with merge for the aggregate
       await setDoc(branchAggregateRef, monthlyAggregate, { merge: true })
 
-      // 5. Update branch last harvest date
+      // 6. Update branch last harvest date
       batch.update(branchRef, { last_harvest_date: harvestDateStr })
 
-      // 6. Commit the batch
+      // 7. Commit the batch
       await batch.commit()
 
       console.log(`Successfully harvested ${totalAggregates} aggregates for branch ${branchId}`)
+
+      const finalBranchInfo = branchInfo || await getBranchInfo(branchId)
 
       const result: HarvestResult = {
         success: true,
@@ -308,6 +395,7 @@ export function useBranchHarvest(): UseBranchHarvest {
           totalCoins20,
           totalSales,
           totalAmount,
+          ...shareCalculation
         },
         monthlyAggregate: {
           month: monthKey,
@@ -316,18 +404,22 @@ export function useBranchHarvest(): UseBranchHarvest {
           coins_10: monthlyAggregate.coins_10,
           coins_20: monthlyAggregate.coins_20,
           sales_count: monthlyAggregate.sales_count,
-          total: monthlyAggregate.total
+          total: monthlyAggregate.total,
+          aggregates_included: monthlyAggregate.aggregates_included,
+          units_count: monthlyAggregate.units_count,
+          last_harvest_date: monthlyAggregate.last_harvest_date,
+          branchSharePercentage: monthlyAggregate.branchSharePercentage, // NEW
+          unit_summaries: monthlyAggregate.unit_summaries
         }
       }
 
       // Generate PDF report if requested
-      if (generatePDF && branchInfo) {
+      if (generatePDF && finalBranchInfo) {
         try {
-          generateBranchHarvestPDF(result, branchInfo)
+          generateBranchHarvestPDF(result, finalBranchInfo)
           console.log("PDF report generated successfully")
         } catch (pdfError) {
           console.warn("Failed to generate PDF report:", pdfError)
-          // Don't throw error for PDF generation failure
         }
       }
 
@@ -358,11 +450,10 @@ export function useBranchHarvest(): UseBranchHarvest {
     branchInfo?: BranchInfo, 
     generatePDF: boolean = false
   ): Promise<HarvestResult> => {
-    const inputDate = new Date(harvestDate + "T00:00:00+08:00") // Use Manila timezone
+    const inputDate = new Date(harvestDate + "T00:00:00+08:00")
     const today = new Date()
-    today.setHours(0, 0, 0, 0) // Set to start of day for comparison
+    today.setHours(0, 0, 0, 0)
 
-    // Allow yesterday or earlier, but not today/future
     if (inputDate > today) {
       throw new Error("Harvest date cannot be in the future")
     }

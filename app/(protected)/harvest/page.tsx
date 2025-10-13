@@ -5,7 +5,6 @@ import { Virtuoso } from "react-virtuoso";
 import { useBranches } from "@/hooks/use-branches-query";
 import { Calendar1, HandCoins, User } from "lucide-react";
 import FullCalendarComponent from "@/components/Harvest/FullCalendarComponent";
-import BranchDetailsModalPage from "@/components/Harvest/BranchDetailsModalPage"; // modal in the same folder
 
 export default function CalendarWithSidebarPage() {
   const { data: branches = [], isLoading, error } = useBranches();
@@ -181,14 +180,12 @@ export default function CalendarWithSidebarPage() {
         </div>
       </div>
 
-      {/* Branch Details Modal */}
-      {viewDetailsId && (
-        <BranchDetailsModalPage
-          branchId={viewDetailsId}
-          open={!!viewDetailsId}
-          onClose={() => setViewDetailsId(null)}
-        />
-      )}
+      {/* View Details functionality removed - you can implement navigation instead */}
+      {/* For example, you could navigate to the branch page: */}
+      {/* {viewDetailsId && (
+        // You could use router.push(`/branches/${viewDetailsId}`) here
+        // or implement your own modal/dialog component
+      )} */}
     </div>
   );
 }

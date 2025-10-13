@@ -59,3 +59,5 @@ export interface HistoricalAggregate extends BranchAggregateData {
   totalCoins?: number; 
   
 }
+
+
