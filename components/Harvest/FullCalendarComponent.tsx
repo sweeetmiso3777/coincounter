@@ -56,12 +56,17 @@ export default function FullCalendarComponent({
             </span>
             <span className="text-foreground text-xs">{manager}</span>
             <span className="text-green-700 font-medium text-xs">{share}%</span>
-            <button
-              className="text-blue-600 text-xs mt-1 hover:underline"
-              onClick={() => onViewDetails?.(id)}
-            >
-              View Details
-            </button>
+            {onViewDetails && (
+              <button
+                className="text-blue-600 text-xs mt-1 hover:underline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewDetails(id);
+                }}
+              >
+                View Details
+              </button>
+            )}
           </div>
         );
       }}
