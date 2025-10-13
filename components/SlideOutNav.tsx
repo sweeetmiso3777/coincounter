@@ -11,6 +11,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Building2,
+  Monitor,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -32,11 +34,11 @@ export function CompactSlideOutNav({
       label: "Dashboard",
     },
     {
-      icon: <MapPin className="w-5 h-5" />,
+      icon: <Building2 className="w-5 h-5" />,
       href: "/branches",
       label: "Branches",
     },
-    { icon: <Grid className="w-5 h-5" />, href: "/units", label: "Units" },
+    { icon: <Monitor className="w-5 h-5" />, href: "/units", label: "Units" },
     {
       icon: <Activity className="w-5 h-5" />,
       href: "/real-time",

@@ -11,6 +11,9 @@ import {
   updateDoc,
   deleteDoc,
   getDoc,
+  DocumentSnapshot,
+  QuerySnapshot,
+  DocumentData,
 } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -21,33 +24,46 @@ export interface BranchData {
   branch_manager: string
   location: string
   harvest_day_of_month: number
-  last_harvest_date: Timestamp | string | undefined
+  last_harvest_date?: Date | null
   created_at: Date
   share: number
   totalUnits: number
   latitude?: number | null
   longitude?: number | null
-  affiliates?: string[] // New optional field
+  affiliates?: string[]
 }
 
 const listenerRefCount = { count: 0 }
 let activeListener: (() => void) | null = null
 
+// Helper function to safely convert Firestore timestamps
+function convertFirestoreTimestamp(timestamp: Timestamp | Date | string | null | undefined): Date | null {
+  if (!timestamp) return null
+  if (timestamp instanceof Timestamp) return timestamp.toDate()
+  if (timestamp instanceof Date) return timestamp
+  if (typeof timestamp === 'string') return new Date(timestamp)
+  return null
+}
+
 // Transform Firestore doc
-function transformBranchDoc(docSnap: any): BranchData {
+function transformBranchDoc(docSnap: DocumentSnapshot<DocumentData>): BranchData {
   const data = docSnap.data()
+  if (!data) {
+    throw new Error(`No data found for document ${docSnap.id}`)
+  }
+
   return {
     id: docSnap.id,
-    branch_manager: data.branch_manager,
-    location: data.location,
-    last_harvest_date: data.last_harvest_date ?? undefined,
-    harvest_day_of_month: data.harvest_day_of_month,
-    created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(),
-    share: data.share ?? 0,
-    totalUnits: data.totalUnits ?? 0,
-    latitude: data.latitude ?? null,
-    longitude: data.longitude ?? null,
-    affiliates: data.affiliates ?? undefined, // New field transformation
+    branch_manager: data.branch_manager as string,
+    location: data.location as string,
+    last_harvest_date: convertFirestoreTimestamp(data.last_harvest_date),
+    harvest_day_of_month: data.harvest_day_of_month as number,
+    created_at: convertFirestoreTimestamp(data.created_at) || new Date(),
+    share: data.share as number ?? 0,
+    totalUnits: data.totalUnits as number ?? 0,
+    latitude: data.latitude as number | null ?? null,
+    longitude: data.longitude as number | null ?? null,
+    affiliates: data.affiliates as string[] | undefined,
   }
 }
 
@@ -56,19 +72,19 @@ export function useBranches() {
 
   const queryResult = useQuery<BranchData[]>({
     queryKey: ["branches"],
-    queryFn: async () => {
+    queryFn: async (): Promise<BranchData[]> => {
       console.log("%c[useBranches] Running queryFn (initial fetch)...", "color: orange; font-weight: bold;")
       const q = query(collection(db, "Branches"), orderBy("created_at", "desc"))
 
       return new Promise<BranchData[]>((resolve, reject) => {
         const unsubscribe = onSnapshot(
           q,
-          (snapshot) => {
+          (snapshot: QuerySnapshot<DocumentData>) => {
             console.log("%c[useBranches] Initial data loaded.", "color: teal; font-weight: bold;")
             unsubscribe()
             resolve(snapshot.docs.map(transformBranchDoc))
           },
-          (err) => {
+          (err: Error) => {
             console.error("%c[useBranches] queryFn error:", "color: red; font-weight: bold;", err)
             reject(err)
           },
@@ -86,7 +102,7 @@ export function useBranches() {
       console.log("%c[useBranches] Setting up SINGLE listener (first component)", "color: purple; font-weight: bold;")
 
       const q = query(collection(db, "Branches"), orderBy("created_at", "desc"))
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const unsubscribe = onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
         console.log("%c[useBranches] onSnapshot pushed an update to cache.", "color: magenta; font-weight: bold;")
         queryClient.setQueryData(["branches"], snapshot.docs.map(transformBranchDoc))
       })
@@ -106,21 +122,38 @@ export function useBranches() {
     }
   }, [queryClient])
 
+  interface CreateBranchParams {
+    id: string
+    data: Omit<BranchData, "id" | "created_at">
+  }
+
+  interface UpdateBranchParams {
+    id: string
+    data: Partial<Omit<BranchData, "id" | "created_at">>
+  }
+
+  interface FirestoreBranchData {
+    branch_manager: string
+    location: string
+    harvest_day_of_month: number
+    share: number
+    totalUnits: number
+    created_at: Timestamp
+    last_harvest_date?: Timestamp | null
+    latitude?: number | null
+    longitude?: number | null
+    affiliates?: string[]
+  }
+
   const createBranch = useMutation({
-    mutationFn: async ({
-      id,
-      data,
-    }: {
-      id: string
-      data: Omit<BranchData, "id" | "created_at">
-    }) => {
+    mutationFn: async ({ id, data }: CreateBranchParams): Promise<void> => {
       console.log("%c[useBranches] createBranch -> Firestore setDoc", "color: orange; font-weight: bold;")
       const ref = doc(db, "Branches", id)
       const existing = await getDoc(ref)
       if (existing.exists()) throw new Error("Branch ID already exists")
       
-      // Prepare data for Firestore, handling optional fields
-      const firestoreData: any = {
+      // Prepare data for Firestore with proper timestamp conversion
+      const firestoreData: FirestoreBranchData = {
         branch_manager: data.branch_manager,
         location: data.location,
         harvest_day_of_month: data.harvest_day_of_month,
@@ -129,6 +162,14 @@ export function useBranches() {
         created_at: Timestamp.now(),
       }
 
+      // Handle last_harvest_date conversion to Firestore Timestamp
+      if (data.last_harvest_date instanceof Date) {
+        firestoreData.last_harvest_date = Timestamp.fromDate(data.last_harvest_date)
+      } else if (data.last_harvest_date === null) {
+        firestoreData.last_harvest_date = null
+      }
+      // If undefined, don't include the field
+
       // Add optional fields only if they exist
       if (data.latitude !== undefined) firestoreData.latitude = data.latitude
       if (data.longitude !== undefined) firestoreData.longitude = data.longitude
@@ -136,7 +177,7 @@ export function useBranches() {
 
       await setDoc(ref, firestoreData)
     },
-    onMutate: async ({ id, data }) => {
+    onMutate: async ({ id, data }: CreateBranchParams) => {
       console.log("%c[useBranches] Optimistic update (createBranch)", "color: green; font-weight: bold;")
       await queryClient.cancelQueries({ queryKey: ["branches"] })
       const prev = queryClient.getQueryData<BranchData[]>(["branches"]) || []
@@ -148,26 +189,21 @@ export function useBranches() {
       queryClient.setQueryData(["branches"], [optimistic, ...prev])
       return { prev }
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (err: Error, variables: CreateBranchParams, context: { prev?: BranchData[] } | undefined) => {
       console.log("%c[useBranches] Rolling back optimistic createBranch.", "color: red; font-weight: bold;")
-      if (ctx?.prev) queryClient.setQueryData(["branches"], ctx.prev)
+      if (context?.prev) queryClient.setQueryData(["branches"], context.prev)
     },
   })
 
   const updateBranch = useMutation({
-    mutationFn: async ({
-      id,
-      data,
-    }: {
-      id: string
-      data: Partial<Omit<BranchData, "id" | "created_at">>
-    }) => {
+    mutationFn: async ({ id, data }: UpdateBranchParams): Promise<void> => {
       console.log("%c[useBranches] updateBranch -> Firestore updateDoc", "color: orange; font-weight: bold;")
       const ref = doc(db, "Branches", id)
-      if (!(await getDoc(ref)).exists()) throw new Error("Branch does not exist")
+      const existingDoc = await getDoc(ref)
+      if (!existingDoc.exists()) throw new Error("Branch does not exist")
       
-      // Prepare update data, handling null values for removal
-      const updateData: any = {}
+      // Prepare update data with proper timestamp conversion
+      const updateData: Partial<FirestoreBranchData> = {}
       
       // Only include fields that are provided
       if (data.branch_manager !== undefined) updateData.branch_manager = data.branch_manager
@@ -176,43 +212,52 @@ export function useBranches() {
       if (data.share !== undefined) updateData.share = data.share
       if (data.totalUnits !== undefined) updateData.totalUnits = data.totalUnits
       
-      // Handle optional fields - including null for removal
+      // Handle last_harvest_date conversion to Firestore Timestamp
+      if (data.last_harvest_date instanceof Date) {
+        updateData.last_harvest_date = Timestamp.fromDate(data.last_harvest_date)
+      } else if (data.last_harvest_date === null) {
+        updateData.last_harvest_date = null
+      }
+      // If undefined, don't include in update
+
+      // Handle optional fields
       if (data.latitude !== undefined) updateData.latitude = data.latitude
       if (data.longitude !== undefined) updateData.longitude = data.longitude
       if (data.affiliates !== undefined) updateData.affiliates = data.affiliates
 
       await updateDoc(ref, updateData)
     },
-    onMutate: async ({ id, data }) => {
+    onMutate: async ({ id, data }: UpdateBranchParams) => {
       console.log("%c[useBranches] Optimistic update (updateBranch)", "color: green; font-weight: bold;")
       await queryClient.cancelQueries({ queryKey: ["branches"] })
       const prev = queryClient.getQueryData<BranchData[]>(["branches"]) || []
       queryClient.setQueryData(["branches"], prev.map((b) => (b.id === id ? { ...b, ...data } : b)))
       return { prev }
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (err: Error, variables: UpdateBranchParams, context: { prev?: BranchData[] } | undefined) => {
       console.log("%c[useBranches] Rolling back optimistic updateBranch.", "color: red; font-weight: bold;")
-      if (ctx?.prev) queryClient.setQueryData(["branches"], ctx.prev)
+      if (context?.prev) queryClient.setQueryData(["branches"], context.prev)
     },
   })
 
   const deleteBranch = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (id: string): Promise<void> => {
       console.log("%c[useBranches] deleteBranch -> Firestore deleteDoc", "color: orange; font-weight: bold;")
       const ref = doc(db, "Branches", id)
-      if (!(await getDoc(ref)).exists()) throw new Error("Branch does not exist")
+      const existingDoc = await getDoc(ref)
+      if (!existingDoc.exists()) throw new Error("Branch does not exist")
       await deleteDoc(ref)
     },
-    onMutate: async (id) => {
+    onMutate: async (id: string) => {
       console.log("%c[useBranches] Optimistic update (deleteBranch)", "color: green; font-weight: bold;")
       await queryClient.cancelQueries({ queryKey: ["branches"] })
       const prev = queryClient.getQueryData<BranchData[]>(["branches"]) || []
       queryClient.setQueryData(["branches"], prev.filter((b) => b.id !== id))
       return { prev }
     },
-    onError: (_err, _id, ctx) => {
+    onError: (err: Error, id: string, context: { prev?: BranchData[] } | undefined) => {
       console.log("%c[useBranches] Rolling back optimistic deleteBranch.", "color: red; font-weight: bold;")
-      if (ctx?.prev) queryClient.setQueryData(["branches"], ctx.prev)
+      if (context?.prev) queryClient.setQueryData(["branches"], context.prev)
     },
   })
 

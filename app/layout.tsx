@@ -19,13 +19,13 @@ export const viewport: Viewport = {
 
 // Clean metadata without viewport/themeColor
 export const metadata: Metadata = {
-  title: "Real-Time Tracker PWA",
-  description: "A Capstone Project by Lory",
+  title: "Coinsynchro • ESP32",
+  description: "A Capstone Project",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Real-Time Tracker PWA",
+    title: "Coinsynchro • ESP32",
   },
   icons: {
     apple: [

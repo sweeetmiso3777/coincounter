@@ -173,9 +173,7 @@ export default function AddBranchModal({
         harvest_day_of_month: dayOfMonth,
         share: Number(share),
         totalUnits: 0,
-        last_harvest_date: existingBranch
-          ? existingBranch.last_harvest_date
-          : "",
+
         ...(latitude &&
           longitude && {
             latitude: parseFloat(latitude),
