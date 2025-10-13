@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Monitor, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useUser } from "@/providers/UserProvider"; // Add this import
 
-// Status indicator component
+// Status indicator component (unchanged)
 function StatusIndicator({
   status,
   lastPing,
@@ -63,12 +64,16 @@ interface BranchUnitsStatusProps {
 }
 
 export function BranchUnitsStatus({ branchId }: BranchUnitsStatusProps) {
+  const { user } = useUser(); // Add this to check user role
   const { units, loading: unitsLoading, error: unitsError } = useUnits();
   const [statusData, setStatusData] = useState<
     Record<string, { status: "online" | "offline"; lastPing: string }>
   >({});
   const [statusLoading, setStatusLoading] = useState(true);
   const [statusError, setStatusError] = useState<string | null>(null);
+
+  // Check if user is a partner
+  const isPartner = user?.role === "partner";
 
   // Fetch healthcheck status every 31 seconds
   useEffect(() => {
@@ -159,6 +164,34 @@ export function BranchUnitsStatus({ branchId }: BranchUnitsStatusProps) {
             lastPing: "",
           };
 
+          // For partners, render as non-clickable
+          if (isPartner) {
+            return (
+              <Card
+                key={unit.deviceId}
+                className="p-4 border cursor-default" // Changed to cursor-default
+              >
+                <CardContent className="p-0 flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Monitor className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-medium text-foreground truncate">
+                        {unit.alias || "Unnamed Unit"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 ml-3">
+                    <StatusIndicator
+                      status={unitStatus.status}
+                      lastPing={unitStatus.lastPing}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
+
+          // For admin users, keep as clickable
           return (
             <Link
               key={unit.deviceId}

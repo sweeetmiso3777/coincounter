@@ -44,8 +44,10 @@ export default function Home() {
       console.log("Redirecting based on status:", user.status);
 
       if (user.status === "approved") {
-        if (user.role === "admin" || user.role === "partner") {
+        if (user.role === "admin") {
           router.push("/dashboard");
+        } else if (user.role === "partner") {
+          router.push("/partner");
         } else {
           router.push("/sorry");
         }

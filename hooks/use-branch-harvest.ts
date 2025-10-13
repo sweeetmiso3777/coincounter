@@ -3,8 +3,9 @@
 import { useState } from "react"
 import { db } from "@/lib/firebase"
 import { collection, query, where, getDocs, writeBatch, doc, getDoc, Timestamp, setDoc } from "firebase/firestore"
+import { generateBranchHarvestPDF, generateCompactBranchHarvestPDF } from "@/lib/branch-reports"
 
-interface HarvestResult {
+export interface HarvestResult {
   success: boolean
   branchId: string
   harvestDate: string
@@ -30,9 +31,17 @@ interface HarvestResult {
   }
 }
 
+export interface BranchInfo {
+  branchName: string
+  branchAddress: string
+  managerName: string
+  contactNumber: string
+}
+
 interface UseBranchHarvest {
-  harvestToday: (branchId: string) => Promise<HarvestResult>
-  harvestBackdate: (branchId: string, harvestDate: string) => Promise<HarvestResult>
+  harvestToday: (branchId: string, branchInfo?: BranchInfo, generatePDF?: boolean) => Promise<HarvestResult>
+  harvestBackdate: (branchId: string, harvestDate: string, branchInfo?: BranchInfo, generatePDF?: boolean) => Promise<HarvestResult>
+  generateHarvestReport: (result: HarvestResult, branchInfo: BranchInfo, options?: { compact?: boolean }) => void
   isHarvesting: boolean
   error: string | null
 }
@@ -74,14 +83,40 @@ export function useBranchHarvest(): UseBranchHarvest {
     return dateString.substring(0, 7) // Returns YYYY-MM
   }
 
-  // Get yesterday's date for harvesting
-  const getYesterday = () => {
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    return yesterday
+  const getBranchInfo = async (branchId: string): Promise<BranchInfo> => {
+    try {
+      const branchRef = doc(db, "Branches", branchId)
+      const branchDoc = await getDoc(branchRef)
+
+      if (!branchDoc.exists()) {
+        throw new Error("Branch not found")
+      }
+
+      const branchData = branchDoc.data()
+      
+      return {
+        branchName: branchData?.name || branchData?.branchName || "Unknown Branch",
+        branchAddress: branchData?.address || branchData?.location || "Address not specified",
+        managerName: branchData?.managerName || branchData?.manager || "Manager not specified",
+        contactNumber: branchData?.contactNumber || branchData?.phone || "Contact not specified"
+      }
+    } catch (error) {
+      console.warn("Could not fetch branch info, using defaults:", error)
+      return {
+        branchName: `Branch ${branchId}`,
+        branchAddress: "Address not available",
+        managerName: "Manager not specified",
+        contactNumber: "Contact not specified"
+      }
+    }
   }
 
-  const harvestBranch = async (branchId: string, harvestDate: Date): Promise<HarvestResult> => {
+  const harvestBranch = async (
+    branchId: string, 
+    harvestDate: Date, 
+    branchInfo?: BranchInfo,
+    generatePDF: boolean = false
+  ): Promise<HarvestResult> => {
     setIsHarvesting(true)
     setError(null)
 
@@ -102,9 +137,50 @@ export function useBranchHarvest(): UseBranchHarvest {
 
       const branchData = branchDoc.data()
       const lastHarvest = branchData?.last_harvest_date
-      const startDate = lastHarvest ? addDays(lastHarvest, 1) : "1970-01-01"
+      
+      // Handle lastHarvest properly to avoid .toDate() error
+      let previousHarvestDateStr: string | null = null
+      
+      if (lastHarvest) {
+        // If it's a Firestore Timestamp
+        if (lastHarvest instanceof Timestamp) {
+          previousHarvestDateStr = getManilaDateString(lastHarvest.toDate())
+        } 
+        // If it's already a Date object
+        else if (lastHarvest instanceof Date) {
+          previousHarvestDateStr = getManilaDateString(lastHarvest)
+        }
+        // If it's a string
+        else if (typeof lastHarvest === 'string') {
+          previousHarvestDateStr = getManilaDateString(new Date(lastHarvest))
+        }
+        // Log for debugging if it's something unexpected
+        else {
+          console.warn('Unexpected lastHarvest type:', typeof lastHarvest, lastHarvest)
+        }
+      }
 
-      console.log(`Last harvest: ${lastHarvest || 'never'}, starting from: ${startDate}`)
+      // FIXED: Calculate start date properly
+      // If there's a previous harvest AND it's before the harvest date, start from day after
+      // If previous harvest is after or equal to harvest date, there's nothing to harvest
+      let startDate: string
+      if (previousHarvestDateStr) {
+        const dayAfterLastHarvest = addDays(previousHarvestDateStr, 1)
+        
+        // Only use dayAfterLastHarvest if it's <= harvestDateStr
+        // If dayAfterLastHarvest is after harvestDateStr, there's nothing to harvest
+        if (dayAfterLastHarvest <= harvestDateStr) {
+          startDate = dayAfterLastHarvest
+        } else {
+          // No data to harvest - start date would be after end date
+          throw new Error(`No data to harvest. Last harvest was on ${previousHarvestDateStr} and you're trying to harvest up to ${harvestDateStr}`)
+        }
+      } else {
+        // No previous harvest - start from beginning of time
+        startDate = ""
+      }
+
+      console.log(`Last harvest: ${previousHarvestDateStr || 'never'}, starting from: ${startDate || 'beginning of time'}, up to: ${harvestDateStr}`)
 
       // 2. Find all units that belong to this branch
       const unitsQuery = query(collection(db, "Units"), where("branchId", "==", branchId))
@@ -138,7 +214,7 @@ export function useBranchHarvest(): UseBranchHarvest {
         const aggregatesSnapshot = await getDocs(aggregatesQuery)
         console.log(`Found ${aggregatesSnapshot.size} unharvested aggregates for unit ${unitId}`)
 
-        // Filter aggregates by date range manually since we can't query by multiple conditions easily
+        // Filter aggregates by date range
         aggregatesSnapshot.forEach((aggDoc) => {
           const agg = aggDoc.data()
           
@@ -153,9 +229,11 @@ export function useBranchHarvest(): UseBranchHarvest {
           const aggregateDateStr = getManilaDateString(aggregateDate)
           
           // Check if this aggregate is within our harvest date range
-          // Start date: day after last harvest (or beginning of time)
-          // End date: harvest date (yesterday for today's harvest)
-          if (aggregateDateStr >= startDate && aggregateDateStr <= harvestDateStr) {
+          const isWithinRange = startDate 
+            ? (aggregateDateStr >= startDate && aggregateDateStr <= harvestDateStr)
+            : (aggregateDateStr <= harvestDateStr) // Include all dates up to harvest date
+
+          if (isWithinRange) {
             console.log(`Including aggregate ${aggDoc.id} from ${aggregateDateStr}`)
             
             // Mark as harvested
@@ -170,13 +248,13 @@ export function useBranchHarvest(): UseBranchHarvest {
             totalSales += agg.sales_count || 0
             totalAmount += agg.total || 0
           } else {
-            console.log(`Skipping aggregate ${aggDoc.id} from ${aggregateDateStr} (outside range ${startDate} to ${harvestDateStr})`)
+            console.log(`Skipping aggregate ${aggDoc.id} from ${aggregateDateStr} (outside range ${startDate || 'beginning'} to ${harvestDateStr})`)
           }
         })
       }
 
       if (totalAggregates === 0) {
-        throw new Error(`No unharvested aggregates found for date range ${startDate} to ${harvestDateStr}`)
+        throw new Error(`No unharvested aggregates found for date range ${startDate || 'beginning'} to ${harvestDateStr}`)
       }
 
       console.log(`Harvesting ${totalAggregates} aggregates with totals: ${totalAmount} amount, ${totalSales} sales`)
@@ -220,7 +298,7 @@ export function useBranchHarvest(): UseBranchHarvest {
         success: true,
         branchId,
         harvestDate: harvestDateStr,
-        previousHarvestDate: lastHarvest ? getManilaDateString(lastHarvest.toDate()) : null,
+        previousHarvestDate: previousHarvestDateStr,
         summary: {
           unitsProcessed: unitsSnapshot.size,
           aggregatesHarvested: totalAggregates,
@@ -242,6 +320,17 @@ export function useBranchHarvest(): UseBranchHarvest {
         }
       }
 
+      // Generate PDF report if requested
+      if (generatePDF && branchInfo) {
+        try {
+          generateBranchHarvestPDF(result, branchInfo)
+          console.log("PDF report generated successfully")
+        } catch (pdfError) {
+          console.warn("Failed to generate PDF report:", pdfError)
+          // Don't throw error for PDF generation failure
+        }
+      }
+
       return result
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Harvest failed"
@@ -253,27 +342,56 @@ export function useBranchHarvest(): UseBranchHarvest {
     }
   }
 
-  // Harvest up to yesterday instead of today
-  const harvestToday = async (branchId: string): Promise<HarvestResult> => {
-    return harvestBranch(branchId, getYesterday())
+  // Harvest all unharvested aggregates up to today
+  const harvestToday = async (
+    branchId: string, 
+    branchInfo?: BranchInfo, 
+    generatePDF: boolean = false
+  ): Promise<HarvestResult> => {
+    const finalBranchInfo = branchInfo || await getBranchInfo(branchId)
+    return harvestBranch(branchId, new Date(), finalBranchInfo, generatePDF)
   }
 
-  const harvestBackdate = async (branchId: string, harvestDate: string): Promise<HarvestResult> => {
+  const harvestBackdate = async (
+    branchId: string, 
+    harvestDate: string, 
+    branchInfo?: BranchInfo, 
+    generatePDF: boolean = false
+  ): Promise<HarvestResult> => {
     const inputDate = new Date(harvestDate + "T00:00:00+08:00") // Use Manila timezone
     const today = new Date()
     today.setHours(0, 0, 0, 0) // Set to start of day for comparison
 
     // Allow yesterday or earlier, but not today/future
-    if (inputDate >= today) {
-      throw new Error("Harvest date must be before today")
+    if (inputDate > today) {
+      throw new Error("Harvest date cannot be in the future")
     }
 
-    return harvestBranch(branchId, inputDate)
+    const finalBranchInfo = branchInfo || await getBranchInfo(branchId)
+    return harvestBranch(branchId, inputDate, finalBranchInfo, generatePDF)
+  }
+
+  const generateHarvestReport = (
+    result: HarvestResult, 
+    branchInfo: BranchInfo, 
+    options?: { compact?: boolean }
+  ): void => {
+    try {
+      if (options?.compact) {
+        generateCompactBranchHarvestPDF(result, branchInfo)
+      } else {
+        generateBranchHarvestPDF(result, branchInfo)
+      }
+    } catch (error) {
+      console.error("Failed to generate harvest report:", error)
+      throw new Error("PDF generation failed")
+    }
   }
 
   return {
     harvestToday,
     harvestBackdate,
+    generateHarvestReport,
     isHarvesting,
     error,
   }

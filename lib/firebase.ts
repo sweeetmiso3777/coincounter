@@ -48,11 +48,4 @@ export const signInWithGoogle = async () => {
     throw error;
   }
 };
-const loginWithUsername = async (email: string, password: string) => {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    console.log("Logged in:", userCredential.user.email);
-  } catch (err) {
-    console.error("Login failed:", err);
-  }
-};
+

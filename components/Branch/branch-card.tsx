@@ -20,21 +20,25 @@ import {
   AlertTriangle,
   Clock,
   Folder,
+  FileText,
 } from "lucide-react";
 import { CardMenu } from "./card-menu";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import EditBranchModal from "./EditBranchModal";
 import { MapModal } from "./MapModal";
-import { useBranchHarvest } from "@/hooks/use-branch-harvest";
+import {
+  useBranchHarvest,
+  type HarvestResult,
+  type BranchInfo,
+} from "@/hooks/use-branch-harvest";
 import { toast } from "sonner";
+import { Timestamp } from "firebase/firestore";
 
 interface BranchCardProps {
-  branch: BranchData & {
-    last_harvest_date?: string | null;
-  };
+  branch: BranchData;
   totalUnits: number;
-  onSelect?: () => void; // Add this prop for map selection
+  onSelect?: () => void;
 }
 
 // Color themes for different cards
@@ -127,11 +131,17 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
   const [showAffiliateTooltip, setShowAffiliateTooltip] = useState(false);
   const [showBackdateModal, setShowBackdateModal] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [backdateValue, setBackdateValue] = useState("");
   const [pendingHarvestType, setPendingHarvestType] = useState<
     "today" | "backdate"
   >("today");
-  const { harvestToday, harvestBackdate, isHarvesting } = useBranchHarvest();
+  const [harvestResult, setHarvestResult] = useState<HarvestResult | null>(
+    null
+  );
+  const [generatePDF, setGeneratePDF] = useState(true);
+  const { harvestToday, harvestBackdate, isHarvesting, generateHarvestReport } =
+    useBranchHarvest();
 
   const theme = getCardTheme(branch.id);
 
@@ -247,29 +257,53 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
       let result;
 
       if (pendingHarvestType === "today") {
-        result = await harvestToday(branch.id);
-        toast.success(
-          `Harvested ${
-            result.summary.aggregatesHarvested
-          } aggregates. Total: ₱${result.summary.totalAmount.toFixed(2)}`
-        );
+        result = await harvestToday(branch.id, getBranchInfo(), generatePDF);
       } else {
-        result = await harvestBackdate(branch.id, backdateValue);
-        toast.success(
-          `Harvested ${result.summary.aggregatesHarvested} aggregates for ${
-            result.harvestDate
-          }. Total: ₱${result.summary.totalAmount.toFixed(2)}`
+        result = await harvestBackdate(
+          branch.id,
+          backdateValue,
+          getBranchInfo(),
+          generatePDF
         );
         setShowBackdateModal(false);
         setBackdateValue("");
       }
 
+      setHarvestResult(result);
       setShowConfirmationModal(false);
+      setShowSuccessModal(true);
+
+      toast.success(
+        `Harvested ${
+          result.summary.aggregatesHarvested
+        } aggregates. Total: ₱${result.summary.totalAmount.toFixed(2)}`
+      );
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Harvest failed";
       toast.error(errorMessage);
       setShowConfirmationModal(false);
+    }
+  };
+
+  const getBranchInfo = (): BranchInfo => {
+    return {
+      branchName: branch.location,
+      branchAddress: branch.address || "Address not specified",
+      managerName: branch.branch_manager,
+      contactNumber: branch.contact_number || "Contact not specified",
+    };
+  };
+
+  const handleExportPDF = (compact: boolean = false) => {
+    if (!harvestResult) return;
+
+    try {
+      generateHarvestReport(harvestResult, getBranchInfo(), { compact });
+      toast.success("PDF report generated successfully");
+      setShowSuccessModal(false);
+    } catch (error) {
+      toast.error("Failed to generate PDF report");
     }
   };
 
@@ -335,7 +369,7 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
           {/* Harvested Watermark */}
           {isHarvested() && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-              <div className="text-red-200 dark:text-red-800/40 text-4xl font-bold rotate-[-45deg] opacity-25 select-none tracking-widest">
+              <div className="text-red-200 dark:text-white-800/40 text-4xl font-bold rotate-[-45deg] opacity-25 select-none tracking-widest">
                 HARVESTED
               </div>
             </div>
@@ -530,7 +564,7 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                     title="Late Harvest"
                   >
                     <Clock className="h-3.5 w-3.5" />
-                    Late Harvest
+                    Custom Harvest
                   </button>
                 </div>
               </div>
@@ -646,6 +680,28 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
               {getHarvestConfirmationMessage().description}
             </p>
 
+            {/* PDF Export Option */}
+            <div className="mb-6 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={generatePDF}
+                  onChange={(e) => setGeneratePDF(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Generate PDF Report
+                  </span>
+                </div>
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-7">
+                Automatically download a detailed harvest report after
+                completion
+              </p>
+            </div>
+
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowConfirmationModal(false)}
@@ -663,6 +719,88 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                 {isHarvesting
                   ? "Processing..."
                   : getHarvestConfirmationMessage().buttonText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal with PDF Export Options */}
+      {showSuccessModal && harvestResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full">
+                <DollarSign className="h-6 w-6 text-green-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Harvest Complete!
+              </h3>
+            </div>
+
+            <div className="mb-6 space-y-3">
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Aggregates Harvested:
+                </span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {harvestResult.summary.aggregatesHarvested}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Total Amount:
+                </span>
+                <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                  ₱{harvestResult.summary.totalAmount.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Transactions:
+                </span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {harvestResult.summary.totalSales}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Harvest Date:
+                </span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {harvestResult.harvestDate}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Export Report:
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleExportPDF(false)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                >
+                  <FileText className="h-4 w-4" />
+                  Detailed PDF
+                </button>
+                {/* <button
+                  onClick={() => handleExportPDF(true)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                >
+                  <FileText className="h-4 w-4" />
+                  Quick PDF
+                </button> */}
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>

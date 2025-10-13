@@ -262,8 +262,11 @@ function BranchPageClient() {
 
   const branch = branches?.find((b) => b.id === branchId);
   const branchLocation = branch?.location || `Branch ${branchId}`;
+
+  // FIX: Ensure historyData is always treated as an array
+  const safeHistoryData = Array.isArray(historyData) ? historyData : [];
   const location =
-    historyData.length > 0 ? historyData[0].location : branchLocation;
+    safeHistoryData.length > 0 ? safeHistoryData[0].location : branchLocation;
 
   const isLoading = branchesLoading || historyLoading;
 
@@ -312,7 +315,8 @@ function BranchPageClient() {
       </div>
     );
 
-  if (historyData.length === 0)
+  // FIX: Use safeHistoryData here
+  if (safeHistoryData.length === 0)
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-6xl mx-auto px-4 py-8">
@@ -359,10 +363,11 @@ function BranchPageClient() {
           </span>
         </div>
 
-        <MobileAggregatesCards data={historyData} location={location} />
+        {/* FIX: Pass safeHistoryData instead of historyData */}
+        <MobileAggregatesCards data={safeHistoryData} location={location} />
 
         <div className="hidden md:block">
-          <AggregatesTable data={historyData} location={location} />
+          <AggregatesTable data={safeHistoryData} location={location} />
         </div>
       </div>
     </div>
