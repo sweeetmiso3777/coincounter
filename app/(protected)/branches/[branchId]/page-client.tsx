@@ -4,172 +4,40 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  ArrowLeft,
-  MapPin,
   Activity,
   BarChart3,
   ChevronDown,
   ChevronUp,
+  TrendingUp,
+  TrendingDown,
+  ArrowLeft,
+  MapPin,
 } from "lucide-react";
 import Link from "next/link";
 import React, { useState, useEffect, useCallback } from "react";
-import { useBranches } from "@/hooks/use-branches-query";
+import { useBranchHarvestData } from "@/hooks/use-branch-harvest-data";
+import { useUnits } from "@/hooks/use-units-query";
+import { BranchData, useBranches } from "@/hooks/use-branches-query";
+import { formatDateRange, formatDate } from "@/lib/date-utils";
 import { MapModal } from "@/components/Branch/MapModal";
 import CompactMap from "@/components/Branch/CompactMap";
 import { BranchUnitsStatus } from "@/components/Branch/branch-units";
-import type { BranchData } from "@/hooks/use-branches-query";
-import {
-  UnitSummary,
-  useBranchHarvestData,
-} from "@/hooks/use-branch-harvest-data";
-import { useUnits } from "@/hooks/use-units-query";
 
-// ========== DATE FORMATTING FUNCTION ==========
-const formatDate = (dateString: string): string => {
-  if (!dateString || dateString === "N/A") return "N/A";
+interface UnitSummary {
+  unitId: string;
+  total_amount?: number;
+  aggregates_count?: number;
+  total_sales?: number;
+  coins_1?: number;
+  coins_5?: number;
+  coins_10?: number;
+  coins_20?: number;
+  date_range?: {
+    start: string;
+    end: string;
+  };
+}
 
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return "N/A";
-  }
-};
-
-const formatDateRange = (start: string, end: string): string => {
-  const formattedStart = formatDate(start);
-  const formattedEnd = formatDate(end);
-  return `${formattedStart} To ${formattedEnd}`;
-};
-
-// ========== BRANCH HEADER ==========
-const BranchHeader = React.memo(
-  ({
-    branchId,
-    location,
-    branch,
-  }: {
-    branchId: string;
-    location: string;
-    branch: BranchData | undefined;
-  }) => {
-    const [showMapModal, setShowMapModal] = useState(false);
-
-    const handleKeyDown = useCallback((event: KeyboardEvent) => {
-      if (event.key === "Escape") setShowMapModal(false);
-    }, []);
-
-    const handleClickOutside = useCallback((event: MouseEvent) => {
-      const modal = document.querySelector("[data-map-modal]");
-      const trigger = document.querySelector("[data-map-trigger]");
-      if (
-        modal &&
-        !modal.contains(event.target as Node) &&
-        trigger &&
-        !trigger.contains(event.target as Node)
-      )
-        setShowMapModal(false);
-    }, []);
-
-    useEffect(() => {
-      if (showMapModal) {
-        document.addEventListener("keydown", handleKeyDown);
-        document.addEventListener("mousedown", handleClickOutside);
-        document.body.style.overflow = "hidden";
-      } else {
-        document.body.style.overflow = "unset";
-      }
-      return () => {
-        document.removeEventListener("keydown", handleKeyDown);
-        document.removeEventListener("mousedown", handleClickOutside);
-        document.body.style.overflow = "unset";
-      };
-    }, [showMapModal, handleKeyDown, handleClickOutside]);
-
-    return (
-      <>
-        <div className="mb-6">
-          {/* Back Button */}
-          <Button asChild variant="ghost" className="mb-4" size="sm">
-            <Link href="/branches">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Branches
-            </Link>
-          </Button>
-
-          {/* Title */}
-          <div className="mb-4">
-            <div className="flex items-center gap-3 mb-2 font-mono">
-              <div className="p-2 bg-secondary/10 rounded-lg">
-                <MapPin className="h-5 w-5 text-primary" />
-              </div>
-              <h1 className="text-2xl font-bold text-foreground text-balance">
-                {location}
-              </h1>
-            </div>
-            <p className="text-foreground text-sm font-mono">
-              Monthly performance metrics and transaction summaries
-            </p>
-          </div>
-
-          {/* FLEX CONTAINER — Units left, Map right */}
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch">
-            {/* Units Status */}
-            <div className="lg:flex-1">
-              <BranchUnitsStatus branchId={branchId} />
-            </div>
-
-            {/* Map */}
-            <div className="lg:w-1/2 z-0">
-              <button
-                data-map-trigger
-                onClick={() => setShowMapModal(true)}
-                className="w-full h-48 rounded-lg border border-border overflow-hidden hover:shadow-lg transition-all bg-card hover:scale-[1.02]"
-              >
-                {branch?.latitude && branch?.longitude ? (
-                  <div className="w-full h-full pointer-events-none">
-                    <CompactMap
-                      initialCoords={[branch.latitude, branch.longitude]}
-                      showSearch={false}
-                      showCoordinates={false}
-                      className="h-full"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-muted">
-                    <MapPin className="h-6 w-6 text-foreground" />
-                    <span className="sr-only">No location data</span>
-                  </div>
-                )}
-              </button>
-              <p className="text-xs text-foreground text-center mt-1">
-                Click map to expand
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Full Map Modal */}
-        {showMapModal && branch && (
-          <MapModal
-            open={showMapModal}
-            onClose={() => setShowMapModal(false)}
-            branch={branch}
-            data-map-modal
-          />
-        )}
-      </>
-    );
-  }
-);
-
-BranchHeader.displayName = "BranchHeader";
-
-// ========== UNIT BREAKDOWN COMPONENT ==========
 const UnitBreakdown = ({
   unit,
   isExpanded,
@@ -333,6 +201,8 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
       {harvestData.map((harvest) => {
         const dateRange = harvest.date_range || { start: "N/A", end: "N/A" };
         const unitSummaries = harvest.unit_summaries || [];
+        const hasVarianceData = harvest.actualAmountProcessed !== undefined;
+        const isPositiveVariance = (harvest.variance ?? 0) >= 0;
 
         return (
           <div key={harvest.id} className="border rounded-xl bg-card shadow-sm">
@@ -360,6 +230,58 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
             </div>
 
             <div className="p-4">
+              {hasVarianceData && (
+                <div className="mb-4 p-4 bg-muted/30 rounded-xl border-2 border-dashed">
+                  <div className="flex items-center gap-2 mb-3">
+                    {isPositiveVariance ? (
+                      <TrendingUp className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <TrendingDown className="h-5 w-5 text-red-600" />
+                    )}
+                    <h4 className="font-semibold text-sm">Variance Analysis</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                    <div className="p-3 bg-card rounded-lg border">
+                      <div className="text-xs text-foreground mb-1">
+                        Expected Amount
+                      </div>
+                      <div className="text-lg font-bold text-foreground">
+                        ₱{harvest.total?.toFixed(2) || "0.00"}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-card rounded-lg border">
+                      <div className="text-xs text-foreground mb-1">
+                        Actual Amount
+                      </div>
+                      <div className="text-lg font-bold text-blue-600">
+                        ₱{harvest.actualAmountProcessed?.toFixed(2) || "0.00"}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-card rounded-lg border">
+                      <div className="text-xs text-foreground mb-1">
+                        Variance
+                      </div>
+                      <div
+                        className={`text-lg font-bold ${
+                          isPositiveVariance ? "text-green-600" : "text-red-600"
+                        }`}
+                      >
+                        {isPositiveVariance ? "+" : ""}₱
+                        {harvest.variance?.toFixed(2) || "0.00"}
+                      </div>
+                      <div
+                        className={`text-xs ${
+                          isPositiveVariance ? "text-green-600" : "text-red-600"
+                        }`}
+                      >
+                        ({isPositiveVariance ? "+" : ""}
+                        {harvest.variancePercentage?.toFixed(2) || "0.00"}%)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Summary Stats - Compact */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
                 <div className="text-center p-3 bg-muted rounded-xl">
@@ -475,70 +397,172 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
 
 HarvestDataDisplay.displayName = "HarvestDataDisplay";
 
-// ========== MAIN PAGE ==========
-function BranchPageClient() {
-  const { branchId } = useParams<{ branchId: string }>();
-  const { data: branches, isLoading: branchesLoading } = useBranches();
+const BranchHeader = React.memo(
+  ({
+    branchId,
+    branch,
+  }: {
+    branchId: string;
+    branch: BranchData | undefined;
+  }) => {
+    const [showMapModal, setShowMapModal] = useState(false);
 
-  const branch = branches?.find((b) => b.id === branchId);
-  const branchLocation = branch?.location || `Branch ${branchId}`;
+    const handleKeyDown = useCallback((event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowMapModal(false);
+    }, []);
 
-  const isLoading = branchesLoading;
+    const handleClickOutside = useCallback((event: MouseEvent) => {
+      const modal = document.querySelector("[data-map-modal]");
+      const trigger = document.querySelector("[data-map-trigger]");
+      if (
+        modal &&
+        !modal.contains(event.target as Node) &&
+        trigger &&
+        !trigger.contains(event.target as Node)
+      ) {
+        setShowMapModal(false);
+      }
+    }, []);
 
-  if (isLoading) {
+    useEffect(() => {
+      if (showMapModal) {
+        document.addEventListener("keydown", handleKeyDown);
+        document.addEventListener("mousedown", handleClickOutside);
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "unset";
+      }
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+        document.removeEventListener("mousedown", handleClickOutside);
+        document.body.style.overflow = "unset";
+      };
+    }, [showMapModal, handleKeyDown, handleClickOutside]);
+
     return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-6xl mx-auto px-4 py-6 animate-pulse space-y-4">
-          <div className="h-6 bg-muted rounded w-1/4"></div>
-          <div className="h-8 bg-muted rounded-md"></div>
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-8 bg-muted rounded-md"></div>
-            ))}
+      <>
+        <div className="mb-6">
+          {/* Back Button */}
+          <Button asChild variant="ghost" className="mb-4" size="sm">
+            <Link href="/branches">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Branches
+            </Link>
+          </Button>
+
+          {/* Title */}
+          <div className="mb-4">
+            <div className="flex items-center gap-3 mb-2 font-mono">
+              <div className="p-2 bg-secondary/10 rounded-lg">
+                <MapPin className="h-5 w-5 text-primary" />
+              </div>
+              <h1 className="text-2xl font-bold text-foreground text-balance">
+                {branch?.location || "Branch"}
+              </h1>
+            </div>
+            <p className="text-foreground text-sm font-mono">
+              Monthly performance metrics and transaction summaries
+            </p>
+          </div>
+
+          {/* FLEX CONTAINER — Units left, Map right */}
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+            {/* Units Status */}
+            <div className="lg:flex-1">
+              <BranchUnitsStatus branchId={branchId} />
+            </div>
+
+            {/* Map */}
+            <div className="lg:w-1/2 z-0">
+              <button
+                data-map-trigger
+                onClick={() => setShowMapModal(true)}
+                className="w-full h-48 rounded-lg border border-border overflow-hidden hover:shadow-lg transition-all bg-card hover:scale-[1.02]"
+              >
+                {branch?.latitude && branch?.longitude ? (
+                  <div className="w-full h-full pointer-events-none">
+                    <CompactMap
+                      initialCoords={[branch.latitude, branch.longitude]}
+                      showSearch={false}
+                      showCoordinates={false}
+                      className="h-full"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-muted">
+                    <MapPin className="h-6 w-6 text-foreground" />
+                    <span className="sr-only">No location data</span>
+                  </div>
+                )}
+              </button>
+              <p className="text-xs text-foreground text-center mt-1">
+                Click map to expand
+              </p>
+            </div>
           </div>
         </div>
+
+        {/* Full Map Modal */}
+        {showMapModal && branch && (
+          <MapModal
+            open={showMapModal}
+            onClose={() => setShowMapModal(false)}
+            branch={branch}
+            data-map-modal
+          />
+        )}
+      </>
+    );
+  }
+);
+
+BranchHeader.displayName = "BranchHeader";
+
+const BranchPage = () => {
+  const params = useParams();
+  const branchId = params?.branchId;
+  const { data: branches } = useBranches();
+  const branch = branches?.find((b) => b.id === branchId);
+
+  // Type guard: ensure branchId is a string
+  if (!branchId || Array.isArray(branchId)) {
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Branch Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="border border-destructive/20 bg-destructive/5 rounded-xl p-6">
+              <div className="flex flex-col items-center text-center">
+                <Activity className="h-6 w-6 text-destructive mb-2" />
+                <h3 className="text-base font-semibold mb-1">
+                  Invalid Branch ID
+                </h3>
+                <p className="text-foreground text-sm">
+                  The branch ID is missing or invalid.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  if (!branch)
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-6xl mx-auto px-4 py-6">
-          <BranchHeader
-            branchId={branchId as string}
-            location={branchLocation}
-            branch={branch}
-          />
-          <div className="border border-destructive/20 bg-destructive/5 rounded-xl p-8 text-center">
-            <Activity className="h-8 w-8 text-destructive mb-3 mx-auto" />
-            <h3 className="text-lg font-semibold mb-2">Branch Not Found</h3>
-            <p className="text-foreground text-sm mb-4">
-              The branch you are looking for does not exist or you do not have
-              access to it.
-            </p>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/branches">
-                <ArrowLeft className="h-4 w-4 mr-2" /> Back to Branches
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <BranchHeader
-          branchId={branchId as string}
-          location={branchLocation}
-          branch={branch}
-        />
-        <HarvestDataDisplay branchId={branchId as string} />
-      </div>
+    <div className="space-y-4 px-16 mt-7 sm:px-24 lg:px-50">
+      <BranchHeader branchId={branchId} branch={branch} />
+      <Card>
+        <CardHeader>
+          <CardTitle>Harvest History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <HarvestDataDisplay branchId={branchId} />
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
 
-export default BranchPageClient;
+export default BranchPage;

@@ -12,19 +12,16 @@ import {
   Calendar,
   Monitor,
   ChevronRight,
-  SquareArrowOutUpRight,
   MapPin,
   Users,
-  CalendarClock,
   DollarSign,
   AlertTriangle,
   Clock,
-  Folder,
   FileText,
 } from "lucide-react";
 import { CardMenu } from "./card-menu";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { type FormEvent, useState } from "react";
 import EditBranchModal from "./EditBranchModal";
 import { MapModal } from "./MapModal";
 import {
@@ -33,7 +30,7 @@ import {
   type BranchInfo,
 } from "@/hooks/use-branch-harvest";
 import { toast } from "sonner";
-import { Timestamp } from "firebase/firestore";
+import { SuccessModalContent } from "./success-modal-content";
 
 interface BranchCardProps {
   branch: BranchData;
@@ -140,6 +137,8 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
     null
   );
   const [generatePDF, setGeneratePDF] = useState(true);
+  const [actualAmountProcessed, setActualAmountProcessed] =
+    useState<string>("");
   const { harvestToday, harvestBackdate, isHarvesting, generateHarvestReport } =
     useBranchHarvest();
 
@@ -256,14 +255,24 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
     try {
       let result;
 
+      const actualAmount = actualAmountProcessed
+        ? Number.parseFloat(actualAmountProcessed)
+        : undefined;
+
       if (pendingHarvestType === "today") {
-        result = await harvestToday(branch.id, getBranchInfo(), generatePDF);
+        result = await harvestToday(
+          branch.id,
+          getBranchInfo(),
+          generatePDF,
+          actualAmount
+        );
       } else {
         result = await harvestBackdate(
           branch.id,
           backdateValue,
           getBranchInfo(),
-          generatePDF
+          generatePDF,
+          actualAmount
         );
         setShowBackdateModal(false);
         setBackdateValue("");
@@ -271,6 +280,7 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
 
       setHarvestResult(result);
       setShowConfirmationModal(false);
+      setActualAmountProcessed("");
       setShowSuccessModal(true);
 
       toast.success(
@@ -296,7 +306,7 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
     };
   };
 
-  const handleExportPDF = (compact: boolean = false) => {
+  const handleExportPDF = (compact = false) => {
     if (!harvestResult) return;
 
     try {
@@ -681,6 +691,30 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
               {getHarvestConfirmationMessage().description}
             </p>
 
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Actual Amount Processed (Optional)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+                  ₱
+                </span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={actualAmountProcessed}
+                  onChange={(e) => setActualAmountProcessed(e.target.value)}
+                  placeholder="Enter physical cash collected"
+                  className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Enter the actual physical cash amount collected to track
+                variance between expected and actual revenue.
+              </p>
+            </div>
+
             {/* PDF Export Option */}
             <div className="mb-6 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
               <label className="flex items-center gap-3 cursor-pointer">
@@ -705,7 +739,10 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
 
             <div className="flex gap-2 justify-end">
               <button
-                onClick={() => setShowConfirmationModal(false)}
+                onClick={() => {
+                  setShowConfirmationModal(false);
+                  setActualAmountProcessed("");
+                }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancel
@@ -739,71 +776,11 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
               </h3>
             </div>
 
-            <div className="mb-6 space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Aggregates Harvested:
-                </span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {harvestResult.summary.aggregatesHarvested}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Total Amount:
-                </span>
-                <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                  ₱{harvestResult.summary.totalAmount.toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Transactions:
-                </span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {harvestResult.summary.totalSales}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Harvest Date:
-                </span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {harvestResult.harvestDate}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Export Report:
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleExportPDF(false)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                >
-                  <FileText className="h-4 w-4" />
-                  Detailed PDF
-                </button>
-                {/* <button
-                  onClick={() => handleExportPDF(true)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                >
-                  <FileText className="h-4 w-4" />
-                  Quick PDF
-                </button> */}
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setShowSuccessModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                Close
-              </button>
-            </div>
+            <SuccessModalContent
+              harvestResult={harvestResult}
+              onExportPDF={handleExportPDF}
+              onClose={() => setShowSuccessModal(false)}
+            />
           </div>
         </div>
       )}

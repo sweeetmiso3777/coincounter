@@ -39,6 +39,9 @@ export interface HarvestData {
   units_count: number
   branchSharePercentage: number
   unit_summaries: UnitSummary[]
+  actualAmountProcessed?: number
+  variance?: number
+  variancePercentage?: number
 }
 
 interface UseBranchHarvestData {

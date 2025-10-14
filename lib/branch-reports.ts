@@ -1,6 +1,6 @@
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
-import type { HarvestResult } from "@/hooks/use-branch-harvest"
+import type { HarvestResult, BranchInfo } from "@/hooks/use-branch-harvest"
 
 // Extend jsPDF type to include autoTable and page handling
 interface CustomJsPDF extends jsPDF {
@@ -8,14 +8,6 @@ interface CustomJsPDF extends jsPDF {
     finalY: number
   }
   pages?: number
-}
-
-interface BranchInfo {
-  branchName: string
-  branchAddress: string
-  managerName: string
-  contactNumber: string
-  sharePercentage?: number
 }
 
 export function generateBranchHarvestPDF(result: HarvestResult, branchInfo: BranchInfo): void {
@@ -108,6 +100,49 @@ export function generateBranchHarvestPDF(result: HarvestResult, branchInfo: Bran
   )
 
   yPosition += 12
+
+  if (result.summary.actualAmountProcessed !== undefined) {
+    doc.setFontSize(14)
+    doc.setTextColor(0, 0, 0)
+    doc.text("VARIANCE ANALYSIS", 20, yPosition)
+
+    yPosition += 8
+    doc.setFontSize(10)
+
+    const variance = result.summary.variance || 0
+    const variancePercentage = result.summary.variancePercentage || 0
+    const isPositive = variance >= 0
+
+    const varianceData = [
+      {
+        label: "Expected Amount:",
+        value: `P ${result.summary.totalAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      },
+      {
+        label: "Actual Amount Processed:",
+        value: `P ${result.summary.actualAmountProcessed.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      },
+      {
+        label: "Variance:",
+        value: `${isPositive ? "+" : ""}P ${variance.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${isPositive ? "+" : ""}${variancePercentage.toFixed(2)}%)`,
+      },
+    ]
+
+    varianceData.forEach((item, index) => {
+      doc.setTextColor(100, 100, 100)
+      doc.text(item.label, 20, yPosition + index * 6)
+
+      // Color code the variance
+      if (index === 2) {
+        doc.setTextColor(isPositive ? 0 : 255, isPositive ? 128 : 0, 0)
+      } else {
+        doc.setTextColor(0, 0, 0)
+      }
+      doc.text(item.value, 80, yPosition + index * 6)
+    })
+
+    yPosition += 25
+  }
 
   // NEW: Your Expected Share Section
   if (result.summary.branchSharePercentage && result.summary.branchSharePercentage > 0) {
@@ -329,7 +364,7 @@ export function generateBranchHarvestPDF(result: HarvestResult, branchInfo: Bran
   doc.save(fileName)
 }
 
-// Alternative compact version - UPDATED with unit summaries
+// Alternative compact version - UPDATED with variance
 export function generateCompactBranchHarvestPDF(result: HarvestResult, branchInfo: BranchInfo): void {
   const doc = new jsPDF() as CustomJsPDF
   doc.setFont("helvetica")
@@ -400,6 +435,45 @@ export function generateCompactBranchHarvestPDF(result: HarvestResult, branchInf
   )
 
   yPosition += 15
+
+  if (result.summary.actualAmountProcessed !== undefined) {
+    doc.setFontSize(12)
+    doc.setTextColor(0, 0, 0)
+    doc.text("VARIANCE ANALYSIS", 20, yPosition)
+
+    yPosition += 8
+    doc.setFontSize(10)
+
+    const variance = result.summary.variance || 0
+    const variancePercentage = result.summary.variancePercentage || 0
+    const isPositive = variance >= 0
+
+    const varianceData = [
+      {
+        label: "Actual Amount:",
+        value: `P ${result.summary.actualAmountProcessed.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      },
+      {
+        label: "Variance:",
+        value: `${isPositive ? "+" : ""}P ${variance.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${isPositive ? "+" : ""}${variancePercentage.toFixed(2)}%)`,
+      },
+    ]
+
+    varianceData.forEach((item, index) => {
+      doc.setTextColor(100, 100, 100)
+      doc.text(item.label, 20, yPosition + index * 6)
+
+      // Color code the variance
+      if (index === 1) {
+        doc.setTextColor(isPositive ? 0 : 255, isPositive ? 128 : 0, 0)
+      } else {
+        doc.setTextColor(0, 0, 0)
+      }
+      doc.text(item.value, 60, yPosition + index * 6)
+    })
+
+    yPosition += 20
+  }
 
   // NEW: Your Expected Share in compact version
   if (result.summary.branchSharePercentage && result.summary.branchSharePercentage > 0) {
