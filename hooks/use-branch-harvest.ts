@@ -37,6 +37,9 @@ export interface HarvestResult {
     branchSharePercentage: number
     branchShareAmount: number
     companyShareAmount: number
+    actualAmountProcessed?: number
+    variance?: number
+    variancePercentage?: number
   }
   monthlyAggregate: {
     month: string
@@ -51,6 +54,9 @@ export interface HarvestResult {
     last_harvest_date: string
     branchSharePercentage: number
     unit_summaries: UnitSummary[]
+    actualAmountProcessed?: number
+    variance?: number
+    variancePercentage?: number
   }
 }
 
@@ -63,12 +69,18 @@ export interface BranchInfo {
 }
 
 interface UseBranchHarvest {
-  harvestToday: (branchId: string, branchInfo?: BranchInfo, generatePDF?: boolean) => Promise<HarvestResult>
+  harvestToday: (
+    branchId: string,
+    branchInfo?: BranchInfo,
+    generatePDF?: boolean,
+    actualAmountProcessed?: number,
+  ) => Promise<HarvestResult>
   harvestBackdate: (
     branchId: string,
     harvestDate: string,
     branchInfo?: BranchInfo,
     generatePDF?: boolean,
+    actualAmountProcessed?: number,
   ) => Promise<HarvestResult>
   generateHarvestReport: (result: HarvestResult, branchInfo: BranchInfo, options?: { compact?: boolean }) => void
   isHarvesting: boolean
@@ -92,11 +104,11 @@ export function useBranchHarvest(): UseBranchHarvest {
     return formatter.format(date)
   }
 
-  const addDays = (timestamp: unknown, days: number): string => {
+  const addDays = (timestamp: Timestamp | Date | string | unknown, days: number): string => {
     let date: Date
 
     if (timestamp && typeof timestamp === "object" && "toDate" in timestamp && typeof timestamp.toDate === "function") {
-      date = timestamp.toDate()
+      date = (timestamp as Timestamp).toDate()
     } else if (typeof timestamp === "string") {
       date = new Date(timestamp + "T00:00:00+08:00")
     } else if (timestamp instanceof Date) {
@@ -168,6 +180,7 @@ export function useBranchHarvest(): UseBranchHarvest {
     branchInfo?: BranchInfo,
     generatePDF = false,
     isBackdate = false,
+    actualAmountProcessed?: number,
   ): Promise<HarvestResult> => {
     setIsHarvesting(true)
     setError(null)
@@ -362,6 +375,17 @@ export function useBranchHarvest(): UseBranchHarvest {
       // Calculate shares
       const shareCalculation = calculateShares(totalAmount, branchSharePercentage)
 
+      let variance: number | undefined
+      let variancePercentage: number | undefined
+
+      if (actualAmountProcessed !== undefined && !isNaN(actualAmountProcessed)) {
+        variance = actualAmountProcessed - totalAmount
+        variancePercentage = totalAmount > 0 ? (variance / totalAmount) * 100 : 0
+        console.log(
+          `Variance calculated: Expected ${totalAmount}, Actual ${actualAmountProcessed}, Variance ${variance} (${variancePercentage.toFixed(2)}%)`,
+        )
+      }
+
       // 4. Generate date range document ID
       const documentId = getDateRangeDocumentId(startDate, harvestDateStr)
       console.log(`Creating harvest document with ID: ${documentId}`)
@@ -391,6 +415,11 @@ export function useBranchHarvest(): UseBranchHarvest {
         units_count: unitsSnapshot.size,
         branchSharePercentage: branchSharePercentage,
         unit_summaries: [...(existingData.unit_summaries || []), ...unitSummaries],
+        ...(actualAmountProcessed !== undefined && {
+          actualAmountProcessed,
+          variance,
+          variancePercentage,
+        }),
       }
 
       // Use setDoc with merge for the aggregate
@@ -421,6 +450,11 @@ export function useBranchHarvest(): UseBranchHarvest {
           totalSales,
           totalAmount,
           ...shareCalculation,
+          ...(actualAmountProcessed !== undefined && {
+            actualAmountProcessed,
+            variance,
+            variancePercentage,
+          }),
         },
         monthlyAggregate: {
           month: monthKey,
@@ -435,6 +469,11 @@ export function useBranchHarvest(): UseBranchHarvest {
           last_harvest_date: monthlyAggregate.last_harvest_date,
           branchSharePercentage: monthlyAggregate.branchSharePercentage,
           unit_summaries: monthlyAggregate.unit_summaries,
+          ...(actualAmountProcessed !== undefined && {
+            actualAmountProcessed,
+            variance,
+            variancePercentage,
+          }),
         },
       }
 
@@ -461,25 +500,26 @@ export function useBranchHarvest(): UseBranchHarvest {
 
   // Harvest all unharvested aggregates up to yesterday
   const harvestToday = async (
-  branchId: string,
-  branchInfo?: BranchInfo,
-  generatePDF = false,
+    branchId: string,
+    branchInfo?: BranchInfo,
+    generatePDF = false,
+    actualAmountProcessed?: number,
   ): Promise<HarvestResult> => {
     const finalBranchInfo = branchInfo || (await getBranchInfo(branchId))
-    
+
     // Adjust date to yesterday for today's harvest
     const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
-    
-    return harvestBranch(branchId, yesterday, finalBranchInfo, generatePDF, false)
-  }
 
+    return harvestBranch(branchId, yesterday, finalBranchInfo, generatePDF, false, actualAmountProcessed)
+  }
 
   const harvestBackdate = async (
     branchId: string,
     harvestDate: string,
     branchInfo?: BranchInfo,
     generatePDF = false,
+    actualAmountProcessed?: number,
   ): Promise<HarvestResult> => {
     const inputDate = new Date(harvestDate + "T00:00:00+08:00")
     const today = new Date()
@@ -490,7 +530,7 @@ export function useBranchHarvest(): UseBranchHarvest {
     }
 
     const finalBranchInfo = branchInfo || (await getBranchInfo(branchId))
-    return harvestBranch(branchId, inputDate, finalBranchInfo, generatePDF, true)
+    return harvestBranch(branchId, inputDate, finalBranchInfo, generatePDF, true, actualAmountProcessed)
   }
 
   const generateHarvestReport = (
