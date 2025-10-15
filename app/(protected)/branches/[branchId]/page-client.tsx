@@ -12,16 +12,23 @@ import {
   TrendingDown,
   ArrowLeft,
   MapPin,
+  FileDown,
 } from "lucide-react";
 import Link from "next/link";
 import React, { useState, useEffect, useCallback } from "react";
-import { useBranchHarvestData } from "@/hooks/use-branch-harvest-data";
+import { Virtuoso } from "react-virtuoso";
+import {
+  useBranchHarvestData,
+  HarvestData,
+} from "@/hooks/use-branch-harvest-data";
 import { useUnits } from "@/hooks/use-units-query";
 import { BranchData, useBranches } from "@/hooks/use-branches-query";
 import { formatDateRange, formatDate } from "@/lib/date-utils";
 import { MapModal } from "@/components/Branch/MapModal";
 import CompactMap from "@/components/Branch/CompactMap";
 import { BranchUnitsStatus } from "@/components/Branch/branch-units";
+import { generateCompactBranchHarvestPDF } from "@/lib/branch-reports";
+import type { HarvestResult, BranchInfo } from "@/hooks/use-branch-harvest";
 
 interface UnitSummary {
   unitId: string;
@@ -52,73 +59,61 @@ const UnitBreakdown = ({
   const unitDateRange = unit.date_range || { start: "N/A", end: "N/A" };
 
   return (
-    <div className="border rounded-xl bg-card">
-      {/* Unit Header */}
+    <div className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
+      {/* Unit Header - More Compact */}
       <div
-        className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+        className="flex items-center justify-between p-2 cursor-pointer"
         onClick={onToggle}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-          <div>
-            <span className="font-medium text-sm">{unitAlias}</span>
-            <span className="text-xs text-foreground ml-2 font-mono">
-              ({unit.unitId})
-            </span>
-          </div>
-          <span className="text-sm font-bold text-green-600">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+          <span className="font-medium text-sm">{unitAlias}</span>
+          <span className="text-xs text-muted-foreground font-mono">
+            ({unit.unitId})
+          </span>
+          <span className="text-sm font-bold text-green-600 ml-2">
             ₱{(unit.total_amount || 0).toFixed(2)}
           </span>
         </div>
-        <div className="flex items-center gap-4 text-xs text-foreground">
-          <span>{unit.aggregates_count || 0} aggregates</span>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span>{unit.aggregates_count || 0} agg</span>
           <span>{unit.total_sales || 0} sales</span>
           {isExpanded ? (
-            <ChevronUp className="h-4 w-4" />
+            <ChevronUp className="h-3 w-3" />
           ) : (
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="h-3 w-3" />
           )}
         </div>
       </div>
 
-      {/* Expanded Content */}
+      {/* Expanded Content - Plain Text */}
       {isExpanded && (
-        <div className="px-3 pb-3 border-t">
-          {/* Coin Breakdown */}
-          <div className="grid grid-cols-4 gap-2 mt-3 text-xs">
-            <div className="text-center p-2 bg-muted rounded-lg">
-              <div className="font-bold">{unit.coins_1 || 0}</div>
-              <div className="text-foreground">₱1</div>
-              <div className="text-green-600 font-medium">
-                ₱{(unit.coins_1 || 0).toFixed(2)}
-              </div>
+        <div className="px-2 pb-2 pl-8">
+          <div className="text-xs text-muted-foreground space-y-0.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium">Coins:</span>
+              <span>
+                ₱1 × {unit.coins_1 || 0} = ₱{(unit.coins_1 || 0).toFixed(2)}
+              </span>
+              <span className="text-muted-foreground/60">•</span>
+              <span>
+                ₱5 × {unit.coins_5 || 0} = ₱
+                {((unit.coins_5 || 0) * 5).toFixed(2)}
+              </span>
+              <span className="text-muted-foreground/60">•</span>
+              <span>
+                ₱10 × {unit.coins_10 || 0} = ₱
+                {((unit.coins_10 || 0) * 10).toFixed(2)}
+              </span>
+              <span className="text-muted-foreground/60">•</span>
+              <span>
+                ₱20 × {unit.coins_20 || 0} = ₱
+                {((unit.coins_20 || 0) * 20).toFixed(2)}
+              </span>
             </div>
-            <div className="text-center p-2 bg-muted rounded-lg">
-              <div className="font-bold">{unit.coins_5 || 0}</div>
-              <div className="text-foreground">₱5</div>
-              <div className="text-green-600 font-medium">
-                ₱{((unit.coins_5 || 0) * 5).toFixed(2)}
-              </div>
+            <div className="text-muted-foreground/80">
+              {formatDateRange(unitDateRange.start, unitDateRange.end)}
             </div>
-            <div className="text-center p-2 bg-muted rounded-lg">
-              <div className="font-bold">{unit.coins_10 || 0}</div>
-              <div className="text-foreground">₱10</div>
-              <div className="text-green-600 font-medium">
-                ₱{((unit.coins_10 || 0) * 10).toFixed(2)}
-              </div>
-            </div>
-            <div className="text-center p-2 bg-muted rounded-lg">
-              <div className="font-bold">{unit.coins_20 || 0}</div>
-              <div className="text-foreground">₱20</div>
-              <div className="text-green-600 font-medium">
-                ₱{((unit.coins_20 || 0) * 20).toFixed(2)}
-              </div>
-            </div>
-          </div>
-
-          {/* Date Range */}
-          <div className="mt-2 text-xs text-foreground text-center">
-            {formatDateRange(unitDateRange.start, unitDateRange.end)}
           </div>
         </div>
       )}
@@ -135,8 +130,13 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
   } = useBranchHarvestData(branchId);
 
   const { units } = useUnits();
+  const { data: branches } = useBranches();
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
-  const [showUnitPerformance, setShowUnitPerformance] = useState(true);
+  const [showUnitPerformance, setShowUnitPerformance] = useState<
+    Record<string, boolean>
+  >({});
+
+  const branch = branches?.find((b) => b.id === branchId);
 
   const toggleUnit = (unitId: string) => {
     const newExpanded = new Set(expandedUnits);
@@ -148,21 +148,98 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
     setExpandedUnits(newExpanded);
   };
 
+  const toggleUnitPerformance = (harvestId: string) => {
+    setShowUnitPerformance((prev) => ({
+      ...prev,
+      [harvestId]: !prev[harvestId],
+    }));
+  };
+
   // Get unit alias from deviceId
   const getUnitAlias = (deviceId: string) => {
     const unit = units.find((u) => u.deviceId === deviceId);
     return unit?.alias || deviceId;
   };
 
+  // Convert HarvestData to HarvestResult format for PDF generation
+  const convertToHarvestResult = (harvest: HarvestData): HarvestResult => {
+    return {
+      success: true,
+      branchId: branchId,
+      harvestDate:
+        harvest.date_range?.end ||
+        harvest.last_harvest_date ||
+        new Date().toISOString().split("T")[0],
+      previousHarvestDate:
+        harvest.date_range?.start === "Beginning"
+          ? null
+          : harvest.date_range?.start || null,
+      monthlyAggregate: {
+        month: harvest.month || "",
+        total: harvest.total || 0,
+        coins_1: harvest.coins_1 || 0,
+        coins_5: harvest.coins_5 || 0,
+        coins_10: harvest.coins_10 || 0,
+        coins_20: harvest.coins_20 || 0,
+        sales_count: harvest.sales_count || 0,
+        units_count: harvest.units_count || 0,
+        aggregates_included: harvest.aggregates_included || 0,
+        last_harvest_date:
+          harvest.last_harvest_date || harvest.date_range?.end || "",
+        branchSharePercentage: harvest.branchSharePercentage || 0,
+        unit_summaries: harvest.unit_summaries || [],
+        actualAmountProcessed: harvest.actualAmountProcessed,
+        variance: harvest.variance,
+        variancePercentage: harvest.variancePercentage,
+      },
+      summary: {
+        totalAmount: harvest.total || 0,
+        totalSales: harvest.sales_count || 0,
+        unitsProcessed: harvest.units_count || 0,
+        aggregatesHarvested: harvest.aggregates_included || 0,
+        totalCoins1: harvest.coins_1 || 0,
+        totalCoins5: harvest.coins_5 || 0,
+        totalCoins10: harvest.coins_10 || 0,
+        totalCoins20: harvest.coins_20 || 0,
+        branchSharePercentage: harvest.branchSharePercentage || 0,
+        branchShareAmount: harvest.branchSharePercentage
+          ? (harvest.total || 0) * (harvest.branchSharePercentage / 100)
+          : 0,
+        companyShareAmount: harvest.branchSharePercentage
+          ? (harvest.total || 0) * ((100 - harvest.branchSharePercentage) / 100)
+          : harvest.total || 0,
+        actualAmountProcessed: harvest.actualAmountProcessed,
+        variance: harvest.variance,
+        variancePercentage: harvest.variancePercentage,
+      },
+    };
+  };
+
+  // Generate PDF for a specific harvest with minimal branch info
+  const handleGeneratePDF = (harvest: HarvestData) => {
+    const harvestResult = convertToHarvestResult(harvest);
+
+    // Simple branch info with defaults - these are just for PDF display
+    const branchInfo: BranchInfo = {
+      branchName: `Branch ${branchId}`,
+      managerName: "N/A",
+      branchAddress: "N/A",
+      contactNumber: "N/A",
+      sharePercentage: harvest.branchSharePercentage || 0,
+    };
+
+    generateCompactBranchHarvestPDF(harvestResult, branchInfo);
+  };
+
   if (isLoading) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-2">
         {[...Array(2)].map((_, i) => (
-          <div key={i} className="animate-pulse bg-muted rounded-xl p-4">
-            <div className="h-5 bg-muted/50 rounded w-1/4 mb-3"></div>
-            <div className="space-y-2">
-              <div className="h-4 bg-muted/50 rounded w-3/4"></div>
-              <div className="h-4 bg-muted/50 rounded w-1/2"></div>
+          <div key={i} className="animate-pulse bg-muted rounded-lg p-3">
+            <div className="h-4 bg-muted-foreground/20 rounded w-1/4 mb-2"></div>
+            <div className="space-y-1.5">
+              <div className="h-3 bg-muted-foreground/20 rounded w-3/4"></div>
+              <div className="h-3 bg-muted-foreground/20 rounded w-1/2"></div>
             </div>
           </div>
         ))}
@@ -172,11 +249,11 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
 
   if (error) {
     return (
-      <div className="border border-destructive/20 bg-destructive/5 rounded-xl p-6">
-        <div className="flex flex-col items-center text-center">
-          <Activity className="h-6 w-6 text-destructive mb-2" />
-          <h3 className="text-base font-semibold mb-1">Error Loading Data</h3>
-          <p className="text-foreground text-sm">{error}</p>
+      <div className="border border-destructive/20 bg-destructive/5 rounded-lg p-4">
+        <div className="flex items-center gap-2 text-sm">
+          <Activity className="h-4 w-4 text-destructive" />
+          <span className="font-semibold">Error Loading Data:</span>
+          <span className="text-muted-foreground">{error}</span>
         </div>
       </div>
     );
@@ -184,214 +261,190 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
 
   if (!harvestData || harvestData.length === 0) {
     return (
-      <div className="border border-dashed rounded-xl p-8 text-center">
-        <BarChart3 className="h-6 w-6 text-foreground mb-2 mx-auto" />
-        <h3 className="text-base font-semibold mb-1">
-          No Harvest Data Available
-        </h3>
-        <p className="text-foreground text-sm">
+      <div className="border border-dashed rounded-lg p-6 text-center">
+        <BarChart3 className="h-5 w-5 text-muted-foreground mb-2 mx-auto" />
+        <p className="text-sm text-muted-foreground">
           No harvest records found for this branch.
         </p>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {harvestData.map((harvest) => {
-        const dateRange = harvest.date_range || { start: "N/A", end: "N/A" };
-        const unitSummaries = harvest.unit_summaries || [];
-        const hasVarianceData = harvest.actualAmountProcessed !== undefined;
-        const isPositiveVariance = (harvest.variance ?? 0) >= 0;
+  // Render function for each harvest item
+  const renderHarvestItem = (index: number) => {
+    const harvest = harvestData[index];
+    const dateRange = harvest.date_range || { start: "N/A", end: "N/A" };
+    const unitSummaries = harvest.unit_summaries || [];
+    const hasVarianceData = harvest.actualAmountProcessed !== undefined;
+    const isPositiveVariance = (harvest.variance ?? 0) >= 0;
+    const isUnitPerformanceExpanded = showUnitPerformance[harvest.id] ?? true;
 
-        return (
-          <div key={harvest.id} className="border rounded-xl bg-card shadow-sm">
-            {/* Header */}
-            <div className="border-b p-4 bg-muted/50">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div>
-                  <h3 className="font-bold text-lg text-foreground">
-                    {formatDateRange(dateRange.start, dateRange.end)}
-                  </h3>
-                  <p className="text-sm text-foreground font-mono">
-                    {harvest.month || "N/A"} •{" "}
-                    {harvest.aggregates_included || 0} aggregates
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-green-600">
-                    ₱{harvest.total?.toFixed(2) || "0.00"}
-                  </div>
-                  <div className="text-sm text-foreground">
-                    {harvest.sales_count || 0} sales
-                  </div>
-                </div>
-              </div>
+    return (
+      <div className="border rounded-lg bg-card shadow-sm mb-3">
+        {/* Header - Compact */}
+        <div className="border-b p-3 bg-muted/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-base">
+                {formatDateRange(dateRange.start, dateRange.end)}
+              </h3>
+              <p className="text-xs text-muted-foreground font-mono">
+                {harvest.month || "N/A"} • {harvest.aggregates_included || 0}{" "}
+                agg • {harvest.sales_count || 0} sales •{" "}
+                {harvest.units_count || 0} units
+              </p>
             </div>
-
-            <div className="p-4">
-              {hasVarianceData && (
-                <div className="mb-4 p-4 bg-muted/30 rounded-xl border-2 border-dashed">
-                  <div className="flex items-center gap-2 mb-3">
-                    {isPositiveVariance ? (
-                      <TrendingUp className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <TrendingDown className="h-5 w-5 text-red-600" />
-                    )}
-                    <h4 className="font-semibold text-sm">Variance Analysis</h4>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                    <div className="p-3 bg-card rounded-lg border">
-                      <div className="text-xs text-foreground mb-1">
-                        Expected Amount
-                      </div>
-                      <div className="text-lg font-bold text-foreground">
-                        ₱{harvest.total?.toFixed(2) || "0.00"}
-                      </div>
-                    </div>
-                    <div className="p-3 bg-card rounded-lg border">
-                      <div className="text-xs text-foreground mb-1">
-                        Actual Amount
-                      </div>
-                      <div className="text-lg font-bold text-blue-600">
-                        ₱{harvest.actualAmountProcessed?.toFixed(2) || "0.00"}
-                      </div>
-                    </div>
-                    <div className="p-3 bg-card rounded-lg border">
-                      <div className="text-xs text-foreground mb-1">
-                        Variance
-                      </div>
-                      <div
-                        className={`text-lg font-bold ${
-                          isPositiveVariance ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {isPositiveVariance ? "+" : ""}₱
-                        {harvest.variance?.toFixed(2) || "0.00"}
-                      </div>
-                      <div
-                        className={`text-xs ${
-                          isPositiveVariance ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        ({isPositiveVariance ? "+" : ""}
-                        {harvest.variancePercentage?.toFixed(2) || "0.00"}%)
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Summary Stats - Compact */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                <div className="text-center p-3 bg-muted rounded-xl">
-                  <div className="text-2xl font-bold text-foreground">
-                    {harvest.coins_1 || 0}
-                  </div>
-                  <div className="text-xs text-foreground">₱1 Coins</div>
-                  <div className="text-xs text-green-600 font-medium">
-                    ₱{(harvest.coins_1 || 0).toFixed(2)}
-                  </div>
-                </div>
-                <div className="text-center p-3 bg-muted rounded-xl">
-                  <div className="text-2xl font-bold text-foreground">
-                    {harvest.coins_5 || 0}
-                  </div>
-                  <div className="text-xs text-foreground">₱5 Coins</div>
-                  <div className="text-xs text-green-600 font-medium">
-                    ₱{((harvest.coins_5 || 0) * 5).toFixed(2)}
-                  </div>
-                </div>
-                <div className="text-center p-3 bg-muted rounded-xl">
-                  <div className="text-2xl font-bold text-foreground">
-                    {harvest.coins_10 || 0}
-                  </div>
-                  <div className="text-xs text-foreground">₱10 Coins</div>
-                  <div className="text-xs text-green-600 font-medium">
-                    ₱{((harvest.coins_10 || 0) * 10).toFixed(2)}
-                  </div>
-                </div>
-                <div className="text-center p-3 bg-muted rounded-xl">
-                  <div className="text-2xl font-bold text-foreground">
-                    {harvest.coins_20 || 0}
-                  </div>
-                  <div className="text-xs text-foreground">₱20 Coins</div>
-                  <div className="text-xs text-green-600 font-medium">
-                    ₱{((harvest.coins_20 || 0) * 20).toFixed(2)}
-                  </div>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="text-xl font-bold text-green-600">
+                ₱{harvest.total?.toFixed(2) || "0.00"}
               </div>
-
-              {/* Revenue Share - Compact */}
-              {harvest.branchSharePercentage > 0 && (
-                <div className="mb-4 p-3 bg-muted rounded-xl border">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 text-sm">
-                    <span className="font-medium text-green-700">
-                      Revenue Share
-                    </span>
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-                      <span className="text-green-600">
-                        Branch ({harvest.branchSharePercentage}%): ₱
-                        {(
-                          (harvest.total || 0) *
-                          (harvest.branchSharePercentage / 100)
-                        ).toFixed(2)}
-                      </span>
-                      <span className="text-foreground">
-                        Company ({100 - harvest.branchSharePercentage}%): ₱
-                        {(
-                          (harvest.total || 0) *
-                          ((100 - harvest.branchSharePercentage) / 100)
-                        ).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Unit Summaries - Collapsible */}
-              {unitSummaries.length > 0 && (
-                <div>
-                  <button
-                    onClick={() => setShowUnitPerformance(!showUnitPerformance)}
-                    className="flex items-center gap-2 text-sm font-semibold mb-3 text-foreground hover:text-foreground transition-colors"
-                  >
-                    {showUnitPerformance ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                    Unit Performance ({unitSummaries.length} units)
-                  </button>
-
-                  {showUnitPerformance && (
-                    <div className="space-y-2">
-                      {unitSummaries.map((unit, idx) => (
-                        <UnitBreakdown
-                          key={`${unit.unitId}-${idx}`}
-                          unit={unit}
-                          unitAlias={getUnitAlias(unit.unitId)}
-                          isExpanded={expandedUnits.has(unit.unitId)}
-                          onToggle={() => toggleUnit(unit.unitId)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Footer */}
-              <div className="mt-4 pt-3 border-t text-xs text-foreground flex justify-between">
-                <span>
-                  Last updated: {formatDate(harvest.last_harvest_date || "N/A")}
-                </span>
-                <span>Units: {harvest.units_count || 0}</span>
-              </div>
+              <button
+                onClick={() => handleGeneratePDF(harvest)}
+                className="p-2 hover:bg-muted rounded-lg transition-colors"
+                title="Download PDF Report"
+              >
+                <FileDown className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+              </button>
             </div>
           </div>
-        );
-      })}
-    </div>
+        </div>
+
+        <div className="p-3">
+          {/* Variance - More Compact */}
+          {hasVarianceData && (
+            <div className="mb-3 p-2 bg-muted/20 rounded-lg border text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <span className="text-muted-foreground">
+                    Expected: ₱{harvest.total?.toFixed(2) || "0.00"}
+                  </span>
+                  <span className="text-blue-600 font-medium">
+                    Actual: ₱
+                    {harvest.actualAmountProcessed?.toFixed(2) || "0.00"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  {isPositiveVariance ? (
+                    <TrendingUp className="h-3 w-3 text-green-600" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 text-red-600" />
+                  )}
+                  <span
+                    className={`font-bold ${
+                      isPositiveVariance ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {isPositiveVariance ? "+" : ""}₱
+                    {harvest.variance?.toFixed(2) || "0.00"}
+                  </span>
+                  <span
+                    className={`${
+                      isPositiveVariance ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    ({isPositiveVariance ? "+" : ""}
+                    {harvest.variancePercentage?.toFixed(2) || "0.00"}%)
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Coin Summary - Plain Text in One Line */}
+          <div className="mb-3 p-2 bg-muted/20 rounded-lg text-xs">
+            <span className="font-medium text-muted-foreground mr-2">
+              Coins:
+            </span>
+            <span className="font-mono">
+              ₱1 × {harvest.coins_1 || 0} = ₱{(harvest.coins_1 || 0).toFixed(2)}
+              <span className="text-muted-foreground/60 mx-2">•</span>
+              ₱5 × {harvest.coins_5 || 0} = ₱
+              {((harvest.coins_5 || 0) * 5).toFixed(2)}
+              <span className="text-muted-foreground/60 mx-2">•</span>
+              ₱10 × {harvest.coins_10 || 0} = ₱
+              {((harvest.coins_10 || 0) * 10).toFixed(2)}
+              <span className="text-muted-foreground/60 mx-2">•</span>
+              ₱20 × {harvest.coins_20 || 0} = ₱
+              {((harvest.coins_20 || 0) * 20).toFixed(2)}
+            </span>
+          </div>
+
+          {/* Revenue Share - Compact */}
+          {harvest.branchSharePercentage > 0 && (
+            <div className="mb-3 p-2 bg-muted/20 rounded-lg text-xs">
+              <span className="font-medium text-muted-foreground mr-2">
+                Revenue:
+              </span>
+              <span className="text-green-600 font-medium">
+                Branch ({harvest.branchSharePercentage}%): ₱
+                {(
+                  (harvest.total || 0) *
+                  (harvest.branchSharePercentage / 100)
+                ).toFixed(2)}
+              </span>
+              <span className="text-muted-foreground/60 mx-2">•</span>
+              <span className="text-muted-foreground">
+                Company ({100 - harvest.branchSharePercentage}%): ₱
+                {(
+                  (harvest.total || 0) *
+                  ((100 - harvest.branchSharePercentage) / 100)
+                ).toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {/* Unit Summaries - Single Card with Plain Text */}
+          {unitSummaries.length > 0 && (
+            <div className="border rounded-lg bg-muted/10">
+              <button
+                onClick={() => toggleUnitPerformance(harvest.id)}
+                className="flex items-center justify-between w-full p-2 text-xs font-semibold hover:bg-muted/30 transition-colors rounded-t-lg"
+              >
+                <span>Unit Performance ({unitSummaries.length})</span>
+                {isUnitPerformanceExpanded ? (
+                  <ChevronUp className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
+              </button>
+
+              {isUnitPerformanceExpanded && (
+                <div className="border-t">
+                  {unitSummaries.map((unit, idx) => (
+                    <UnitBreakdown
+                      key={`${unit.unitId}-${idx}`}
+                      unit={unit}
+                      unitAlias={getUnitAlias(unit.unitId)}
+                      isExpanded={expandedUnits.has(unit.unitId)}
+                      onToggle={() => toggleUnit(unit.unitId)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Footer - Minimal */}
+          <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
+            Last updated: {formatDate(harvest.last_harvest_date || "N/A")}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <Virtuoso
+      data={harvestData}
+      totalCount={harvestData.length}
+      itemContent={renderHarvestItem}
+      style={{
+        height: "600px",
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+      }}
+      className="[&::-webkit-scrollbar]:hidden"
+    />
   );
 });
 
@@ -441,43 +494,41 @@ const BranchHeader = React.memo(
 
     return (
       <>
-        <div className="mb-6">
+        <div className="mb-4">
           {/* Back Button */}
-          <Button asChild variant="ghost" className="mb-4" size="sm">
+          <Button asChild variant="ghost" className="mb-3" size="sm">
             <Link href="/branches">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Branches
             </Link>
           </Button>
 
-          {/* Title */}
-          <div className="mb-4">
-            <div className="flex items-center gap-3 mb-2 font-mono">
-              <div className="p-2 bg-secondary/10 rounded-lg">
-                <MapPin className="h-5 w-5 text-primary" />
-              </div>
-              <h1 className="text-2xl font-bold text-foreground text-balance">
+          {/* Title - Compact */}
+          <div className="mb-3">
+            <div className="flex items-center gap-2 mb-1">
+              <MapPin className="h-5 w-5 text-primary" />
+              <h1 className="text-xl font-bold">
                 {branch?.location || "Branch"}
               </h1>
             </div>
-            <p className="text-foreground text-sm font-mono">
+            <p className="text-muted-foreground text-xs font-mono">
               Monthly performance metrics and transaction summaries
             </p>
           </div>
 
           {/* FLEX CONTAINER — Units left, Map right */}
-          <div className="flex flex-col lg:flex-row gap-4 items-stretch">
+          <div className="flex flex-col lg:flex-row gap-3 items-stretch">
             {/* Units Status */}
             <div className="lg:flex-1">
               <BranchUnitsStatus branchId={branchId} />
             </div>
 
-            {/* Map */}
+            {/* Map - Smaller */}
             <div className="lg:w-1/2 z-0">
               <button
                 data-map-trigger
                 onClick={() => setShowMapModal(true)}
-                className="w-full h-48 rounded-lg border border-border overflow-hidden hover:shadow-lg transition-all bg-card hover:scale-[1.02]"
+                className="w-full h-40 rounded-lg border border-border overflow-hidden hover:shadow-lg transition-all bg-card hover:scale-[1.02]"
               >
                 {branch?.latitude && branch?.longitude ? (
                   <div className="w-full h-full pointer-events-none">
@@ -490,13 +541,12 @@ const BranchHeader = React.memo(
                   </div>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-muted">
-                    <MapPin className="h-6 w-6 text-foreground" />
-                    <span className="sr-only">No location data</span>
+                    <MapPin className="h-5 w-5 text-muted-foreground" />
                   </div>
                 )}
               </button>
-              <p className="text-xs text-foreground text-center mt-1">
-                Click map to expand
+              <p className="text-xs text-muted-foreground text-center mt-1">
+                Click to expand
               </p>
             </div>
           </div>
@@ -527,21 +577,16 @@ const BranchPage = () => {
   // Type guard: ensure branchId is a string
   if (!branchId || Array.isArray(branchId)) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <Card>
           <CardHeader>
             <CardTitle>Branch Details</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="border border-destructive/20 bg-destructive/5 rounded-xl p-6">
-              <div className="flex flex-col items-center text-center">
-                <Activity className="h-6 w-6 text-destructive mb-2" />
-                <h3 className="text-base font-semibold mb-1">
-                  Invalid Branch ID
-                </h3>
-                <p className="text-foreground text-sm">
-                  The branch ID is missing or invalid.
-                </p>
+            <div className="border border-destructive/20 bg-destructive/5 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-sm">
+                <Activity className="h-4 w-4 text-destructive" />
+                <span className="font-semibold">Invalid Branch ID</span>
               </div>
             </div>
           </CardContent>
@@ -551,11 +596,11 @@ const BranchPage = () => {
   }
 
   return (
-    <div className="space-y-4 px-16 mt-7 sm:px-24 lg:px-50">
+    <div className="space-y-3 px-8 mt-4 sm:px-16 lg:px-32">
       <BranchHeader branchId={branchId} branch={branch} />
       <Card>
-        <CardHeader>
-          <CardTitle>Harvest History</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Harvest History</CardTitle>
         </CardHeader>
         <CardContent>
           <HarvestDataDisplay branchId={branchId} />
