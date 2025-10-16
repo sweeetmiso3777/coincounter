@@ -45,6 +45,229 @@ interface UnitSummary {
   };
 }
 
+// ========== COIN BREAKDOWN TABLE COMPONENT ==========
+const CoinBreakdownTable = ({
+  coins_1 = 0,
+  coins_5 = 0,
+  coins_10 = 0,
+  coins_20 = 0,
+  compact = false,
+}: {
+  coins_1?: number;
+  coins_5?: number;
+  coins_10?: number;
+  coins_20?: number;
+  compact?: boolean;
+}) => {
+  const coinValues = {
+    coins_1: coins_1,
+    coins_5: coins_5,
+    coins_10: coins_10,
+    coins_20: coins_20,
+  };
+
+  const coinTotals = {
+    coins_1: coins_1 * 1,
+    coins_5: coins_5 * 5,
+    coins_10: coins_10 * 10,
+    coins_20: coins_20 * 20,
+  };
+
+  const grandTotal = Object.values(coinTotals).reduce(
+    (sum, total) => sum + total,
+    0
+  );
+
+  if (compact) {
+    return (
+      <div className="text-xs">
+        <div className="grid grid-cols-5 gap-1 font-mono">
+          {/* Headers */}
+          <div className="font-semibold text-muted-foreground">Coin</div>
+          <div className="font-semibold text-muted-foreground text-right">
+            Qty
+          </div>
+          <div className="font-semibold text-muted-foreground text-right">
+            Value
+          </div>
+          <div className="font-semibold text-muted-foreground text-right">
+            Total
+          </div>
+          <div className="font-semibold text-muted-foreground text-right">
+            %
+          </div>
+
+          {/* 1 Peso */}
+          <div>₱1</div>
+          <div className="text-right">
+            {coinValues.coins_1.toLocaleString()}
+          </div>
+          <div className="text-right">₱1</div>
+          <div className="text-right">
+            ₱{coinTotals.coins_1.toLocaleString()}
+          </div>
+          <div className="text-right text-muted-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_1 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+
+          {/* 5 Peso */}
+          <div>₱5</div>
+          <div className="text-right">
+            {coinValues.coins_5.toLocaleString()}
+          </div>
+          <div className="text-right">₱5</div>
+          <div className="text-right">
+            ₱{coinTotals.coins_5.toLocaleString()}
+          </div>
+          <div className="text-right text-muted-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_5 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+
+          {/* 10 Peso */}
+          <div>₱10</div>
+          <div className="text-right">
+            {coinValues.coins_10.toLocaleString()}
+          </div>
+          <div className="text-right">₱10</div>
+          <div className="text-right">
+            ₱{coinTotals.coins_10.toLocaleString()}
+          </div>
+          <div className="text-right text-muted-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_10 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+
+          {/* 20 Peso */}
+          <div>₱20</div>
+          <div className="text-right">
+            {coinValues.coins_20.toLocaleString()}
+          </div>
+          <div className="text-right">₱20</div>
+          <div className="text-right">
+            ₱{coinTotals.coins_20.toLocaleString()}
+          </div>
+          <div className="text-right text-muted-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_20 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+
+          {/* Grand Total Row */}
+          <div className="col-span-3 border-t pt-1 font-semibold">Total</div>
+          <div className="col-span-2 border-t pt-1 text-right font-bold text-green-600">
+            ₱{grandTotal.toLocaleString()}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-xs">
+      <div className="grid grid-cols-4 gap-2 font-mono border-b pb-1 mb-1">
+        <div className="font-semibold text-muted-foreground">Coin Type</div>
+        <div className="font-semibold text-muted-foreground text-right">
+          Quantity
+        </div>
+        <div className="font-semibold text-muted-foreground text-right">
+          Total Value
+        </div>
+        <div className="font-semibold text-muted-foreground text-right">
+          Percentage
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        {/* 1 Peso Row */}
+        <div className="grid grid-cols-4 gap-2">
+          <div>₱1 Coins</div>
+          <div className="text-right">
+            {coinValues.coins_1.toLocaleString()}
+          </div>
+          <div className="text-right">
+            ₱{coinTotals.coins_1.toLocaleString()}
+          </div>
+          <div className="text-right text-muted-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_1 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+        </div>
+
+        {/* 5 Peso Row */}
+        <div className="grid grid-cols-4 gap-2">
+          <div>₱5 Coins</div>
+          <div className="text-right">
+            {coinValues.coins_5.toLocaleString()}
+          </div>
+          <div className="text-right">
+            ₱{coinTotals.coins_5.toLocaleString()}
+          </div>
+          <div className="text-right text-muted-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_5 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+        </div>
+
+        {/* 10 Peso Row */}
+        <div className="grid grid-cols-4 gap-2">
+          <div>₱10 Coins</div>
+          <div className="text-right">
+            {coinValues.coins_10.toLocaleString()}
+          </div>
+          <div className="text-right">
+            ₱{coinTotals.coins_10.toLocaleString()}
+          </div>
+          <div className="text-right text-muted-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_10 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+        </div>
+
+        {/* 20 Peso Row */}
+        <div className="grid grid-cols-4 gap-2">
+          <div>₱20 Coins</div>
+          <div className="text-right">
+            {coinValues.coins_20.toLocaleString()}
+          </div>
+          <div className="text-right">
+            ₱{coinTotals.coins_20.toLocaleString()}
+          </div>
+          <div className="text-right text-muted-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_20 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+        </div>
+
+        {/* Grand Total Row */}
+        <div className="grid grid-cols-4 gap-2 border-t pt-1 font-semibold">
+          <div className="col-span-2">Grand Total</div>
+          <div className="text-right text-green-600">
+            ₱{grandTotal.toLocaleString()}
+          </div>
+          <div className="text-right">100%</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const UnitBreakdown = ({
   unit,
   isExpanded,
@@ -72,7 +295,7 @@ const UnitBreakdown = ({
             ({unit.unitId})
           </span>
           <span className="text-sm font-bold text-green-600 ml-2">
-            ₱{(unit.total_amount || 0).toFixed(2)}
+            ₱{(unit.total_amount || 0).toLocaleString()}
           </span>
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -86,31 +309,17 @@ const UnitBreakdown = ({
         </div>
       </div>
 
-      {/* Expanded Content - Plain Text */}
+      {/* Expanded Content - Tabular Coin Breakdown */}
       {isExpanded && (
         <div className="px-2 pb-2 pl-8">
-          <div className="text-xs text-muted-foreground space-y-0.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium">Coins:</span>
-              <span>
-                ₱1 × {unit.coins_1 || 0} = ₱{(unit.coins_1 || 0).toFixed(2)}
-              </span>
-              <span className="text-muted-foreground/60">•</span>
-              <span>
-                ₱5 × {unit.coins_5 || 0} = ₱
-                {((unit.coins_5 || 0) * 5).toFixed(2)}
-              </span>
-              <span className="text-muted-foreground/60">•</span>
-              <span>
-                ₱10 × {unit.coins_10 || 0} = ₱
-                {((unit.coins_10 || 0) * 10).toFixed(2)}
-              </span>
-              <span className="text-muted-foreground/60">•</span>
-              <span>
-                ₱20 × {unit.coins_20 || 0} = ₱
-                {((unit.coins_20 || 0) * 20).toFixed(2)}
-              </span>
-            </div>
+          <div className="text-xs text-muted-foreground space-y-2">
+            <CoinBreakdownTable
+              coins_1={unit.coins_1}
+              coins_5={unit.coins_5}
+              coins_10={unit.coins_10}
+              coins_20={unit.coins_20}
+              compact={true}
+            />
             <div className="text-muted-foreground/80">
               {formatDateRange(unitDateRange.start, unitDateRange.end)}
             </div>
@@ -296,7 +505,7 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
             </div>
             <div className="flex items-center gap-3">
               <div className="text-xl font-bold text-green-600">
-                ₱{harvest.total?.toFixed(2) || "0.00"}
+                ₱{(harvest.total || 0).toLocaleString()}
               </div>
               <button
                 onClick={() => handleGeneratePDF(harvest)}
@@ -316,11 +525,11 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <span className="text-muted-foreground">
-                    Expected: ₱{harvest.total?.toFixed(2) || "0.00"}
+                    Expected: ₱{(harvest.total || 0).toLocaleString()}
                   </span>
                   <span className="text-blue-600 font-medium">
                     Actual: ₱
-                    {harvest.actualAmountProcessed?.toFixed(2) || "0.00"}
+                    {(harvest.actualAmountProcessed || 0).toLocaleString()}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -335,7 +544,7 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
                     }`}
                   >
                     {isPositiveVariance ? "+" : ""}₱
-                    {harvest.variance?.toFixed(2) || "0.00"}
+                    {(harvest.variance || 0).toLocaleString()}
                   </span>
                   <span
                     className={`${
@@ -350,23 +559,19 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
             </div>
           )}
 
-          {/* Coin Summary - Plain Text in One Line */}
-          <div className="mb-3 p-2 bg-muted/20 rounded-lg text-xs">
-            <span className="font-medium text-muted-foreground mr-2">
-              Coins:
-            </span>
-            <span className="font-mono">
-              ₱1 × {harvest.coins_1 || 0} = ₱{(harvest.coins_1 || 0).toFixed(2)}
-              <span className="text-muted-foreground/60 mx-2">•</span>
-              ₱5 × {harvest.coins_5 || 0} = ₱
-              {((harvest.coins_5 || 0) * 5).toFixed(2)}
-              <span className="text-muted-foreground/60 mx-2">•</span>
-              ₱10 × {harvest.coins_10 || 0} = ₱
-              {((harvest.coins_10 || 0) * 10).toFixed(2)}
-              <span className="text-muted-foreground/60 mx-2">•</span>
-              ₱20 × {harvest.coins_20 || 0} = ₱
-              {((harvest.coins_20 || 0) * 20).toFixed(2)}
-            </span>
+          {/* Coin Summary - Tabular Format */}
+          <div className="mb-3 p-3 bg-muted/20 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="font-semibold text-sm text-muted-foreground">
+                Coin Breakdown
+              </span>
+            </div>
+            <CoinBreakdownTable
+              coins_1={harvest.coins_1}
+              coins_5={harvest.coins_5}
+              coins_10={harvest.coins_10}
+              coins_20={harvest.coins_20}
+            />
           </div>
 
           {/* Revenue Share - Compact */}
@@ -380,7 +585,7 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
                 {(
                   (harvest.total || 0) *
                   (harvest.branchSharePercentage / 100)
-                ).toFixed(2)}
+                ).toLocaleString()}
               </span>
               <span className="text-muted-foreground/60 mx-2">•</span>
               <span className="text-muted-foreground">
@@ -388,7 +593,7 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
                 {(
                   (harvest.total || 0) *
                   ((100 - harvest.branchSharePercentage) / 100)
-                ).toFixed(2)}
+                ).toLocaleString()}
               </span>
             </div>
           )}
