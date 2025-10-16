@@ -64,7 +64,7 @@ export function generateBranchHarvestPDF(result: HarvestResult, branchInfo: Bran
   }
 
   const branchLines: [string, string][] = [
-    ["Branch Name:", branchInfo.branchName ?? ""],
+    ["Branch Location:", branchInfo.branchName ?? ""],
     ["Manager:", branchInfo.managerName ?? ""],
     ["Branch ID:", String(result.branchId ?? "")],
     ["Date Range:", dateRangeText],
