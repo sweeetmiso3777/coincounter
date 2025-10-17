@@ -81,51 +81,67 @@ export function generateBranchHarvestPDF(result: HarvestResult, branchInfo: Bran
     doc.text(String(row[1]), valueX, topStartY + 18 + i * 6)
   })
 
-  // SINGLE LINE: Expected Revenue + Variance Analysis
+  // REVENUE SECTION - Updated layout
+  const revenueStartY = topStartY + 18 + (branchLines.length * 6) + 10
+
+  // Expected Revenue
   const expectedRevenue = result.summary.totalAmount ?? 0
-  const variance = result.summary.variance ?? 0
-  const variancePercentage = result.summary.variancePercentage ?? 0
-  const isPositive = variance >= 0
-  const varianceSign = isPositive ? "+" : ""
-
-  const revenueY = topStartY + 18 + (branchLines.length * 6) + 10
-
   doc.setFontSize(12)
   doc.setFont(undefined, "bold")
   doc.setTextColor(0, 0, 0)
-  doc.text("Expected Revenue:", margin, revenueY)
+  doc.text("Expected Revenue:", margin, revenueStartY)
 
   doc.setFontSize(14)
   doc.text(
     `P ${expectedRevenue.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     margin + 50,
-    revenueY,
+    revenueStartY,
   )
 
+  // Actual Amount Processed (if available)
+  let currentY = revenueStartY + 8
   if (result.summary.actualAmountProcessed !== undefined) {
-    doc.setFontSize(10)
+    const actualAmount = result.summary.actualAmountProcessed ?? 0
+    
+    doc.setFontSize(11)
     doc.setFont(undefined, "bold")
-    doc.text("Variance:", margin + 120, revenueY)
+    doc.text("Actual Amount Processed:", margin, currentY)
+    
+    doc.setFontSize(12)
+    doc.text(
+      `P ${actualAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      margin + 60,
+      currentY,
+    )
+
+    // Variance
+    currentY += 5
+    const variance = result.summary.variance ?? 0
+    const variancePercentage = result.summary.variancePercentage ?? 0
+    const isPositive = variance >= 0
+    const varianceSign = isPositive ? "+" : ""
+
+    doc.setFontSize(9)
+    doc.setFont(undefined, "bold")
+    doc.text("Variance:", margin, currentY)
     doc.setFont(undefined, "normal")
     doc.text(
-      `${varianceSign}P ${variance.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${varianceSign}${variancePercentage.toFixed(2)}%)`,
-      margin + 150,
-      revenueY,
+      `${varianceSign}P ${Math.abs(variance).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${varianceSign}${Math.abs(variancePercentage).toFixed(2)}%)`,
+      margin + 22,
+      currentY,
     )
+
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0)
   }
 
-  // SECOND ROW - Your Expected Share and Key Metrics
-  const secondRowStartY = revenueY + 15
-
-  const halfWidth = (pageWidth - margin * 2) / 2
-  const leftHalfX = margin
-  const rightHalfX = margin + halfWidth
-
-  // Left: Your Expected Share
+  // Your Expected Share
+  currentY += 12
   doc.setFontSize(12)
   doc.setFont(undefined, "bold")
   doc.setTextColor(0, 0, 0)
-  doc.text("Your Expected Share", leftHalfX, secondRowStartY)
+  doc.text("Your Expected Share", margin, currentY)
 
   doc.setFontSize(10)
   doc.setFont(undefined, "normal")
@@ -133,14 +149,17 @@ export function generateBranchHarvestPDF(result: HarvestResult, branchInfo: Bran
   const sharePercentage = result.summary.branchSharePercentage ?? 0
   doc.text(
     `P ${shareAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${sharePercentage}%)`,
-    leftHalfX,
-    secondRowStartY + 8,
+    margin,
+    currentY + 8,
   )
 
-  // Right: Key Metrics
+  // Key Metrics (moved to right side)
+  const metricsStartY = revenueStartY
+  const rightHalfX = margin + 100
+
   doc.setFontSize(12)
   doc.setFont(undefined, "bold")
-  doc.text("Key Metrics", rightHalfX, secondRowStartY)
+  doc.text("Key Metrics", rightHalfX, metricsStartY)
 
   doc.setFontSize(10)
   doc.setFont(undefined, "normal")
@@ -151,13 +170,13 @@ export function generateBranchHarvestPDF(result: HarvestResult, branchInfo: Bran
   ]
   metrics.forEach((m, i) => {
     doc.setTextColor(100, 100, 100)
-    doc.text(m[0], rightHalfX, secondRowStartY + 8 + i * 6)
+    doc.text(m[0], rightHalfX, metricsStartY + 8 + i * 6)
     doc.setTextColor(0, 0, 0)
-    doc.text(String(m[1]), rightHalfX + 70, secondRowStartY + 8 + i * 6)
+    doc.text(String(m[1]), rightHalfX + 70, metricsStartY + 8 + i * 6)
   })
 
-  // Tables area
-  const tableStartY = secondRowStartY + 30
+  // Tables area - adjusted starting position
+  const tableStartY = currentY + 20
 
   // Compact header info for coin breakdown
   doc.setFontSize(10)
@@ -298,7 +317,7 @@ export function generateBranchHarvestPDF(result: HarvestResult, branchInfo: Bran
   window.open(blobUrl, "_blank");
 }
 
-// Compact version with same one-liner approach
+// Compact version with same updated layout
 export function generateCompactBranchHarvestPDF(result: HarvestResult, branchInfo: BranchInfo): void {
   const doc = new jsPDF() as CustomJsPDF
   doc.setFont("helvetica")
@@ -358,58 +377,79 @@ export function generateCompactBranchHarvestPDF(result: HarvestResult, branchInf
     doc.text(String(r[1]), margin + 45, topStartY + 18 + i * 6)
   })
 
-  // SINGLE LINE: Expected Revenue + Variance
+  // REVENUE SECTION - Updated layout for compact version
+  const revenueStartY = topStartY + 18 + (infoRows.length * 6) + 8
+
+  // Expected Revenue
   const expectedRevenue = result.summary.totalAmount ?? 0
-  const variance = result.summary.variance ?? 0
-  const variancePercentage = result.summary.variancePercentage ?? 0
-  const varianceSign = variance >= 0 ? "+" : ""
-
-  const revenueY = topStartY + 18 + (infoRows.length * 6) + 8
-
   doc.setFontSize(11)
   doc.setFont(undefined, "bold")
   doc.setTextColor(0, 0, 0)
-  doc.text("Expected Revenue:", margin, revenueY)
+  doc.text("Expected Revenue:", margin, revenueStartY)
 
   doc.setFontSize(12)
-  doc.text(`P ${expectedRevenue.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, margin + 45, revenueY)
+  doc.text(`P ${expectedRevenue.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, margin + 45, revenueStartY)
 
+  // Actual Amount Processed (if available)
+  let currentY = revenueStartY + 6
   if (result.summary.actualAmountProcessed !== undefined) {
+    const actualAmount = result.summary.actualAmountProcessed ?? 0
+    
+    doc.setFontSize(10)
+    doc.setFont(undefined, "bold")
+    doc.text("Actual Amount Processed:", margin, currentY)
+    
+    doc.setFontSize(11)
+    doc.text(
+      `P ${actualAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      margin + 55,
+      currentY,
+    )
+
+    // Variance
+    currentY += 5
+    const variance = result.summary.variance ?? 0
+    const variancePercentage = result.summary.variancePercentage ?? 0
+    const isPositive = variance >= 0
+    const varianceSign = isPositive ? "+" : ""
+    
+
     doc.setFontSize(9)
     doc.setFont(undefined, "bold")
-    doc.text("Variance:", margin + 100, revenueY)
+    doc.text("Variance:", margin, currentY)
     doc.setFont(undefined, "normal")
+    doc.setTextColor(0,0,0)
     doc.text(
-      `${varianceSign}P ${variance.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${varianceSign}${variancePercentage.toFixed(2)}%)`,
-      margin + 125,
-      revenueY,
+      `${varianceSign}P ${Math.abs(variance).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${varianceSign}${Math.abs(variancePercentage).toFixed(2)}%)`,
+      margin + 22,
+      currentY,
     )
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0)
   }
 
-  // Second row: Your Expected Share and Key Metrics
-  const secondRowStartY = revenueY + 12
-
-  const sectionWidth = (pageWidth - margin * 2) / 2
-  const leftHalfX = margin
-  const rightHalfX = margin + sectionWidth
-
   // Your Expected Share
+  currentY += 10
   doc.setFontSize(11)
   doc.setFont(undefined, "bold")
   doc.setTextColor(0, 0, 0)
-  doc.text("Your Expected Share", leftHalfX, secondRowStartY)
+  doc.text("Your Expected Share", margin, currentY)
   doc.setFont(undefined, "normal")
   const shareAmount = result.summary.branchShareAmount ?? 0
   const sharePercentage = result.summary.branchSharePercentage ?? 0
   doc.text(
     `P ${shareAmount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${sharePercentage}%)`,
-    leftHalfX,
-    secondRowStartY + 8,
+    margin,
+    currentY + 6,
   )
 
-  // Key Metrics (right)
+  // Key Metrics (right side)
+  const metricsStartY = revenueStartY
+  const rightHalfX = margin + 90
+
   doc.setFont(undefined, "bold")
-  doc.text("Key Metrics", rightHalfX, secondRowStartY)
+  doc.text("Key Metrics", rightHalfX, metricsStartY)
   doc.setFont(undefined, "normal")
   const compactMetrics = [
     ["Total Transactions:", (result.summary.totalSales ?? 0).toLocaleString()],
@@ -418,15 +458,15 @@ export function generateCompactBranchHarvestPDF(result: HarvestResult, branchInf
   ]
   compactMetrics.forEach((m, i) => {
     doc.setTextColor(100, 100, 100)
-    doc.text(m[0], rightHalfX, secondRowStartY + 8 + i * 6)
+    doc.text(m[0], rightHalfX, metricsStartY + 8 + i * 6)
     doc.setFont(undefined, "bold")
     doc.setTextColor(0, 0, 0)
-    doc.text(String(m[1]), rightHalfX + 65, secondRowStartY + 8 + i * 6)
+    doc.text(String(m[1]), rightHalfX + 65, metricsStartY + 8 + i * 6)
     doc.setFont(undefined, "normal")
   })
 
   // Rest of the compact version remains the same...
-  const tableStartY = secondRowStartY + 28
+  const tableStartY = currentY + 18
 
   // Coin breakdown compact
   doc.setFontSize(9)
@@ -546,15 +586,15 @@ export function generateCompactBranchHarvestPDF(result: HarvestResult, branchInf
   const pdfBlob = doc.output("blob");
   const blobUrl = URL.createObjectURL(pdfBlob);
   window.open(blobUrl, "_blank");
-  }
+}
 
+// Helper functions remain the same...
 function getNextHarvestDate(currentHarvestDate: string): string {
   const date = new Date(currentHarvestDate)
   date.setDate(date.getDate() + 1)
   return date.toISOString().split("T")[0]
 }
 
-// Helper function to convert month to long name
 function formatMonthToLongName(monthInput: string): string {
   const longMonths = [
     "January",

@@ -428,11 +428,11 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
   const handleGeneratePDF = (harvest: HarvestData) => {
     const harvestResult = convertToHarvestResult(harvest);
 
-    // Simple branch info with defaults - these are just for PDF display
+    // Use branch info from harvest data if available, otherwise use defaults
     const branchInfo: BranchInfo = {
-      branchName: `Branch ${branchId}`,
-      managerName: "N/A",
-      branchAddress: "N/A",
+      branchName: harvest.location || branch?.location || `Branch ${branchId}`,
+      managerName: harvest.branch_manager || branch?.branch_manager || "N/A",
+      branchAddress: harvest.location || branch?.location || "N/A",
       contactNumber: "N/A",
       sharePercentage: harvest.branchSharePercentage || 0,
     };
@@ -599,8 +599,11 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
           )}
 
           {/* Unit Summaries - Single Card with Plain Text */}
+          {/* Unit Summaries - Single Card with Plain Text */}
           {unitSummaries.length > 0 && (
-            <div className="border rounded-lg bg-muted/10">
+            <div className="border rounded-lg bg-muted/10 overflow-hidden">
+              {" "}
+              {/* Add overflow-hidden to container */}
               <button
                 onClick={() => toggleUnitPerformance(harvest.id)}
                 className="flex items-center justify-between w-full p-2 text-xs font-semibold hover:bg-muted/30 transition-colors rounded-t-lg"
@@ -612,18 +615,23 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
                   <ChevronDown className="h-3 w-3" />
                 )}
               </button>
-
               {isUnitPerformanceExpanded && (
-                <div className="border-t">
-                  {unitSummaries.map((unit, idx) => (
-                    <UnitBreakdown
-                      key={`${unit.unitId}-${idx}`}
-                      unit={unit}
-                      unitAlias={getUnitAlias(unit.unitId)}
-                      isExpanded={expandedUnits.has(unit.unitId)}
-                      onToggle={() => toggleUnit(unit.unitId)}
-                    />
-                  ))}
+                <div className="border-t overflow-x-auto">
+                  {" "}
+                  {/* Enable horizontal scrolling */}
+                  <div className="min-w-[300px]">
+                    {" "}
+                    {/* Set minimum width */}
+                    {unitSummaries.map((unit, idx) => (
+                      <UnitBreakdown
+                        key={`${unit.unitId}-${idx}`}
+                        unit={unit}
+                        unitAlias={getUnitAlias(unit.unitId)}
+                        isExpanded={expandedUnits.has(unit.unitId)}
+                        onToggle={() => toggleUnit(unit.unitId)}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -801,7 +809,7 @@ const BranchPage = () => {
   }
 
   return (
-    <div className="space-y-3 px-8 mt-4 sm:px-16 lg:px-32">
+    <div className="space-y-3 px-8 mt-4 sm:px-1 lg:px-32">
       <BranchHeader branchId={branchId} branch={branch} />
       <Card>
         <CardHeader className="pb-3">

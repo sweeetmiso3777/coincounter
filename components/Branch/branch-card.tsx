@@ -198,7 +198,7 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
 
     try {
       const actualAmount = actualAmountProcessed
-        ? Number.parseFloat(actualAmountProcessed)
+        ? Number.parseFloat(actualAmountProcessed.replace(/,/g, "")) // Remove all commas
         : undefined;
 
       const harvestDate =
