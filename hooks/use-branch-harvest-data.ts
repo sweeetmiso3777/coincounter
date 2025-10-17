@@ -22,6 +22,8 @@ export interface UnitSummary {
 export interface HarvestData {
   id: string
   branchId: string
+  branch_manager: string
+  location: string
   month: string
   date_range: {
     start: string
