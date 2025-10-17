@@ -33,6 +33,7 @@ import {
 import { toast } from "sonner";
 import { SuccessModalContent } from "./success-modal-content";
 import { AggregateListModal } from "./AggregateListModal";
+import router from "next/navigation";
 
 interface BranchCardProps {
   branch: BranchData;
@@ -258,7 +259,7 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
   const handleCardClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onSelect?.();
+    window.location.href = `/branches/${branch.id}`;
   };
 
   const handleMapPinClick = (e: React.MouseEvent) => {
@@ -320,7 +321,6 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
         {/* Main Card Container */}
         <div
           className={`bg-card rounded-lg border ${theme.primaryBorder} shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden w-full relative`}
-          onClick={handleCardClick}
         >
           {/* Harvested Watermark */}
           {isHarvested() && (
@@ -335,6 +335,7 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
             className={`flex flex-col h-full p-4 ${
               isHarvested() ? "relative z-20" : ""
             }`}
+            onClick={handleCardClick}
           >
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
