@@ -24,6 +24,7 @@ import { BranchUnitsStatus } from "@/components/Branch/branch-units";
 import type { BranchData } from "@/hooks/use-branches-query";
 import { useBranchHarvestData } from "@/hooks/use-branch-harvest-data";
 import { useUnits } from "@/hooks/use-units-query";
+import { Background } from "@/components/Background";
 
 // ========== DATE FORMATTING FUNCTION ==========
 const formatDate = (dateString: string): string => {
@@ -93,7 +94,9 @@ const PartnerBranchHeader = React.memo(
 
     return (
       <>
-        <div className="mb-6">
+        <div className="mb-6 relative z-10">
+          {" "}
+          {/* Added relative and z-10 */}
           {/* Back Button */}
           <Button asChild variant="ghost" className="mb-4" size="sm">
             <Link href="/partner">
@@ -101,7 +104,6 @@ const PartnerBranchHeader = React.memo(
               Back to Partner Dashboard
             </Link>
           </Button>
-
           {/* Title */}
           <div className="mb-4">
             <div className="flex items-center gap-3 mb-2 font-mono">
@@ -134,7 +136,6 @@ const PartnerBranchHeader = React.memo(
               Your affiliate branch performance and earnings summary
             </p>
           </div>
-
           {/* FLEX CONTAINER — Units left, Map right */}
           <div className="flex flex-col lg:flex-row gap-4 items-stretch">
             {/* Units Status */}
@@ -143,11 +144,13 @@ const PartnerBranchHeader = React.memo(
             </div>
 
             {/* Map */}
-            <div className="lg:w-1/2 z-0">
+            <div className="lg:w-1/2 relative z-0">
+              {" "}
+              {/* Added relative z-0 */}
               <button
                 data-map-trigger
                 onClick={() => setShowMapModal(true)}
-                className="w-full h-48 rounded-lg border border-border overflow-hidden hover:shadow-lg transition-all bg-card hover:scale-[1.02]"
+                className="w-full h-48 rounded-lg border border-border overflow-hidden hover:shadow-lg transition-all bg-card hover:scale-[1.02] relative z-0"
               >
                 {branch?.latitude && branch?.longitude ? (
                   <div className="w-full h-full pointer-events-none">
@@ -323,7 +326,7 @@ const HarvestDataDisplay = React.memo(
 
     if (isLoading) {
       return (
-        <div className="space-y-3">
+        <div className="space-y-3 relative z-10">
           {[...Array(2)].map((_, i) => (
             <div key={i} className="animate-pulse bg-muted rounded-xl p-4">
               <div className="h-5 bg-muted/50 rounded w-1/4 mb-3"></div>
@@ -339,7 +342,7 @@ const HarvestDataDisplay = React.memo(
 
     if (error) {
       return (
-        <div className="border border-destructive/20 bg-destructive/5 rounded-xl p-6">
+        <div className="border border-destructive/20 bg-destructive/5 rounded-xl p-6 relative z-10">
           <div className="flex flex-col items-center text-center">
             <Activity className="h-6 w-6 text-destructive mb-2" />
             <h3 className="text-base font-semibold mb-1">Error Loading Data</h3>
@@ -351,7 +354,7 @@ const HarvestDataDisplay = React.memo(
 
     if (!harvestData || harvestData.length === 0) {
       return (
-        <div className="border border-dashed rounded-xl p-8 text-center">
+        <div className="border border-dashed rounded-xl p-8 text-center relative z-10">
           <BarChart3 className="h-6 w-6 text-foreground mb-2 mx-auto" />
           <h3 className="text-base font-semibold mb-1">
             No Harvest Data Available
@@ -364,7 +367,7 @@ const HarvestDataDisplay = React.memo(
     }
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 relative z-10">
         {harvestData.map((harvest) => {
           const dateRange = harvest.date_range || { start: "N/A", end: "N/A" };
           const unitSummaries = harvest.unit_summaries || [];
@@ -561,17 +564,25 @@ function PartnerBranchDetailPage() {
     );
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <PartnerBranchHeader
-          branchId={partnerId as string}
-          location={branchLocation}
-          branch={branch}
-        />
-        <HarvestDataDisplay
-          branchId={partnerId as string}
-          branchShare={branch.share}
-        />
+    <div className="min-h-screen relative">
+      {/* Background - placed at the very bottom */}
+      <div className="absolute inset-0 z-0">
+        <Background />
+      </div>
+
+      {/* Content - with higher z-index */}
+      <div className="relative z-10">
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          <PartnerBranchHeader
+            branchId={partnerId as string}
+            location={branchLocation}
+            branch={branch}
+          />
+          <HarvestDataDisplay
+            branchId={partnerId as string}
+            branchShare={branch.share}
+          />
+        </div>
       </div>
     </div>
   );

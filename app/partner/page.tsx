@@ -4,13 +4,12 @@
 import React, { useState } from "react";
 import { PartnerBranchCard } from "../../components/partner/partner-branch-card";
 import { useAffiliatedBranches } from "@/hooks/use-affiliated-branches";
-import Lightning from "@/components/Lightning";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { LogOut, Loader2 } from "lucide-react";
-import { ModeToggle } from "@/components/ui/ModeToggle";
+import { Background } from "@/components/Background";
 
 export default function PartnerPage() {
   const { branches, isLoading, error, isAdmin, userBranchCount } =
@@ -54,22 +53,15 @@ export default function PartnerPage() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-6">
-      {/* Lightning background - positioned absolutely behind everything */}
+      {/* no more lighting :( */}
       <div className="fixed inset-0 z-0">
-        <Lightning
-          hue={0}
-          xOffset={1.3}
-          speed={0.7}
-          intensity={1.1}
-          size={1.7}
-        />
+        <Background />
       </div>
 
       {/* Content section */}
       <section className="bg-transparent backdrop-blur rounded-2xl border border-white/10 p-8 shadow-lg overflow-auto relative z-10">
         {/* Logout Button - Top Right */}
         <div className="flex justify-end mb-6">
-          <ModeToggle />
           <Button
             variant="outline"
             onClick={handleLogout}
