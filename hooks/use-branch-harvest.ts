@@ -99,7 +99,7 @@ export interface BranchInfo {
 }
 
 interface UseBranchHarvest {
-  previewHarvest: (branchId: string, branchInfo?: BranchInfo) => Promise<HarvestPreview>
+  previewHarvest: (branchId: string, branchInfo?: BranchInfo, customHarvestDate?: string) => Promise<HarvestPreview>
   executeHarvest: (
     branchId: string,
     previewId: string,
@@ -179,16 +179,23 @@ export function useBranchHarvest(): UseBranchHarvest {
     }
   }
 
-  // Preview harvest without making any changes
-  const previewHarvest = async (branchId: string, branchInfo?: BranchInfo): Promise<HarvestPreview> => {
+  const previewHarvest = async (
+    branchId: string,
+    branchInfo?: BranchInfo,
+    customHarvestDate?: string,
+  ): Promise<HarvestPreview> => {
     setIsHarvesting(true)
     setError(null)
 
     try {
-      // Calculate harvest date (yesterday)
-      const yesterday = new Date()
-      yesterday.setDate(yesterday.getDate() - 1)
-      const harvestDateStr = getManilaDateString(yesterday)
+      let harvestDate: Date
+      if (customHarvestDate) {
+        harvestDate = new Date(customHarvestDate + "T00:00:00+08:00")
+      } else {
+        harvestDate = new Date()
+        harvestDate.setDate(harvestDate.getDate() - 1)
+      }
+      const harvestDateStr = getManilaDateString(harvestDate)
 
       console.log(`Previewing harvest for branch ${branchId} up to ${harvestDateStr}`)
 
@@ -227,9 +234,7 @@ export function useBranchHarvest(): UseBranchHarvest {
         startDate = getManilaDateString(lastHarvestDate)
 
         if (startDate > harvestDateStr) {
-          throw new Error(
-            `No unit summaries to harvest.`
-          )
+          throw new Error(`No unit summaries to harvest.`)
         }
       }
 
@@ -294,7 +299,7 @@ export function useBranchHarvest(): UseBranchHarvest {
 
       if (totalAggregates === 0) {
         throw new Error(
-          `No unharvested summaries found for date range ${startDate || "beginning"} to ${harvestDateStr}`
+          `No unharvested summaries found for date range ${startDate || "beginning"} to ${harvestDateStr}`,
         )
       }
 
@@ -329,7 +334,6 @@ export function useBranchHarvest(): UseBranchHarvest {
     }
   }
 
-  // Execute the actual harvest
   const executeHarvest = async (
     branchId: string,
     previewId: string,
@@ -399,9 +403,7 @@ export function useBranchHarvest(): UseBranchHarvest {
         startDate = getManilaDateString(lastHarvestDate)
 
         if (startDate > harvestDateStr) {
-          throw new Error(
-            `No data to harvest. Last harvest was on ${previousHarvestDateStr}`
-          )
+          throw new Error(`No data to harvest. Last harvest was on ${previousHarvestDateStr}`)
         }
       }
 
