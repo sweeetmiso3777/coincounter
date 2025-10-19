@@ -1,10 +1,9 @@
-// components/Branch/branch-card.tsx
-"use client";
+"use client"
 
-import type React from "react";
+import type React from "react"
 
-import { motion } from "framer-motion";
-import type { BranchData } from "@/types/branch";
+import { motion } from "framer-motion"
+import type { BranchData } from "@/types/branch"
 import {
   CalendarDays,
   User,
@@ -15,30 +14,19 @@ import {
   MapPin,
   Users,
   DollarSign,
-  AlertTriangle,
-  Clock,
-  FileText,
-} from "lucide-react";
-import { CardMenu } from "./CRUDS/card-menu";
-import Link from "next/link";
-import { useState } from "react";
-import EditBranchModal from "./CRUDS/EditBranchModal";
-import { MapModal } from "./Maps/MapModal";
-import {
-  useBranchHarvest,
-  type HarvestResult,
-  type BranchInfo,
-  type HarvestPreview,
-} from "@/hooks/use-branch-harvest";
-import { toast } from "sonner";
-import { SuccessModalContent } from "./Harvest/success-modal-content";
-import { AggregateListModal } from "./Harvest/AggregateListModal";
-import router from "next/navigation";
+} from "lucide-react"
+import { CardMenu } from "./CRUDS/card-menu"
+import Link from "next/link"
+import { useState } from "react"
+import EditBranchModal from "./CRUDS/EditBranchModal"
+import { MapModal } from "./Maps/MapModal"
+import type { BranchInfo } from "@/hooks/use-branch-harvest"
+import { HarvestPreviewModal } from "./Harvest/harvest-preview-modal"
 
 interface BranchCardProps {
-  branch: BranchData;
-  totalUnits: number;
-  onSelect?: () => void;
+  branch: BranchData
+  totalUnits: number
+  onSelect?: () => void
 }
 
 // Color themes for different cards
@@ -52,81 +40,57 @@ const cardThemes = [
     accent: "text-lime-600 dark:text-lime-400",
     folderColor: "bg-lime-500",
   },
-];
+]
 
 // Helper function to get consistent color based on branch ID
 const getCardTheme = (branchId: string) => {
-  const hash = branchId
-    .split("")
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return cardThemes[hash % cardThemes.length];
-};
+  const hash = branchId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  return cardThemes[hash % cardThemes.length]
+}
 
 export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
-  const [editing, setEditing] = useState(false);
-  const [showMapModal, setShowMapModal] = useState(false);
-  const [showAffiliateTooltip, setShowAffiliateTooltip] = useState(false);
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showAggregateListModal, setShowAggregateListModal] = useState(false);
-  const [harvestPreview, setHarvestPreview] = useState<HarvestPreview | null>(
-    null
-  );
-  const [harvestResult, setHarvestResult] = useState<HarvestResult | null>(
-    null
-  );
-  const [generatePDF, setGeneratePDF] = useState(true);
-  const [actualAmountProcessed, setActualAmountProcessed] =
-    useState<string>("");
-  const [customHarvestDate, setCustomHarvestDate] = useState<string>("");
-  const [useCustomDate, setUseCustomDate] = useState(false);
+  const [editing, setEditing] = useState(false)
+  const [showMapModal, setShowMapModal] = useState(false)
+  const [showAffiliateTooltip, setShowAffiliateTooltip] = useState(false)
+  const [showHarvestModal, setShowHarvestModal] = useState(false)
+  const [isHarvestLoading, setIsHarvestLoading] = useState(false)
 
-  const {
-    previewHarvest,
-    executeHarvest,
-    isHarvesting,
-    generateHarvestReport,
-  } = useBranchHarvest();
-
-  const theme = getCardTheme(branch.id);
+  const theme = getCardTheme(branch.id)
 
   const formatDate = (date: Date | null | undefined) => {
-    if (!date || !(date instanceof Date) || isNaN(date.getTime()))
-      return "Invalid date";
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) return "Invalid date"
     return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
-    }).format(date);
-  };
+    }).format(date)
+  }
 
   const getOrdinalSuffix = (day: number) => {
-    if (day >= 11 && day <= 13) return "th";
+    if (day >= 11 && day <= 13) return "th"
     switch (day % 10) {
       case 1:
-        return "st";
+        return "st"
       case 2:
-        return "nd";
+        return "nd"
       case 3:
-        return "rd";
+        return "rd"
       default:
-        return "th";
+        return "th"
     }
-  };
+  }
 
   const getNextHarvestDate = (harvestDay: number) => {
-    const now = new Date();
-    let harvestDate = new Date(now.getFullYear(), now.getMonth(), harvestDay);
-    if (harvestDay < now.getDate())
-      harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, harvestDay);
-    if (harvestDate.getDate() !== harvestDay)
-      harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return harvestDate;
-  };
+    const now = new Date()
+    let harvestDate = new Date(now.getFullYear(), now.getMonth(), harvestDay)
+    if (harvestDay < now.getDate()) harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, harvestDay)
+    if (harvestDate.getDate() !== harvestDay) harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    return harvestDate
+  }
 
   const formatHarvestSchedule = (harvestDay: number) => {
-    const nextHarvest = getNextHarvestDate(harvestDay);
-    const ordinal = getOrdinalSuffix(harvestDay);
+    const nextHarvest = getNextHarvestDate(harvestDay)
+    const ordinal = getOrdinalSuffix(harvestDay)
     return {
       schedule: `${harvestDay}${ordinal} day of every month`,
       nextDate: new Intl.DateTimeFormat("en-US", {
@@ -139,100 +103,42 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
         day: "numeric",
       }).format(nextHarvest),
       isThisMonth: nextHarvest.getMonth() === new Date().getMonth(),
-      daysUntil: Math.ceil(
-        (nextHarvest.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-      ),
-    };
-  };
+      daysUntil: Math.ceil((nextHarvest.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+    }
+  }
 
   const isHarvested = () => {
-    if (!branch.last_harvest_date) return false;
+    if (!branch.last_harvest_date) return false
 
     try {
-      const lastHarvestDate = new Date(branch.last_harvest_date);
+      const lastHarvestDate = new Date(branch.last_harvest_date)
 
       if (isNaN(lastHarvestDate.getTime())) {
-        console.error("Invalid last_harvest_date:", branch.last_harvest_date);
-        return false;
+        console.error("Invalid last_harvest_date:", branch.last_harvest_date)
+        return false
       }
 
-      const today = new Date();
+      const today = new Date()
 
-      const lastHarvest = new Date(
-        lastHarvestDate.getFullYear(),
-        lastHarvestDate.getMonth(),
-        lastHarvestDate.getDate()
-      );
-      const currentDate = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate()
-      );
+      const lastHarvest = new Date(lastHarvestDate.getFullYear(), lastHarvestDate.getMonth(), lastHarvestDate.getDate())
+      const currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
 
-      const diffTime = currentDate.getTime() - lastHarvest.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffTime = currentDate.getTime() - lastHarvest.getTime()
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-      return diffDays > 0 && diffDays <= 30;
+      return diffDays > 0 && diffDays <= 30
     } catch (error) {
-      console.error("Error checking harvest date:", error);
-      return false;
+      console.error("Error checking harvest date:", error)
+      return false
     }
-  };
+  }
 
-  const handleHarvestClick = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    try {
-      const preview = await previewHarvest(branch.id, getBranchInfo());
-      setHarvestPreview(preview);
-      setShowPreviewModal(true);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to preview harvest";
-      toast.error(errorMessage);
-    }
-  };
-
-  const handleConfirmHarvest = async () => {
-    if (!harvestPreview) return;
-
-    try {
-      const actualAmount = actualAmountProcessed
-        ? Number.parseFloat(actualAmountProcessed.replace(/,/g, "")) // Remove all commas
-        : undefined;
-
-      const harvestDate =
-        useCustomDate && customHarvestDate ? customHarvestDate : undefined;
-
-      const result = await executeHarvest(
-        branch.id,
-        harvestPreview.previewId,
-        getBranchInfo(),
-        generatePDF,
-        actualAmount,
-        harvestDate
-      );
-
-      setHarvestResult(result);
-      setShowPreviewModal(false);
-      setActualAmountProcessed("");
-      setCustomHarvestDate("");
-      setUseCustomDate(false);
-      setShowSuccessModal(true);
-
-      toast.success(
-        `Harvested ${
-          result.summary.aggregatesHarvested
-        } aggregates. Total: ₱${result.summary.totalAmount.toFixed(2)}`
-      );
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Harvest failed";
-      toast.error(errorMessage);
-      setShowPreviewModal(false);
-    }
-  };
+  const handleHarvestClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsHarvestLoading(true)
+    setShowHarvestModal(true)
+  }
 
   const getBranchInfo = (): BranchInfo => {
     return {
@@ -241,66 +147,23 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
       managerName: branch.branch_manager,
       contactNumber: branch.contact_number || "Contact not specified",
       sharePercentage: branch.share,
-    };
-  };
-
-  const handleExportPDF = (compact = false) => {
-    if (!harvestResult) return;
-
-    try {
-      generateHarvestReport(harvestResult, getBranchInfo(), { compact });
-      toast.success("PDF report generated successfully");
-      setShowSuccessModal(false);
-    } catch (error) {
-      toast.error("Failed to generate PDF report");
     }
-  };
+  }
 
   const handleCardClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    window.location.href = `/branches/${branch.id}`;
-  };
+    e.preventDefault()
+    e.stopPropagation()
+    window.location.href = `/branches/${branch.id}`
+  }
 
   const handleMapPinClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShowMapModal(true);
-  };
+    e.preventDefault()
+    e.stopPropagation()
+    setShowMapModal(true)
+  }
 
-  const harvestInfo = formatHarvestSchedule(branch.harvest_day_of_month);
-  const affiliateCount = branch.affiliates?.length || 0;
-
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target.value;
-
-    // Remove all non-digit characters except decimal point
-    let cleaned = input.replace(/[^\d.]/g, "");
-
-    // Ensure only one decimal point
-    const parts = cleaned.split(".");
-    if (parts.length > 2) {
-      // If more than one decimal point, keep only the first one
-      cleaned = parts[0] + "." + parts.slice(1).join("");
-    }
-
-    // Limit decimal places to 2
-    if (parts.length === 2) {
-      cleaned = parts[0] + "." + parts[1].slice(0, 2);
-    }
-
-    // Format with commas
-    if (cleaned.includes(".")) {
-      const [whole, decimal] = cleaned.split(".");
-      const formattedWhole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-      setActualAmountProcessed(
-        decimal ? `${formattedWhole}.${decimal}` : formattedWhole
-      );
-    } else {
-      const formatted = cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-      setActualAmountProcessed(formatted);
-    }
-  };
+  const harvestInfo = formatHarvestSchedule(branch.harvest_day_of_month)
+  const affiliateCount = branch.affiliates?.length || 0
 
   return (
     <>
@@ -331,19 +194,11 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
             </div>
           )}
 
-          <div
-            className={`flex flex-col h-full p-4 ${
-              isHarvested() ? "relative z-20" : ""
-            }`}
-            onClick={handleCardClick}
-          >
+          <div className={`flex flex-col h-full p-4 ${isHarvested() ? "relative z-20" : ""}`} onClick={handleCardClick}>
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1 min-w-0">
-                <button
-                  onClick={handleMapPinClick}
-                  className="flex items-center gap-2 text-left w-full group"
-                >
+                <button onClick={handleMapPinClick} className="flex items-center gap-2 text-left w-full group">
                   <MapPin
                     className={`h-5 w-5 ${theme.icon} group-hover:${theme.accent} transition-colors flex-shrink-0`}
                   />
@@ -355,9 +210,7 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                 </button>
                 <div className="flex items-center gap-2 mt-1">
                   <User className={`h-4 w-4 ${theme.icon} flex-shrink-0`} />
-                  <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                    {branch.branch_manager}
-                  </span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 truncate">{branch.branch_manager}</span>
 
                   {/* Affiliate Count */}
                   {affiliateCount > 0 && (
@@ -395,20 +248,14 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                   )}
                 </div>
               </div>
-              <CardMenu
-                branchId={branch.id}
-                branchData={branch}
-                onEdit={() => setEditing(true)}
-              />
+              <CardMenu branchId={branch.id} branchData={branch} onEdit={() => setEditing(true)} />
             </div>
 
             {/* Share Info */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <TrendingUp className={`h-4 w-4 ${theme.icon} flex-shrink-0`} />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Share:
-                </span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Share:</span>
               </div>
               <span
                 className={`inline-flex items-center rounded-full ${theme.primaryLight} px-2.5 py-0.5 text-xs font-semibold ${theme.accent}`}
@@ -427,12 +274,8 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center gap-2">
-                    <Monitor
-                      className={`h-4 w-4 ${theme.icon} flex-shrink-0`}
-                    />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      See Performance
-                    </span>
+                    <Monitor className={`h-4 w-4 ${theme.icon} flex-shrink-0`} />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">See Performance</span>
                   </div>
                   <ChevronRight className={`h-4 w-4 ${theme.icon}`} />
                 </Link>
@@ -441,17 +284,11 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
               {/* Last Harvest Date */}
               <div className="flex items-center justify-between p-2">
                 <div className="flex items-center gap-2">
-                  <CalendarDays
-                    className={`h-4 w-4 ${theme.icon} flex-shrink-0`}
-                  />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Last Harvest:
-                  </span>
+                  <CalendarDays className={`h-4 w-4 ${theme.icon} flex-shrink-0`} />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Last Harvest:</span>
                 </div>
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {branch.last_harvest_date
-                    ? formatDate(new Date(branch.last_harvest_date))
-                    : "Never"}
+                  {branch.last_harvest_date ? formatDate(new Date(branch.last_harvest_date)) : "Never"}
                 </span>
               </div>
 
@@ -459,39 +296,28 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
               <div className="p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <Calendar
-                      className={`h-4 w-4 ${theme.icon} flex-shrink-0`}
-                    />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Harvest:
-                    </span>
+                    <Calendar className={`h-4 w-4 ${theme.icon} flex-shrink-0`} />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Harvest:</span>
                   </div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {harvestInfo.shortDate}
-                  </span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{harvestInfo.shortDate}</span>
                 </div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Next:
-                    </span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Next:</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span
                       className={`text-sm font-medium ${
-                        harvestInfo.isThisMonth
-                          ? "text-green-600 dark:text-green-400"
-                          : theme.accent
+                        harvestInfo.isThisMonth ? "text-green-600 dark:text-green-400" : theme.accent
                       }`}
                     >
                       {harvestInfo.nextDate}
                     </span>
-                    {harvestInfo.daysUntil <= 7 &&
-                      harvestInfo.daysUntil > 0 && (
-                        <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 px-1.5 py-0.5 rounded">
-                          {harvestInfo.daysUntil}d
-                        </span>
-                      )}
+                    {harvestInfo.daysUntil <= 7 && harvestInfo.daysUntil > 0 && (
+                      <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 px-1.5 py-0.5 rounded">
+                        {harvestInfo.daysUntil}d
+                      </span>
+                    )}
                     {harvestInfo.daysUntil === 0 && (
                       <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 px-1.5 py-0.5 rounded">
                         Today!
@@ -503,12 +329,14 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                 <div className="flex items-center gap-2 justify-center">
                   <button
                     onClick={handleHarvestClick}
-                    disabled={isHarvesting}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium ${theme.accent} ${theme.primaryLight} ${theme.primaryHover} transition-colors disabled:opacity-50 ${theme.primaryBorder} w-full justify-center`}
+                    disabled={isHarvestLoading}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium ${theme.accent} ${theme.primaryLight} ${theme.primaryHover} transition-colors ${theme.primaryBorder} w-full justify-center ${
+                      isHarvestLoading ? "opacity-60 cursor-not-allowed" : ""
+                    }`}
                     title="Harvest"
                   >
                     <DollarSign className="h-4 w-4" />
-                    Harvest
+                    {isHarvestLoading ? "Loading..." : "Harvest"}
                   </button>
                 </div>
               </div>
@@ -522,13 +350,8 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                 className="flex items-center justify-between group"
                 onClick={(e) => e.stopPropagation()}
               >
-                <span className="text-xs font-mono text-gray-500 dark:text-gray-400 truncate">
-                  ID: {branch.id}
-                </span>
-                <motion.div
-                  animate={{ x: [0, 2, 0] }}
-                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1 }}
-                >
+                <span className="text-xs font-mono text-gray-500 dark:text-gray-400 truncate">ID: {branch.id}</span>
+                <motion.div animate={{ x: [0, 2, 0] }} transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1 }}>
                   <ChevronRight className={`h-4 w-4 ${theme.icon}`} />
                 </motion.div>
               </Link>
@@ -538,13 +361,7 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
       </motion.div>
 
       {/* Modals */}
-      {showMapModal && (
-        <MapModal
-          open={showMapModal}
-          onClose={() => setShowMapModal(false)}
-          branch={branch}
-        />
-      )}
+      {showMapModal && <MapModal open={showMapModal} onClose={() => setShowMapModal(false)} branch={branch} />}
 
       {editing && (
         <EditBranchModal
@@ -558,249 +375,15 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
         />
       )}
 
-      {/* Preview/Confirmation Modal */}
-      {showPreviewModal && harvestPreview && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              {/* Header - Simplified */}
-              <div className="flex items-center gap-3 mb-6 border-b pb-4">
-                <DollarSign className="h-6 w-6 text-blue-600" />
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Harvest Preview
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {harvestPreview.dateRange.start || "Beginning"} to{" "}
-                    {harvestPreview.dateRange.end}
-                  </p>
-                </div>
-              </div>
-
-              {/* Summary Stats - Clean Table Format */}
-              <div className="mb-6">
-                <h4 className="text-sm font-medium text-foreground mb-3">
-                  Summary
-                </h4>
-                <div className="grid grid-cols-4 gap-4 text-sm">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-foreground">
-                      {harvestPreview.summary.aggregatesCount}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Aggregates
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600 ">
-                      ₱{harvestPreview.summary.totalAmount.toFixed(2)}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Total
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-foreground ">
-                      {harvestPreview.summary.unitsCount}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Units
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-foreground dark:text-amber-400">
-                      {harvestPreview.summary.totalSales}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Sales
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Coin Breakdown - Clean Table */}
-              <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Coin Breakdown
-                </h4>
-                <div className="grid grid-cols-4 gap-2 text-sm border rounded-lg divide-x divide-gray-200 dark:divide-gray-700">
-                  <div className="text-center py-3">
-                    <div className="font-semibold text-foreground">₱1</div>
-                    <div className="text-lg font-bold text-foreground">
-                      {harvestPreview.summary.coins1}
-                    </div>
-                  </div>
-                  <div className="text-center py-3">
-                    <div className="font-semibold text-foreground">₱5</div>
-                    <div className="text-lg font-bold text-foreground">
-                      {harvestPreview.summary.coins5}
-                    </div>
-                  </div>
-                  <div className="text-center py-3">
-                    <div className="font-semibold text-foreground">₱10</div>
-                    <div className="text-lg font-bold text-foreground">
-                      {harvestPreview.summary.coins10}
-                    </div>
-                  </div>
-                  <div className="text-center py-3">
-                    <div className="font-semibold text-foreground">₱20</div>
-                    <div className="text-lg font-bold text-foreground">
-                      {harvestPreview.summary.coins20}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* View Aggregates Button - Simplified */}
-              <div className="mb-6">
-                <button
-                  onClick={() => setShowAggregateListModal(true)}
-                  className="w-full py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg transition-colors"
-                >
-                  View {harvestPreview.summary.aggregatesCount} Aggregates →
-                </button>
-              </div>
-
-              {/* Custom Date Option - Cleaner */}
-              <div className="mb-6">
-                <label className="flex items-center gap-3 cursor-pointer mb-3">
-                  <input
-                    type="checkbox"
-                    checked={useCustomDate}
-                    onChange={(e) => setUseCustomDate(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Use Custom Harvest Date
-                  </span>
-                </label>
-                {useCustomDate && (
-                  <div className="ml-7 mt-2">
-                    <input
-                      type="date"
-                      value={customHarvestDate}
-                      onChange={(e) => setCustomHarvestDate(e.target.value)}
-                      max={new Date().toISOString().split("T")[0]}
-                      required={useCustomDate}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      For backdating harvests
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Actual Amount Input - Cleaner */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Actual Amount Processed
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
-                    ₱
-                  </span>
-                  <input
-                    type="text"
-                    value={actualAmountProcessed}
-                    onChange={handleAmountChange}
-                    placeholder="Physical cash collected"
-                    className="w-full pl-8 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  For variance tracking
-                </p>
-              </div>
-
-              {/* PDF Export Option - Cleaner */}
-              <div className="mb-6">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={generatePDF}
-                    onChange={(e) => setGeneratePDF(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Generate PDF Report
-                  </span>
-                </label>
-              </div>
-
-              {/* Warning - More Subtle */}
-              <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-blue-800 dark:text-blue-200">
-                    <p className="font-medium">Ready to Process</p>
-                    <p className="text-xs mt-1">
-                      This will harvest {harvestPreview.summary.aggregatesCount}{" "}
-                      aggregates and update branch records.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons - Clean */}
-              <div className="flex gap-2 justify-end border-t pt-4">
-                <button
-                  onClick={() => {
-                    setShowPreviewModal(false);
-                    setActualAmountProcessed("");
-                    setCustomHarvestDate("");
-                    setUseCustomDate(false);
-                    setHarvestPreview(null);
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmHarvest}
-                  disabled={
-                    isHarvesting || (useCustomDate && !customHarvestDate)
-                  }
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isHarvesting ? "Processing..." : "Confirm Harvest"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Success Modal */}
-      {showSuccessModal && harvestResult && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full">
-                <DollarSign className="h-6 w-6 text-green-500" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Harvest Complete!
-              </h3>
-            </div>
-
-            <SuccessModalContent
-              harvestResult={harvestResult}
-              onExportPDF={handleExportPDF}
-              onClose={() => setShowSuccessModal(false)}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Aggregate List Modal */}
-      {showAggregateListModal && harvestPreview && (
-        <AggregateListModal
-          open={showAggregateListModal}
-          onClose={() => setShowAggregateListModal(false)}
-          harvestPreview={harvestPreview}
-        />
-      )}
+      <HarvestPreviewModal
+        branchId={branch.id}
+        branchInfo={getBranchInfo()}
+        open={showHarvestModal}
+        onClose={() => {
+          setShowHarvestModal(false)
+          setIsHarvestLoading(false)
+        }}
+      />
     </>
-  );
+  )
 }
