@@ -514,7 +514,7 @@ export function UnitsPageCards({
                         )}
                       </div>
 
-                      <Monitor className="w-10 h-10 text-muted-foreground mb-2" />
+                      <Monitor className="w-10 h-10 text-muted-foreground mb-2 mt-3" />
 
                       {/* Alias with pencil button */}
                       <div className="flex items-center gap-1 mb-1">
@@ -543,10 +543,12 @@ export function UnitsPageCards({
                       </Link>
 
                       {/* Simple total earned today */}
-                      <div className="mt-auto pt-2 text-sm font-medium text-foreground">
-                        Total Earned Today:{" "}
+                      <div className="mt-auto pt-0 text-sm font-medium text-foreground">
+                        <span className="block text-[10px] text-muted-foreground mb-0.5">
+                          Total earned today
+                        </span>
                         <span className="text-green-600">₱</span>
-                        <span className="text-green-600">
+                        <span className="text-green-600 text-lg">
                           <AnimatedNumber value={totalToday} />
                         </span>
                       </div>

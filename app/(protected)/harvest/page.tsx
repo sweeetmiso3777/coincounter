@@ -179,13 +179,6 @@ export default function CalendarWithSidebarPage() {
           </div>
         </div>
       </div>
-
-      {/* View Details functionality removed - you can implement navigation instead */}
-      {/* For example, you could navigate to the branch page: */}
-      {/* {viewDetailsId && (
-        // You could use router.push(`/branches/${viewDetailsId}`) here
-        // or implement your own modal/dialog component
-      )} */}
     </div>
   );
 }
