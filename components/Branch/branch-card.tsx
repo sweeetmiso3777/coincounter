@@ -19,11 +19,11 @@ import {
   Clock,
   FileText,
 } from "lucide-react";
-import { CardMenu } from "./card-menu";
+import { CardMenu } from "./CRUDS/card-menu";
 import Link from "next/link";
 import { useState } from "react";
-import EditBranchModal from "./EditBranchModal";
-import { MapModal } from "./MapModal";
+import EditBranchModal from "./CRUDS/EditBranchModal";
+import { MapModal } from "./Maps/MapModal";
 import {
   useBranchHarvest,
   type HarvestResult,
@@ -31,8 +31,8 @@ import {
   type HarvestPreview,
 } from "@/hooks/use-branch-harvest";
 import { toast } from "sonner";
-import { SuccessModalContent } from "./success-modal-content";
-import { AggregateListModal } from "./AggregateListModal";
+import { SuccessModalContent } from "./Harvest/success-modal-content";
+import { AggregateListModal } from "./Harvest/AggregateListModal";
 import router from "next/navigation";
 
 interface BranchCardProps {

@@ -24,8 +24,8 @@ import {
 import { useUnits } from "@/hooks/use-units-query";
 import { BranchData, useBranches } from "@/hooks/use-branches-query";
 import { formatDateRange, formatDate } from "@/lib/date-utils";
-import { MapModal } from "@/components/Branch/MapModal";
-import CompactMap from "@/components/Branch/CompactMap";
+import { MapModal } from "@/components/Branch/Maps/MapModal";
+import CompactMap from "@/components/Branch/Maps/CompactMap";
 import { BranchUnitsStatus } from "@/components/Branch/branch-units";
 import { generateCompactBranchHarvestPDF } from "@/lib/branch-reports";
 import type { HarvestResult, BranchInfo } from "@/hooks/use-branch-harvest";

@@ -2,29 +2,26 @@
 
 import type React from "react";
 import { useState, useEffect } from "react";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  Timestamp,
-} from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { toast } from "sonner";
+import { useBranches } from "@/hooks/use-branches-query";
 import { MapPin, User, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useUser } from "@/providers/UserProvider";
-import { useBranches } from "@/hooks/use-branches-query";
 
 // Dynamically import the map with no SSR
-const CompactMap = dynamic(() => import("@/components/Branch/CompactMap"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-      <p className="text-gray-500">Loading map...</p>
-    </div>
-  ),
-});
+const CompactMap = dynamic(
+  () => import("@/components/Branch/Maps/CompactMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+        <p className="text-gray-500">Loading map...</p>
+      </div>
+    ),
+  }
+);
 
 interface UserData {
   id: string;
@@ -34,16 +31,14 @@ interface UserData {
   approvedAt?: string | undefined;
 }
 
-interface AddBranchModalProps {
+interface EditBranchModalProps {
   open: boolean;
-  onEdit?: () => void;
   onClose: () => void;
-  existingBranch?: {
+  existingBranch: {
     id: string;
     branch_manager: string;
     location: string;
     harvest_day_of_month: number;
-    last_harvest_date?: Timestamp | string | undefined;
     share: number;
     latitude?: number;
     longitude?: number;
@@ -51,13 +46,13 @@ interface AddBranchModalProps {
   };
 }
 
-export default function AddBranchModal({
+export default function EditBranchModal({
   open,
   onClose,
   existingBranch,
-}: AddBranchModalProps) {
+}: EditBranchModalProps) {
   const { user: currentUser } = useUser();
-  const { createBranch } = useBranches();
+  const { updateBranch } = useBranches();
 
   const [branchManager, setBranchManager] = useState("");
   const [location, setLocation] = useState("");
@@ -110,7 +105,7 @@ export default function AddBranchModal({
   }, [open]);
 
   useEffect(() => {
-    if (existingBranch) {
+    if (existingBranch && open) {
       setBranchManager(existingBranch.branch_manager);
       setLocation(existingBranch.location);
       setHarvestDayOfMonth(existingBranch.harvest_day_of_month.toString());
@@ -118,16 +113,7 @@ export default function AddBranchModal({
       setLatitude(existingBranch.latitude?.toString() || "");
       setLongitude(existingBranch.longitude?.toString() || "");
       setAffiliates(existingBranch.affiliates || []);
-    } else {
-      setBranchManager("");
-      setLocation("");
-      setHarvestDayOfMonth("");
-      setShare("");
-      setLatitude("");
-      setLongitude("");
-      setAffiliates([]);
     }
-    setShowMap(false);
   }, [existingBranch, open]);
 
   const handleLocationSelect = (coords: [number, number]) => {
@@ -138,8 +124,8 @@ export default function AddBranchModal({
   const handleUseThisLocation = () => {
     if (latitude && longitude) {
       setShowMap(false);
-      toast.success("Location selected!", {
-        description: `Coordinates: ${latitude}, ${longitude}`,
+      toast.success("Location updated!", {
+        description: `New coordinates: ${latitude}, ${longitude}`,
       });
     }
   };
@@ -154,6 +140,8 @@ export default function AddBranchModal({
     setAffiliates(affiliates.filter((affiliate) => affiliate !== email));
   };
 
+  if (!open || !existingBranch) return null;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -161,73 +149,90 @@ export default function AddBranchModal({
 
     try {
       const dayOfMonth = Number(harvestDayOfMonth);
-
       if (dayOfMonth < 1 || dayOfMonth > 31) {
         throw new Error("Day of month must be between 1 and 31");
       }
 
-      // Prepare branch data
-      const branchData = {
+      // Prepare update data
+      const updateData: {
+        branch_manager: string;
+        location: string;
+        harvest_day_of_month: number;
+        share: number;
+        latitude?: number | null;
+        longitude?: number | null;
+        affiliates?: string[];
+      } = {
         branch_manager: branchManager,
         location,
         harvest_day_of_month: dayOfMonth,
         share: Number(share),
-        totalUnits: 0,
-
-        ...(latitude &&
-          longitude && {
-            latitude: parseFloat(latitude),
-            longitude: parseFloat(longitude),
-          }),
-        ...(affiliates.length > 0 && { affiliates }),
       };
 
-      // Generate a unique ID for the new branch
-      const branchId = `branch_${Date.now()}`;
+      // Add coordinates only if provided
+      if (latitude && longitude) {
+        updateData.latitude = parseFloat(latitude);
+        updateData.longitude = parseFloat(longitude);
+      } else if (latitude === "" && longitude === "") {
+        // If both are empty, remove coordinates
+        updateData.latitude = null;
+        updateData.longitude = null;
+      }
 
-      // Use the createBranch mutation from the hook
-      await createBranch.mutateAsync({
-        id: branchId,
-        data: branchData,
+      // Add affiliates if any selected, or remove if empty
+      if (affiliates.length > 0) {
+        updateData.affiliates = affiliates;
+      } else {
+        updateData.affiliates = undefined; // Remove affiliates field if empty
+      }
+
+      await updateBranch.mutateAsync({
+        id: existingBranch.id,
+        data: updateData,
       });
 
-      // Reset form
-      setBranchManager("");
-      setLocation("");
-      setHarvestDayOfMonth("");
-      setShare("");
-      setLatitude("");
-      setLongitude("");
-      setAffiliates([]);
-      setShowMap(false);
-
-      toast.success("Branch has been added successfully!", {
+      toast.success("Branch updated successfully!", {
         style: {
           background: "#dcfce7",
           border: "1px solid #bbf7d0",
           color: "#166534",
         },
-        description: `Manager: ${branchManager}, Location: ${location}, Harvest Day: ${dayOfMonth}, Share: ${share}%`,
       });
 
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save branch");
+      setError(err instanceof Error ? err.message : "Failed to update branch");
     } finally {
       setLoading(false);
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-gradient-to-b from-white/90 to-white/80 dark:from-gray-800/90 dark:to-gray-700/80 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-600 w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gradient-to-b from-white/90 to-white/80 dark:from-gray-800/90 dark:to-gray-700/80 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-600 w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto z-50"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-xl font-semibold mb-4 text-foreground drop-shadow-sm">
-          {existingBranch ? "Edit Branch" : "Add New Branch"}
+          Edit Branch
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-foreground">
+              Branch ID
+            </label>
+            <input
+              type="text"
+              value={existingBranch.id}
+              disabled
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-gray-100 dark:bg-gray-700 text-muted-foreground shadow-inner"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-foreground">
               Branch Manager
@@ -237,8 +242,7 @@ export default function AddBranchModal({
               value={branchManager}
               onChange={(e) => setBranchManager(e.target.value)}
               required
-              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 text-foreground transition-all"
-              placeholder="Enter manager name"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-inner transition-all"
             />
           </div>
 
@@ -251,8 +255,7 @@ export default function AddBranchModal({
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               required
-              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 text-foreground transition-all"
-              placeholder="Enter branch location"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-inner transition-all"
             />
           </div>
 
@@ -336,7 +339,7 @@ export default function AddBranchModal({
               <div className="flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-blue-500" />
                 <label className="block text-sm font-medium text-foreground">
-                  Add a Geolocation!
+                  Update Geolocation
                 </label>
               </div>
               {!showMap && (
@@ -386,7 +389,7 @@ export default function AddBranchModal({
             ) : (
               <>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Optional: Add coordinates to enable map view for this branch
+                  Update coordinates to change the map location
                 </p>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -418,6 +421,21 @@ export default function AddBranchModal({
                 <p className="text-xs text-muted-foreground mt-2">
                   Or click &quot;Open Map&quot; to select location visually
                 </p>
+
+                {/* Clear coordinates button */}
+                {(existingBranch.latitude || existingBranch.longitude) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLatitude("");
+                      setLongitude("");
+                      toast.info("Coordinates cleared");
+                    }}
+                    className="mt-2 px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                  >
+                    Remove Current Coordinates
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -433,13 +451,8 @@ export default function AddBranchModal({
               value={harvestDayOfMonth}
               onChange={(e) => setHarvestDayOfMonth(e.target.value)}
               required
-              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 text-foreground transition-all"
-              placeholder="Enter day (1-31)"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-inner transition-all"
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Day of the month when harvest occurs (e.g., 15 for the 15th of
-              every month)
-            </p>
           </div>
 
           <div>
@@ -454,8 +467,7 @@ export default function AddBranchModal({
               value={share}
               onChange={(e) => setShare(e.target.value)}
               required
-              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white shadow-inner dark:bg-gray-800 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400 text-foreground transition-all"
-              placeholder="Enter share percentage"
+              className="mt-1 w-full border border-gray-300 rounded-lg p-2 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-inner transition-all"
             />
           </div>
 
@@ -465,20 +477,18 @@ export default function AddBranchModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 text-foreground hover:bg-gray-100 dark:hover:bg-gray-600 transition-all"
+              className="px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 dark:bg-gray-700 text-foreground hover:bg-gray-100 dark:hover:bg-gray-600 transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={loading || createBranch.isPending}
+              disabled={loading || updateBranch.isPending}
               className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50"
             >
-              {loading || createBranch.isPending
-                ? "Saving..."
-                : existingBranch
-                ? "Update"
-                : "Add Branch"}
+              {loading || updateBranch.isPending
+                ? "Updating..."
+                : "Update Branch"}
             </button>
           </div>
         </form>

@@ -2,7 +2,7 @@
 "use client";
 
 import { BranchCard } from "./branch-card";
-import { AddBranchCard } from "./add-branch-card";
+import { AddBranchCard } from "./CRUDS/add-branch-card";
 import { useBranches } from "@/hooks/use-branches-query";
 import { useUser } from "@/providers/UserProvider";
 

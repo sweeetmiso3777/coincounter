@@ -18,8 +18,8 @@ import {
 import Link from "next/link";
 import React, { useState, useEffect, useCallback } from "react";
 import { useAffiliatedBranches } from "@/hooks/use-affiliated-branches";
-import { MapModal } from "@/components/Branch/MapModal";
-import CompactMap from "@/components/Branch/CompactMap";
+import { MapModal } from "@/components/Branch/Maps/MapModal";
+import CompactMap from "@/components/Branch/Maps/CompactMap";
 import { BranchUnitsStatus } from "@/components/Branch/branch-units";
 import type { BranchData } from "@/hooks/use-branches-query";
 import { useBranchHarvestData } from "@/hooks/use-branch-harvest-data";

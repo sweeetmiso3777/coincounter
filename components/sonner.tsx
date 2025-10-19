@@ -12,12 +12,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
       className="toaster group"
       style={
         {
-          "--toast-width": "380px",
-          "--toast-height": "64px",
-          "--toast-border-radius": "12px", // rounded corners
-          "--toast-font-size": "16px", // bigger font
-          "--toast-font-weight": "600", // bold text
-
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
@@ -27,6 +21,16 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--success-border": "#16a34a",
         } as React.CSSProperties
       }
+      toastOptions={{
+        style: {
+          height: "42",
+          minHeight: "28px",
+          fontSize: "12px",
+          fontWeight: "500",
+          borderRadius: "6px",
+          padding: "4px 8px",
+        },
+      }}
       {...props}
     />
   );
