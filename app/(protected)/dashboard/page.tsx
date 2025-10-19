@@ -1,6 +1,8 @@
 "use client";
 
+import Calendar from "@/components/Dashboard/calendar";
 import { Charts } from "@/components/Dashboard/Charts";
+import UpcomingHarvests from "@/components/Dashboard/harvest";
 import { RealTimeDashboard } from "@/components/Dashboard/real-time";
 import { OnlineDevicesDashboard } from "@/components/Dashboard/units";
 import Link from "next/link";
@@ -39,22 +41,17 @@ export default function DashboardLayout() {
         </div>
 
         {/* Calendar - Full width on mobile, 2/4 on desktop */}
-        <div className="col-span-1 lg:col-span-2 bg-card rounded-2xl p-4 h-64 md:h-80 flex items-center justify-center border">
-          <span className="text-sm md:text-base">Calendar</span>
+        <div className="col-span-1 lg:col-span-2 bg-card rounded-2xl p-1 border flex flex-col">
+          <Calendar />
         </div>
 
         {/* Small boxes container - Full width on mobile, stacked on desktop */}
         <div className="col-span-1 lg:col-span-1 bg-card rounded-2xl p-4 flex flex-col gap-3 border">
-          <div className="bg-muted/50 rounded-xl p-4 text-center flex-1 flex items-center justify-center">
-            <span className="text-sm">Upcoming harvest</span>
-          </div>
-          <div className="bg-muted/50 rounded-xl p-4 text-center flex-1 flex items-center justify-center">
-            <span className="text-sm">Recent harvested</span>
-          </div>
+          <UpcomingHarvests />
         </div>
 
         {/* Bottom row - Stack on mobile, grid on desktop */}
-        <div className="col-span-1 md:col-span-2 lg:col-span-1 bg-card rounded-2xl border p-4 flex flex-col h-64 md:h-80">
+        <div className="col-span-1 md:col-span-2 lg:col-span-1 bg-card rounded-2xl border p-4 flex flex-col h-80 md:h-100">
           <div className="flex-shrink-0 mb-2">
             <span className="text-sm font-medium text-foreground">
               Online Devices

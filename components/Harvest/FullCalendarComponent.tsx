@@ -22,7 +22,6 @@ interface FullCalendarComponentProps {
 export default function FullCalendarComponent({
   events,
   height = 600,
-  onViewDetails,
 }: FullCalendarComponentProps) {
   return (
     <FullCalendar
@@ -47,7 +46,7 @@ export default function FullCalendarComponent({
         },
       }))}
       eventContent={(info) => {
-        const { id, manager, share, location } = info.event.extendedProps;
+        const { manager, share, location } = info.event.extendedProps;
 
         return (
           <div className="p-2 rounded-lg shadow-sm border bg-card flex flex-col gap-0.5 break-words">
@@ -56,17 +55,6 @@ export default function FullCalendarComponent({
             </span>
             <span className="text-foreground text-xs">{manager}</span>
             <span className="text-green-700 font-medium text-xs">{share}%</span>
-            {onViewDetails && (
-              <button
-                className="text-blue-600 text-xs mt-1 hover:underline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onViewDetails(id);
-                }}
-              >
-                View Details
-              </button>
-            )}
           </div>
         );
       }}
