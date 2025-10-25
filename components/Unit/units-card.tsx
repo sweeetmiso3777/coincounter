@@ -554,7 +554,11 @@ export function UnitsPageCards({
                       </div>
 
                       {/* Link to unit details */}
-                      <Link href={`/units/${unit.deviceId}`} passHref>
+                      <Link
+                        href={`/units/${unit.deviceId}`}
+                        prefetch={true}
+                        passHref
+                      >
                         <Button
                           size="sm"
                           variant="link"

@@ -10,7 +10,7 @@ interface Aggregate {
   total: number;
   sales_count: number;
   branchId: string;
-  timestamp: admin.firestore.Timestamp; // This represents the date of the data
+  timestamp: admin.firestore.Timestamp; // This represents when the aggregate was created
   createdAt: admin.firestore.Timestamp; // This tracks when the aggregate was created
   harvested: boolean;
 }
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
           total: 0,
           sales_count: 0,
           branchId: branchId,
-          timestamp: admin.firestore.Timestamp.fromDate(today), // Date the data represents
+          timestamp: currentTimestamp, // When this aggregate was created
           createdAt: currentTimestamp, // When this aggregate was created
           harvested: false
         };
