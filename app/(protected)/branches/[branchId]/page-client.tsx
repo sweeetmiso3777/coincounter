@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   MapPin,
   FileDown,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import React, { useState, useEffect, useCallback } from "react";
@@ -299,7 +300,7 @@ const UnitBreakdown = ({
           </span>
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span>{unit.aggregates_count || 0} agg</span>
+          <span>{unit.aggregates_count || 0} sum</span>
           <span>{unit.total_sales || 0} sales</span>
           {isExpanded ? (
             <ChevronUp className="h-3 w-3" />
@@ -371,7 +372,51 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
   };
 
   // Convert HarvestData to HarvestResult format for PDF generation
+  // Only showing the fixed convertToHarvestResult function
+  // Add this to your branch page client
+
+  // Convert HarvestData to HarvestResult format for PDF generation
   const convertToHarvestResult = (harvest: HarvestData): HarvestResult => {
+    // Determine harvest mode based on the data characteristics
+    const determineHarvestMode = ():
+      | "normal"
+      | "include_today"
+      | "backdate" => {
+      // Check if there are partial aggregates in unit_summaries
+      const hasPartialAggregates = harvest.unit_summaries?.some(
+        (unit) => unit.date_range?.end === harvest.last_harvest_date
+      );
+
+      // If the harvest includes today's date, it might be "include_today"
+      const today = new Date().toISOString().split("T")[0];
+      const harvestDate =
+        harvest.last_harvest_date || harvest.date_range?.end || "";
+
+      if (harvestDate === today) {
+        return "include_today";
+      }
+
+      // Check if it's a backdate (harvest date is before last_harvest_date)
+      if (
+        harvest.date_range?.start &&
+        harvest.date_range?.start !== "Beginning"
+      ) {
+        const startDate = new Date(harvest.date_range.start);
+        const endDate = new Date(harvestDate);
+        const daysDiff = Math.floor(
+          (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        // If the date range is unusual, it might be a backdate
+        if (daysDiff < 0) {
+          return "backdate";
+        }
+      }
+
+      // Default to normal mode
+      return "normal";
+    };
+
     return {
       success: true,
       branchId: branchId,
@@ -383,6 +428,7 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
         harvest.date_range?.start === "Beginning"
           ? null
           : harvest.date_range?.start || null,
+      harvestMode: determineHarvestMode(),
       monthlyAggregate: {
         month: harvest.month || "",
         total: harvest.total || 0,
@@ -421,6 +467,8 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
         variance: harvest.variance,
         variancePercentage: harvest.variancePercentage,
       },
+
+      unitAggregates: harvest.unitAggregates || {},
     };
   };
 
@@ -499,7 +547,7 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
               </h3>
               <p className="text-xs text-muted-foreground font-mono">
                 {harvest.month || "N/A"} • {harvest.aggregates_included || 0}{" "}
-                agg • {harvest.sales_count || 0} sales •{" "}
+                sum • {harvest.sales_count || 0} sales •{" "}
                 {harvest.units_count || 0} units
               </p>
             </div>
@@ -512,7 +560,7 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
                 className="p-2 hover:bg-muted rounded-lg transition-colors"
                 title="Download PDF Report"
               >
-                <FileDown className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                <Download className="h-4 w-4 text-muted-foreground hover:text-foreground" />
               </button>
             </div>
           </div>

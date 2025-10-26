@@ -16,7 +16,7 @@ async function getDeviceIds() {
   return deviceIds;
 }
 
-function randomInterval(min = 1000, max = 7000) {
+function randomInterval(min = 100, max = 1000) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 

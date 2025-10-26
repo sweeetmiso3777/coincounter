@@ -44,6 +44,19 @@ export interface HarvestData {
   actualAmountProcessed?: number
   variance?: number
   variancePercentage?: number
+  unitAggregates?: {
+    [unitId: string]: Array<{
+      date: string
+      coins_1: number
+      coins_5: number
+      coins_10: number
+      coins_20: number
+      sales_count: number
+      total: number
+      isPartial?: boolean
+    }>
+  }
+
 }
 
 interface UseBranchHarvestData {

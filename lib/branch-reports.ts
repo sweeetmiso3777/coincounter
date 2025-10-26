@@ -10,7 +10,7 @@ interface CustomJsPDF extends jsPDF {
   pages?: number
 }
 
-export function generateBranchHarvestPDF(result: HarvestResult, branchInfo: BranchInfo): void {
+export function generateBranchHarvestPDF(result: HarvestResult, branchInfo: BranchInfo, isDetailed: boolean = true): void {
   const doc = new jsPDF() as CustomJsPDF
   doc.setFont("helvetica")
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -300,6 +300,126 @@ export function generateBranchHarvestPDF(result: HarvestResult, branchInfo: Bran
       margin: { left: margin, right: margin },
       pageBreak: "auto",
     })
+
+    // DETAILED MODE: Add individual unit aggregate tables
+    if (isDetailed && result.unitAggregates) {
+      doc.addPage();
+
+      const afterUnitSummaryY = margin;
+      
+      // Add section header for detailed unit aggregates
+      doc.setFontSize(12)
+      doc.setFont(undefined, "bold")
+      doc.setTextColor(0, 0, 0)
+      doc.text("DETAILED DAILY AGGREGATES BY UNIT", margin, afterUnitSummaryY)
+      
+      let currentTableY = afterUnitSummaryY + 10;
+
+      // Process each unit to create individual tables
+      for (const [unitId, aggregates] of Object.entries(result.unitAggregates)) {
+        if (aggregates.length === 0) continue;
+
+        // Check if we need a new page
+        if (currentTableY > pageHeight - 100) {
+          doc.addPage();
+          currentTableY = margin;
+        }
+
+        // Unit header
+        doc.setFontSize(11)
+        doc.setFont(undefined, "bold")
+        doc.setTextColor(0, 0, 0)
+        doc.text(`Unit: ${unitId}`, margin, currentTableY)
+        
+        doc.setFontSize(9)
+        doc.setFont(undefined, "normal")
+        doc.setTextColor(100, 100, 100)
+        
+        // Find date range for this unit
+        const dates = aggregates.map(a => a.date).sort();
+        const dateRange = `${dates[0]} to ${dates[dates.length - 1]}`;
+        doc.text(`Date Range: ${dateRange} | ${aggregates.length} summaries`, margin, currentTableY + 5)
+
+        // Create table for this unit's daily aggregates
+        const unitTableHeaders = ["Date", "1 Coins", "5 Coins", "10 Coins", "20 Coins", "Transactions", "Amount Earned", "Status"];
+        
+        const unitTableBody = aggregates
+  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // Sort by date descending
+  .map(agg => [
+    new Date(agg.date).toLocaleDateString("en-PH", { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    }),
+    `${agg.coins_1.toLocaleString()}×1`,  // Added ×1
+    `${agg.coins_5.toLocaleString()}×5`,  // Added ×5
+    `${agg.coins_10.toLocaleString()}×10`, // Added ×10
+    `${agg.coins_20.toLocaleString()}×20`, // Added ×20
+    agg.sales_count.toLocaleString(),
+    `P${agg.total.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    agg.isPartial ? "Partial" : "Harvested"
+  ]);
+
+// Add totals row
+const totals = aggregates.reduce((acc, agg) => ({
+  coins1: acc.coins1 + agg.coins_1,
+  coins_5: acc.coins_5 + agg.coins_5,    // Fixed property name
+  coins_10: acc.coins_10 + agg.coins_10, // Fixed property name
+  coins_20: acc.coins_20 + agg.coins_20, // Fixed property name
+  sales: acc.sales + agg.sales_count,
+  amount: acc.amount + agg.total
+}), { coins1: 0, coins_5: 0, coins_10: 0, coins_20: 0, sales: 0, amount: 0 });
+
+unitTableBody.push([
+  "TOTAL",
+  `${totals.coins1.toLocaleString()}×1`,      // Added ×1
+  `${totals.coins_5.toLocaleString()}×5`,     // Added ×5 and fixed property
+  `${totals.coins_10.toLocaleString()}×10`,   // Added ×10 and fixed property
+  `${totals.coins_20.toLocaleString()}×20`,   // Added ×20 and fixed property
+  totals.sales.toLocaleString(),
+  `₱${totals.amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+  ""
+]);
+
+autoTable(doc, {
+  startY: currentTableY + 10,
+  head: [unitTableHeaders],
+  body: unitTableBody,
+  theme: "grid",
+  styles: { 
+    fontSize: 7, 
+    cellPadding: 2,
+    overflow: 'linebreak'
+  },
+  headStyles: { 
+    fillColor: [240, 240, 240], 
+    textColor: 0, 
+    fontStyle: "bold", 
+    lineWidth: 0.01,
+    fontSize: 7
+  },
+  margin: { left: margin, right: margin },
+  pageBreak: 'auto',
+  didDrawPage: (data) => {
+    // Update current Y position after drawing table - safely handle null cursor
+    if (data.cursor) {
+      currentTableY = data.cursor.y;
+    }
+  }
+});
+
+        // Update Y position for next unit
+        currentTableY = doc.lastAutoTable?.finalY ? doc.lastAutoTable.finalY + 15 : currentTableY + 50;
+        
+        // Add some spacing between unit tables
+        if (currentTableY < pageHeight - 40) {
+          // Draw a separator line
+          doc.setDrawColor(200, 200, 200);
+          doc.line(margin, currentTableY - 8, pageWidth - margin, currentTableY - 8);
+          currentTableY += 5;
+        }
+      }
+    }
   }
 
   // Footer (single style for all pages)
@@ -317,7 +437,7 @@ export function generateBranchHarvestPDF(result: HarvestResult, branchInfo: Bran
   window.open(blobUrl, "_blank");
 }
 
-// Compact version with same updated layout
+// Compact version remains the same
 export function generateCompactBranchHarvestPDF(result: HarvestResult, branchInfo: BranchInfo): void {
   const doc = new jsPDF() as CustomJsPDF
   doc.setFont("helvetica")
