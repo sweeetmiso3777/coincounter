@@ -142,7 +142,7 @@ export function BranchUnitsStatus({ branchId }: BranchUnitsStatusProps) {
       if (!statusError) {
         fetchStatus();
       }
-    }, 31000);
+    }, 60000);
 
     return () => {
       isMounted = false;

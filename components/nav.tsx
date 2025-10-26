@@ -115,9 +115,6 @@ export function Nav() {
             </Link>
 
             <div className="ml-auto flex items-center space-x-2">
-              <Button variant="ghost" size="icon">
-                <Search className="h-4 w-4" />
-              </Button>
               <Link href="/changelogs">
                 <Button variant="ghost" size="icon">
                   <Bell className="h-4 w-4" />

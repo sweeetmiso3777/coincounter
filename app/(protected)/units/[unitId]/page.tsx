@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useUnitAggregates } from "@/hooks/use-unit-aggregates";
 import { useUnitsContext } from "@/providers/UnitsQueryProvider";
 import {
@@ -14,10 +14,10 @@ import {
   TrendingUp,
   Wallet,
   ArrowRight,
-  Building,
   MapPin,
   CheckCircle,
   Circle,
+  Scissors,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,7 +36,6 @@ function AnimatedNumber({
     decimals > 0 ? Number(latest.toFixed(decimals)) : Math.round(latest)
   );
 
-  // Format the number with commas
   const formatted = useTransform(rounded, (num) =>
     num.toLocaleString("en-US", {
       minimumFractionDigits: decimals,
@@ -63,9 +62,10 @@ interface UnitAggregate {
   branchId: string;
   timestamp: string | Date;
   harvested: boolean;
+  isPartial?: boolean;
+  partialHarvestTime?: string;
 }
 
-// Updated Header to show branch location
 const UnitHeader = ({
   deviceId,
   alias,
@@ -118,7 +118,6 @@ const UnitHeader = ({
   </div>
 );
 
-// Updated Desktop table to show branch location and harvested status
 const UnitAggregatesTable = ({
   data,
   currentBranchId,
@@ -130,21 +129,14 @@ const UnitAggregatesTable = ({
 }) => {
   const grandTotal = data.reduce((sum, agg) => sum + agg.total, 0);
   const totalSales = data.reduce((sum, agg) => sum + agg.sales_count, 0);
-  const total1Peso = data.reduce((sum, agg) => sum + agg.coins_1, 0);
-  const total5Peso = data.reduce((sum, agg) => sum + agg.coins_5, 0);
-  const total10Peso = data.reduce((sum, agg) => sum + agg.coins_10, 0);
-  const total20Peso = data.reduce((sum, agg) => sum + agg.coins_20, 0);
-
   const uniqueDays = new Set(
     data.map((agg) => new Date(agg.timestamp).toLocaleDateString())
   ).size;
 
-  // Get current branch location
   const currentBranchLocation = currentBranchId
     ? branchMap[currentBranchId]
     : null;
 
-  // Check if all aggregates have the same branchId
   const allSameBranch = data.every((agg) => agg.branchId === currentBranchId);
 
   return (
@@ -153,7 +145,6 @@ const UnitAggregatesTable = ({
         Summary Today will be generated at exactly 11:49 PM
       </div>
 
-      {/* Branch Summary Card */}
       {currentBranchLocation && (
         <Card className="border-blue-300/10 bg-card dark:bg-card/10 dark:border-blue-300">
           <CardContent className="pt-4">
@@ -283,18 +274,30 @@ const UnitAggregatesTable = ({
             {data.map((agg) => {
               const branchLocation = branchMap[agg.branchId] || agg.branchId;
               const isHarvested = agg.harvested;
-              const textColorClass = isHarvested
-                ? "text-green-900 dark:text-green-100"
-                : "text-foreground";
+              const isPartial = agg.isPartial;
+
+              let bgClass = "";
+              let borderClass = "";
+              let textColorClass = "text-foreground";
+
+              if (isPartial) {
+                bgClass =
+                  "bg-yellow-100 hover:bg-yellow-200 dark:bg-yellow-900/60 dark:hover:bg-yellow-800/60";
+                borderClass =
+                  "border-l-4 border-l-yellow-600 dark:border-l-yellow-500";
+                textColorClass = "text-yellow-900 dark:text-yellow-100";
+              } else if (isHarvested) {
+                bgClass =
+                  "bg-green-100 hover:bg-green-200 dark:bg-green-900/60 dark:hover:bg-green-800/60";
+                borderClass =
+                  "border-l-4 border-l-green-600 dark:border-l-green-500";
+                textColorClass = "text-green-900 dark:text-green-100";
+              }
 
               return (
                 <tr
                   key={agg.id}
-                  className={`hover:bg-muted/30 transition-colors ${
-                    isHarvested
-                      ? "bg-green-100 hover:bg-green-200 border-l-4 border-l-green-600 dark:bg-green-900/60 dark:hover:bg-green-800/60 dark:border-l-green-500"
-                      : ""
-                  }`}
+                  className={`hover:bg-muted/30 transition-colors ${bgClass} ${borderClass}`}
                 >
                   <td className={`p-3 border-b text-sm ${textColorClass}`}>
                     {new Date(agg.timestamp).toLocaleDateString("en-US", {
@@ -335,7 +338,9 @@ const UnitAggregatesTable = ({
                   </td>
                   <td
                     className={`p-3 border-b text-sm font-semibold text-center ${
-                      isHarvested
+                      isPartial
+                        ? "text-yellow-800 dark:text-yellow-200"
+                        : isHarvested
                         ? "text-green-800 dark:text-green-200"
                         : "text-green-700 dark:text-green-400"
                     }`}
@@ -343,7 +348,15 @@ const UnitAggregatesTable = ({
                     ₱{agg.total.toFixed(2)}
                   </td>
                   <td className="p-3 border-b text-center">
-                    {isHarvested ? (
+                    {isPartial ? (
+                      <Badge
+                        variant="default"
+                        className="bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-700 dark:hover:bg-yellow-600"
+                      >
+                        <Scissors className="w-3 h-3 mr-1" />
+                        Harvest Cutoff
+                      </Badge>
+                    ) : isHarvested ? (
                       <Badge
                         variant="default"
                         className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
@@ -368,27 +381,35 @@ const UnitAggregatesTable = ({
         </table>
       </div>
 
-      {/* Mobile Card Version - Updated to show branch location and harvested status */}
+      {/* Mobile Card Version */}
       <div className="md:hidden space-y-4">
         {data.map((agg) => {
           const branchLocation = branchMap[agg.branchId] || agg.branchId;
           const showBranch = !allSameBranch || agg.branchId !== currentBranchId;
           const isHarvested = agg.harvested;
-          const textColorClass = isHarvested
-            ? "text-green-900 dark:text-green-100"
-            : "text-foreground";
-          const mutedTextColorClass = isHarvested
-            ? "text-green-700 dark:text-green-300"
-            : "text-muted-foreground";
+          const isPartial = agg.isPartial;
+
+          let borderClass = "border-muted/20";
+          let bgClass = "";
+          let textColorClass = "text-foreground";
+          let mutedTextColorClass = "text-muted-foreground";
+
+          if (isPartial) {
+            borderClass = "border-yellow-400 dark:border-yellow-500";
+            bgClass = "bg-yellow-100 dark:bg-yellow-900/60";
+            textColorClass = "text-yellow-900 dark:text-yellow-100";
+            mutedTextColorClass = "text-yellow-700 dark:text-yellow-300";
+          } else if (isHarvested) {
+            borderClass = "border-green-400 dark:border-green-500";
+            bgClass = "bg-green-100 dark:bg-green-900/60";
+            textColorClass = "text-green-900 dark:text-green-100";
+            mutedTextColorClass = "text-green-700 dark:text-green-300";
+          }
 
           return (
             <Card
               key={agg.id}
-              className={`border transition-colors ${
-                isHarvested
-                  ? "border-green-400 bg-green-100 dark:bg-green-900/60 dark:border-green-500"
-                  : "border-muted/20"
-              }`}
+              className={`border transition-colors ${borderClass} ${bgClass}`}
             >
               <CardContent className="p-4 space-y-3">
                 <div className="flex justify-between items-start">
@@ -409,14 +430,24 @@ const UnitAggregatesTable = ({
                   <div className="flex flex-col items-end gap-1">
                     <span
                       className={`text-sm font-semibold ${
-                        isHarvested
+                        isPartial
+                          ? "text-yellow-800 dark:text-yellow-200"
+                          : isHarvested
                           ? "text-green-800 dark:text-green-200"
                           : "text-green-700 dark:text-green-400"
                       }`}
                     >
                       ₱{agg.total.toFixed(2)}
                     </span>
-                    {isHarvested ? (
+                    {isPartial ? (
+                      <Badge
+                        variant="default"
+                        className="bg-yellow-600 text-xs dark:bg-yellow-700"
+                      >
+                        <Scissors className="w-3 h-3 mr-1" />
+                        Cutoff
+                      </Badge>
+                    ) : isHarvested ? (
                       <Badge
                         variant="default"
                         className="bg-green-600 text-xs dark:bg-green-700"
@@ -491,11 +522,23 @@ function UnitPageClient() {
     branchMap,
   } = useUnitAggregates(unitId);
 
-  React.useEffect(() => {
-    if (unitId) fetchAggregates();
-  }, [unitId, fetchAggregates]);
+  const hasFetchedRef = useRef(false);
 
-  // Get current branch info
+  // Only fetch once when unitId is available
+  useEffect(() => {
+    if (unitId && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchAggregates();
+    }
+  }, [unitId]); // Remove fetchAggregates from dependencies!
+
+  // Reset when unitId changes
+  useEffect(() => {
+    return () => {
+      hasFetchedRef.current = false;
+    };
+  }, [unitId]);
+
   const currentBranchId = unit?.branchId || aggregates?.[0]?.branchId;
   const currentBranchLocation = currentBranchId
     ? branchMap[currentBranchId]

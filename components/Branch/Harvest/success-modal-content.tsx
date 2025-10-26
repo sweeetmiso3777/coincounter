@@ -1,22 +1,42 @@
 "use client";
 
-import type { HarvestResult } from "@/hooks/use-branch-harvest";
+import type { HarvestResult, BranchInfo } from "@/hooks/use-branch-harvest";
 import { FileText } from "lucide-react";
+import {
+  generateBranchHarvestPDF,
+  generateCompactBranchHarvestPDF,
+} from "@/lib/branch-reports";
+import { toast } from "sonner";
 
 interface SuccessModalContentProps {
   harvestResult: HarvestResult;
-  onExportPDF: (compact: boolean) => void;
+  branchInfo: BranchInfo;
   onClose: () => void;
 }
 
 export function SuccessModalContent({
   harvestResult,
-  onExportPDF,
+  branchInfo,
   onClose,
 }: SuccessModalContentProps) {
   const variance = harvestResult.summary.variance ?? 0;
   const variancePercentage = harvestResult.summary.variancePercentage ?? 0;
   const isPositive = variance >= 0;
+
+  const handleExportPDF = (compact: boolean) => {
+    try {
+      if (compact) {
+        generateCompactBranchHarvestPDF(harvestResult, branchInfo);
+        toast.success("Compact PDF generated successfully");
+      } else {
+        generateBranchHarvestPDF(harvestResult, branchInfo);
+        toast.success("Detailed PDF generated successfully");
+      }
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+      toast.error("Failed to generate PDF");
+    }
+  };
 
   return (
     <>
@@ -104,14 +124,14 @@ export function SuccessModalContent({
 
       <div className="flex gap-2">
         <button
-          onClick={() => onExportPDF(false)}
+          onClick={() => handleExportPDF(false)}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
         >
           <FileText className="h-4 w-4" />
           Detailed PDF
         </button>
         <button
-          onClick={() => onExportPDF(true)}
+          onClick={() => handleExportPDF(true)}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors"
         >
           <FileText className="h-4 w-4" />

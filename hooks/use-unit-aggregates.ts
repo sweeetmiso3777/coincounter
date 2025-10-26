@@ -17,6 +17,8 @@ export interface Aggregate {
   branchId: string;
   timestamp: Date;
   harvested: boolean;
+  isPartial?: boolean; // New field to identify partial aggregates
+  partialHarvestTime?: string; // Time when partial harvest occurred
 }
 
 export interface UnitWithAggregates {
@@ -67,14 +69,21 @@ export function useUnitsAggregates() {
 
       const aggregates = snapshot.docs.map((doc) => {
         const data = doc.data();
+        const docId = doc.id;
+        
+        // Check if this is a partial aggregate by looking at the document ID
+        const isPartial = docId.includes('_partial');
+        
         return {
-          id: doc.id,
+          id: docId,
           ...data,
           timestamp:
             data.timestamp instanceof Timestamp
               ? data.timestamp.toDate()
               : data.timestamp,
-          harvested: data.harvested || false, // Default to false if not present
+          harvested: data.harvested || false,
+          isPartial: isPartial || data.isPartial || false,
+          partialHarvestTime: data.partialHarvestTime || undefined,
         } as Aggregate;
       });
 
@@ -111,7 +120,7 @@ export function useUnitsAggregates() {
 export function useUnitAggregates(deviceId: string | null) {
   const { aggregates, loading, error, fetchAggregates, clearAggregates, branchMap } = useUnitsAggregates();
 
-  // Auto-fetch when deviceId changes
+  // Auto-fetch when deviceId changes - with stable dependencies
   const fetchForUnit = useCallback(async () => {
     if (!deviceId) {
       clearAggregates();
