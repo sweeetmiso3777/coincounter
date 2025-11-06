@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -21,6 +21,9 @@ import {
   RefreshCw,
   TrendingUp,
   Coins,
+  ChevronLeft,
+  ChevronRight,
+  Monitor,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Virtuoso } from "react-virtuoso";
@@ -107,6 +110,10 @@ export function RealTimePage() {
     isError,
     refetch,
   } = useEnrichedSales();
+
+  const [statsView, setStatsView] = useState<"coins" | "units">("coins");
+  const [unitsPage, setUnitsPage] = useState(0);
+  const UNITS_PER_PAGE = 6;
 
   // Process data for the chart - group by hour with 12-hour format
   const chartData = useMemo((): ChartDataItem[] => {
@@ -229,6 +236,39 @@ export function RealTimePage() {
     });
   }, [sales]);
 
+  // Calculate unit totals
+  const unitTotals = useMemo(() => {
+    const totalsMap = new Map<
+      string,
+      { deviceId: string; total: number; transactions: number }
+    >();
+
+    todaySales.forEach((sale) => {
+      const deviceId = sale.deviceId || "Unknown";
+      const existing = totalsMap.get(deviceId);
+
+      if (existing) {
+        existing.total += Number(sale.total ?? 0);
+        existing.transactions += 1;
+      } else {
+        totalsMap.set(deviceId, {
+          deviceId,
+          total: Number(sale.total ?? 0),
+          transactions: 1,
+        });
+      }
+    });
+
+    // Sort by total descending
+    return Array.from(totalsMap.values()).sort((a, b) => b.total - a.total);
+  }, [todaySales]);
+
+  const totalPages = Math.ceil(unitTotals.length / UNITS_PER_PAGE);
+  const paginatedUnits = unitTotals.slice(
+    unitsPage * UNITS_PER_PAGE,
+    (unitsPage + 1) * UNITS_PER_PAGE
+  );
+
   const totalSales = todaySales.reduce(
     (sum, sale) => sum + Number(sale.total ?? 0),
     0
@@ -285,16 +325,6 @@ export function RealTimePage() {
               Monitor sales across all coin-operated units
             </p>
           </div>
-
-          <div className="flex items-center gap-3 mt-4 sm:mt-0">
-            <Button
-              onClick={handleReloadSales}
-              variant="outline"
-              className="bg-transparent"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" /> Reload
-            </Button>
-          </div>
         </div>
 
         {/* Chart and Stats Row */}
@@ -343,108 +373,215 @@ export function RealTimePage() {
                     strokeWidth={2}
                     dot={{ fill: "#10b981", r: 3 }}
                     activeDot={{ r: 5, fill: "#059669" }}
+                    isAnimationActive={false}
                   />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Stats Cards - Takes 30% width */}
-          <div className="lg:w-[30%] grid grid-cols-2 gap-[2px]">
-            {/* Total Sales */}
-            <div className="flex flex-col border-l-2 border-current pl-2">
-              <div className="flex items-center gap-1">
-                <TrendingUp className="h-4 w-4 text-green-500" />
-                <span className="text-sm text-muted-foreground">
-                  Total Sales
-                </span>
-              </div>
-              <div className="text-xl font-extrabold text-green-600">
-                ₱<AnimatedNumber value={totalSales} />
-              </div>
-              <p className="text-xs text-muted-foreground">Today</p>
+          {/* Stats Cards - Takes 30% width with fixed height */}
+          <div className="lg:w-[30%] h-[330px] flex flex-col">
+            {/* View Switcher */}
+            <div className="flex gap-1 mb-3 bg-muted p-1 rounded-lg">
+              <button
+                onClick={() => {
+                  setStatsView("coins");
+                  setUnitsPage(0);
+                }}
+                className={`flex-1 px-3 py-2 rounded text-sm font-medium transition-colors ${
+                  statsView === "coins"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Coins className="h-4 w-4 inline mr-1" />
+                Coins
+              </button>
+              <button
+                onClick={() => {
+                  setStatsView("units");
+                  setUnitsPage(0);
+                }}
+                className={`flex-1 px-3 py-2 rounded text-sm font-medium transition-colors ${
+                  statsView === "units"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Monitor className="h-4 w-4 inline mr-1" />
+                Units
+              </button>
             </div>
 
-            {/* Transactions */}
-            <div className="flex flex-col border-l-2 border-current pl-2">
-              <div className="flex items-center gap-1">
-                <Coins className="h-4 w-4 text-blue-500" />
-                <span className="text-sm text-muted-foreground">
-                  Transactions
-                </span>
-              </div>
-              <div className="text-xl font-extrabold text-blue-600">
-                <AnimatedNumber value={totalTransactions} />
-              </div>
-              <p className="text-xs text-muted-foreground">Today</p>
-            </div>
+            {/* Stats Content with fixed height */}
+            <div className="flex-1">
+              {statsView === "coins" ? (
+                <div className="grid grid-cols-2 gap-[2px]">
+                  {/* Total Sales */}
+                  <div className="flex flex-col border-l-2 border-current pl-2">
+                    <div className="flex items-center gap-1">
+                      <TrendingUp className="h-4 w-4 text-green-500" />
+                      <span className="text-sm text-muted-foreground">
+                        Total Sales
+                      </span>
+                    </div>
+                    <div className="text-xl font-extrabold text-green-600">
+                      ₱<AnimatedNumber value={totalSales} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Today</p>
+                  </div>
 
-            {/* ₱1 */}
-            <div className="flex flex-col border-l-2 border-current pl-2">
-              <div className="flex items-center gap-1">
-                <Coins className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-muted-foreground">₱1</span>
-              </div>
-              <div className="text-lg font-bold text-gray-600">
-                <AnimatedNumber
-                  value={todaySales.reduce(
-                    (sum, s) => sum + (s.coins_1 ?? 0),
-                    0
+                  {/* Transactions */}
+                  <div className="flex flex-col border-l-2 border-current pl-2">
+                    <div className="flex items-center gap-1">
+                      <Coins className="h-4 w-4 text-blue-500" />
+                      <span className="text-sm text-muted-foreground">
+                        Transactions
+                      </span>
+                    </div>
+                    <div className="text-xl font-extrabold text-blue-600">
+                      <AnimatedNumber value={totalTransactions} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Today</p>
+                  </div>
+
+                  {/* ₱1 */}
+                  <div className="flex flex-col border-l-2 border-current pl-2">
+                    <div className="flex items-center gap-1">
+                      <Coins className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-muted-foreground">₱1</span>
+                    </div>
+                    <div className="text-lg font-bold text-gray-600">
+                      <AnimatedNumber
+                        value={todaySales.reduce(
+                          (sum, s) => sum + (s.coins_1 ?? 0),
+                          0
+                        )}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">coins</p>
+                  </div>
+
+                  {/* ₱5 */}
+                  <div className="flex flex-col border-l-2 border-current pl-2">
+                    <div className="flex items-center gap-1">
+                      <Coins className="h-4 w-4 text-purple-500" />
+                      <span className="text-sm text-muted-foreground">₱5</span>
+                    </div>
+                    <div className="text-lg font-bold text-purple-600">
+                      <AnimatedNumber
+                        value={todaySales.reduce(
+                          (sum, s) => sum + (s.coins_5 ?? 0),
+                          0
+                        )}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">coins</p>
+                  </div>
+
+                  {/* ₱10 */}
+                  <div className="flex flex-col border-l-2 border-current pl-2">
+                    <div className="flex items-center gap-1">
+                      <Coins className="h-4 w-4 text-amber-500" />
+                      <span className="text-sm text-muted-foreground">₱10</span>
+                    </div>
+                    <div className="text-lg font-bold text-amber-600">
+                      <AnimatedNumber
+                        value={todaySales.reduce(
+                          (sum, s) => sum + (s.coins_10 ?? 0),
+                          0
+                        )}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">coins</p>
+                  </div>
+
+                  {/* ₱20 */}
+                  <div className="flex flex-col border-l-2 border-current pl-2">
+                    <div className="flex items-center gap-1">
+                      <Coins className="h-4 w-4 text-green-600" />
+                      <span className="text-sm text-muted-foreground">₱20</span>
+                    </div>
+                    <div className="text-lg font-bold text-green-700">
+                      <AnimatedNumber
+                        value={todaySales.reduce(
+                          (sum, s) => sum + (s.coins_20 ?? 0),
+                          0
+                        )}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">coins</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col h-full">
+                  {/* Units Grid - Fixed 3x2 layout */}
+                  <div className="grid grid-cols-2 gap-2 flex-1">
+                    {paginatedUnits.map((unit) => (
+                      <div
+                        key={unit.deviceId}
+                        className="bg-card border border-border rounded-lg p-2 hover:border-primary/50 transition-colors flex flex-col justify-between"
+                      >
+                        <div className="flex items-center gap-1 mb-1">
+                          <Monitor className="h-3 w-3 text-primary flex-shrink-0" />
+                          <span className="font-mono text-xs font-medium text-foreground truncate">
+                            {unit.deviceId}
+                          </span>
+                        </div>
+                        <div className="text-lg font-bold text-green-600">
+                          ₱<AnimatedNumber value={unit.total} />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">
+                          {unit.transactions} txns
+                        </span>
+                      </div>
+                    ))}
+                    {/* Fill empty slots if less than 6 units on current page */}
+                    {Array.from({
+                      length: UNITS_PER_PAGE - paginatedUnits.length,
+                    }).map((_, i) => (
+                      <div key={`empty-${i}`} className="invisible" />
+                    ))}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-2 mt-2 border-t border-border">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setUnitsPage((p) => Math.max(0, p - 1))}
+                        disabled={unitsPage === 0}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        {unitsPage + 1} / {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setUnitsPage((p) => Math.min(totalPages - 1, p + 1))
+                        }
+                        disabled={unitsPage === totalPages - 1}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">coins</p>
-            </div>
 
-            {/* ₱5 */}
-            <div className="flex flex-col border-l-2 border-current pl-2">
-              <div className="flex items-center gap-1">
-                <Coins className="h-4 w-4 text-purple-500" />
-                <span className="text-sm text-muted-foreground">₱5</span>
-              </div>
-              <div className="text-lg font-bold text-purple-600">
-                <AnimatedNumber
-                  value={todaySales.reduce(
-                    (sum, s) => sum + (s.coins_5 ?? 0),
-                    0
+                  {unitTotals.length === 0 && (
+                    <div className="text-center py-8">
+                      <Monitor className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        No unit data available
+                      </p>
+                    </div>
                   )}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">coins</p>
-            </div>
-
-            {/* ₱10 */}
-            <div className="flex flex-col border-l-2 border-current pl-2">
-              <div className="flex items-center gap-1">
-                <Coins className="h-4 w-4 text-amber-500" />
-                <span className="text-sm text-muted-foreground">₱10</span>
-              </div>
-              <div className="text-lg font-bold text-amber-600">
-                <AnimatedNumber
-                  value={todaySales.reduce(
-                    (sum, s) => sum + (s.coins_10 ?? 0),
-                    0
-                  )}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">coins</p>
-            </div>
-
-            {/* ₱20 */}
-            <div className="flex flex-col border-l-2 border-current pl-2">
-              <div className="flex items-center gap-1">
-                <Coins className="h-4 w-4 text-green-600" />
-                <span className="text-sm text-muted-foreground">₱20</span>
-              </div>
-              <div className="text-lg font-bold text-green-700">
-                <AnimatedNumber
-                  value={todaySales.reduce(
-                    (sum, s) => sum + (s.coins_20 ?? 0),
-                    0
-                  )}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">coins</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -454,20 +591,7 @@ export function RealTimePage() {
           <h2 className="text-xl font-semibold text-foreground mb-3">
             Recent Sales ({todaySales.length})
           </h2>
-          <div className="flex items-center justify-end gap-2 mb-2">
-            <Button variant="outline" size="sm">
-              Today
-            </Button>
-            <Button variant="outline" size="sm">
-              Yesterday
-            </Button>
-            <Button variant="outline" size="sm">
-              7 Days
-            </Button>
-            <Button variant="outline" size="sm">
-              1 Month
-            </Button>
-          </div>
+
           {todaySales.length === 0 ? (
             <div className="text-center py-16">
               <div className="max-w-md mx-auto">
