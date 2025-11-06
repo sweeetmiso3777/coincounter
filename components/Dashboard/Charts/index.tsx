@@ -141,6 +141,7 @@ export function Charts() {
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4, fill: "#10b981" }}
+            isAnimationActive={false}
           />
         </LineChart>
       </ResponsiveContainer>

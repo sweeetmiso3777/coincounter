@@ -14,6 +14,9 @@ import {
   MapPin,
   FileDown,
   Download,
+  Users,
+  Calendar,
+  Percent,
 } from "lucide-react";
 import Link from "next/link";
 import React, { useState, useEffect, useCallback } from "react";
@@ -372,22 +375,15 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
   };
 
   // Convert HarvestData to HarvestResult format for PDF generation
-  // Only showing the fixed convertToHarvestResult function
-  // Add this to your branch page client
-
-  // Convert HarvestData to HarvestResult format for PDF generation
   const convertToHarvestResult = (harvest: HarvestData): HarvestResult => {
-    // Determine harvest mode based on the data characteristics
     const determineHarvestMode = ():
       | "normal"
       | "include_today"
       | "backdate" => {
-      // Check if there are partial aggregates in unit_summaries
       const hasPartialAggregates = harvest.unit_summaries?.some(
         (unit) => unit.date_range?.end === harvest.last_harvest_date
       );
 
-      // If the harvest includes today's date, it might be "include_today"
       const today = new Date().toISOString().split("T")[0];
       const harvestDate =
         harvest.last_harvest_date || harvest.date_range?.end || "";
@@ -396,7 +392,6 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
         return "include_today";
       }
 
-      // Check if it's a backdate (harvest date is before last_harvest_date)
       if (
         harvest.date_range?.start &&
         harvest.date_range?.start !== "Beginning"
@@ -407,13 +402,11 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
           (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
         );
 
-        // If the date range is unusual, it might be a backdate
         if (daysDiff < 0) {
           return "backdate";
         }
       }
 
-      // Default to normal mode
       return "normal";
     };
 
@@ -476,7 +469,6 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
   const handleGeneratePDF = (harvest: HarvestData) => {
     const harvestResult = convertToHarvestResult(harvest);
 
-    // Use branch info from harvest data if available, otherwise use defaults
     const branchInfo: BranchInfo = {
       branchName: harvest.location || branch?.location || `Branch ${branchId}`,
       managerName: harvest.branch_manager || branch?.branch_manager || "N/A",
@@ -647,11 +639,8 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
           )}
 
           {/* Unit Summaries - Single Card with Plain Text */}
-          {/* Unit Summaries - Single Card with Plain Text */}
           {unitSummaries.length > 0 && (
             <div className="border rounded-lg bg-muted/10 overflow-hidden">
-              {" "}
-              {/* Add overflow-hidden to container */}
               <button
                 onClick={() => toggleUnitPerformance(harvest.id)}
                 className="flex items-center justify-between w-full p-2 text-xs font-semibold hover:bg-muted/30 transition-colors rounded-t-lg"
@@ -665,11 +654,7 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
               </button>
               {isUnitPerformanceExpanded && (
                 <div className="border-t overflow-x-auto">
-                  {" "}
-                  {/* Enable horizontal scrolling */}
                   <div className="min-w-[300px]">
-                    {" "}
-                    {/* Set minimum width */}
                     {unitSummaries.map((unit, idx) => (
                       <UnitBreakdown
                         key={`${unit.unitId}-${idx}`}
@@ -753,6 +738,27 @@ const BranchHeader = React.memo(
       };
     }, [showMapModal, handleKeyDown, handleClickOutside]);
 
+    // Get next harvest date
+    const getNextHarvestDate = (harvestDay: number) => {
+      const now = new Date();
+      let harvestDate = new Date(now.getFullYear(), now.getMonth(), harvestDay);
+      if (harvestDay < now.getDate())
+        harvestDate = new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          harvestDay
+        );
+      if (harvestDate.getDate() !== harvestDay)
+        harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      return harvestDate;
+    };
+
+    const harvestDate = branch?.harvest_day_of_month
+      ? getNextHarvestDate(branch.harvest_day_of_month)
+      : null;
+
+    const affiliateCount = branch?.affiliates?.length || 0;
+
     return (
       <>
         <div className="mb-4">
@@ -764,15 +770,67 @@ const BranchHeader = React.memo(
             </Link>
           </Button>
 
-          {/* Title - Compact */}
+          {/* Title with Branch Info Squeezed In */}
           <div className="mb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <MapPin className="h-5 w-5 text-primary" />
-              <h1 className="text-xl font-bold text-primary">
-                {branch?.location || "Branch"}
-              </h1>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary" />
+                <h1 className="text-xl font-bold text-primary">
+                  {branch?.location || "Branch"}
+                </h1>
+              </div>
+
+              {/* Share Percentage - Top Right */}
+              {branch?.share && (
+                <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg text-xs">
+                  <Percent className="h-3 w-3 text-blue-600" />
+                  <span className="font-semibold text-blue-700 dark:text-blue-300">
+                    {branch.share}% Share
+                  </span>
+                </div>
+              )}
             </div>
-            <p className="text-muted-foreground text-xs font-mono">
+
+            {/* Branch Manager and Additional Info Row */}
+            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+              <span className="font-medium">
+                {branch?.branch_manager || "No Manager"}
+              </span>
+
+              {/* Harvest Date */}
+              {harvestDate && (
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>Harvest: {formatDate(harvestDate)}</span>
+                </div>
+              )}
+
+              {/* Affiliates Count */}
+              {affiliateCount > 0 && (
+                <div className="flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  <span>
+                    {affiliateCount} Affiliate{affiliateCount !== 1 ? "s" : ""}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Affiliates List - Compact */}
+            {branch?.affiliates && branch.affiliates.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {branch.affiliates.map((affiliate, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-2 py-1 bg-muted rounded text-xs text-muted-foreground"
+                  >
+                    {affiliate}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <p className="text-muted-foreground text-xs font-mono mt-1">
               Monthly performance metrics and transaction summaries
             </p>
           </div>

@@ -10,8 +10,8 @@ interface Aggregate {
   total: number;
   sales_count: number;
   branchId: string;
-  timestamp: admin.firestore.Timestamp; // This represents when the aggregate was created
-  createdAt: admin.firestore.Timestamp; // This tracks when the aggregate was created
+  timestamp: admin.firestore.Timestamp;
+  createdAt: admin.firestore.Timestamp;
   harvested: boolean;
 }
 
@@ -63,9 +63,10 @@ export async function GET(request: NextRequest) {
 
     const deviceAggregates: Record<string, Aggregate> = {};
 
-    const batch = db.batch();
+    // PHASE 1: Create aggregates (don't delete sales yet)
+    const aggregateBatch = db.batch();
     
-    // Process sales and aggregate with branchId from our map
+    // Process sales and create aggregates
     salesSnapshot.forEach(doc => {
       const data = doc.data();
       const deviceId = data.deviceId;
@@ -80,8 +81,8 @@ export async function GET(request: NextRequest) {
           total: 0,
           sales_count: 0,
           branchId: branchId,
-          timestamp: currentTimestamp, // When this aggregate was created
-          createdAt: currentTimestamp, // When this aggregate was created
+          timestamp: currentTimestamp,
+          createdAt: currentTimestamp,
           harvested: false
         };
       }
@@ -93,20 +94,23 @@ export async function GET(request: NextRequest) {
       deviceAggregates[deviceId].coins_20 += data.coins_20 || 0;
       deviceAggregates[deviceId].total += data.total || 0;
       deviceAggregates[deviceId].sales_count += 1;
-
-      // If this was a backup sale, mark it as recovered
-      if (data.isRecovered === false) {
-        batch.update(doc.ref, { isRecovered: true });
-      }
     });
 
     // Write per-device aggregates 
     for (const [deviceId, agg] of Object.entries(deviceAggregates)) {
       const aggRef = db.collection("Units").doc(deviceId).collection("aggregates").doc(todayDateId);
-      batch.set(aggRef, agg, { merge: true });
+      aggregateBatch.set(aggRef, agg, { merge: true });
     }
 
-    await batch.commit();
+    // COMMIT AGGREGATES FIRST
+    await aggregateBatch.commit();
+
+    // PHASE 2: Only delete sales if aggregates were successful
+    const deleteBatch = db.batch();
+    salesSnapshot.forEach(doc => {
+      deleteBatch.delete(doc.ref);
+    });
+    await deleteBatch.commit();
 
     return NextResponse.json({
       success: true,
@@ -115,11 +119,16 @@ export async function GET(request: NextRequest) {
         totalUnits: unitsSnapshot.size,
         activeUnitsToday: Object.keys(deviceAggregates).length,
         salesProcessed: salesSnapshot.size,
+        salesDeleted: salesSnapshot.size,
         branchCoverage: Object.keys(branchMap).length,
         processedAt: currentTimestamp.toDate().toISOString()
       }
     });
   } catch (err) {
-    return NextResponse.json({ success: false, error: (err as Error).message }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: (err as Error).message,
+      note: "No sales were deleted due to the error above"
+    }, { status: 500 });
   }
 }

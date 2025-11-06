@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { BranchesQueryProvider } from "@/providers/BranchesQueryProvider";
 import { UserProvider, useUser } from "@/providers/UserProvider";
-import { UnitsQueryProvider } from "@/providers/UnitsQueryProvider";
+
 import { Providers } from "@/providers/Sales-Query-Provider";
 import "leaflet/dist/leaflet.css";
 
@@ -47,9 +47,7 @@ export default function ProtectedLayout({
     <UserProvider>
       <Providers>
         <BranchesQueryProvider>
-          <UnitsQueryProvider>
-            <LayoutContent>{children}</LayoutContent>
-          </UnitsQueryProvider>
+          <LayoutContent>{children}</LayoutContent>
         </BranchesQueryProvider>
       </Providers>
     </UserProvider>
