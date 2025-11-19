@@ -67,7 +67,7 @@ export default function DashboardLayout() {
             View all devices →
           </Link>
         </div>
-        <div className="col-span-1 md:col-span-2 lg:col-span-2 bg-card rounded-2xl p-4 flex items-center justify-center border">
+        {/* <div className="col-span-1 md:col-span-2 lg:col-span-2 bg-card rounded-2xl p-4 flex items-center justify-center border">
           <span className="text-sm md:text-base">Logs and notifications</span>
         </div>
         <div className="col-span-1 md:col-span-2 lg:col-span-1 bg-card rounded-2xl p-4 flex items-center justify-center border">
@@ -77,7 +77,7 @@ export default function DashboardLayout() {
         </div>
         <div className="col-span-1 md:col-span-2 lg:col-span-1 bg-card rounded-2xl p-4 flex items-center justify-center border">
           <span className="text-sm md:text-base">New device</span>
-        </div>
+        </div> */}
       </div>
 
       {/* Bottom Full-Width Section */}

@@ -58,7 +58,7 @@ async function seedAggregates() {
     let totalAggregates = 0;
 
     // Generate data for past 7 days (excluding today)
-    for (let day = 1; day <= 7; day++) {
+    for (let day = 1; day <= 29; day++) {
       const date = new Date();
       date.setDate(date.getDate() - day);
       date.setHours(12, 0, 0, 0);
