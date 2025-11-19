@@ -1,17 +1,15 @@
-// app/partner/[partnerId]/page.tsx
 "use client";
 
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
   MapPin,
   Activity,
   BarChart3,
-  DollarSign,
   Users,
   TrendingUp,
+  TrendingDown,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -46,6 +44,218 @@ const formatDateRange = (start: string, end: string): string => {
   const formattedStart = formatDate(start);
   const formattedEnd = formatDate(end);
   return `${formattedStart} To ${formattedEnd}`;
+};
+
+const CoinBreakdownTable = ({
+  coins_1 = 0,
+  coins_5 = 0,
+  coins_10 = 0,
+  coins_20 = 0,
+  compact = false,
+}: {
+  coins_1?: number;
+  coins_5?: number;
+  coins_10?: number;
+  coins_20?: number;
+  compact?: boolean;
+}) => {
+  const coinValues = {
+    coins_1: coins_1,
+    coins_5: coins_5,
+    coins_10: coins_10,
+    coins_20: coins_20,
+  };
+
+  const coinTotals = {
+    coins_1: coins_1 * 1,
+    coins_5: coins_5 * 5,
+    coins_10: coins_10 * 10,
+    coins_20: coins_20 * 20,
+  };
+
+  const grandTotal = Object.values(coinTotals).reduce(
+    (sum, total) => sum + total,
+    0
+  );
+
+  if (compact) {
+    return (
+      <div className="text-xs">
+        <div className="grid grid-cols-5 gap-1 font-mono">
+          {/* Headers */}
+          <div className="font-semibold text-foreground">Coin</div>
+          <div className="font-semibold text-foreground text-right">Qty</div>
+          <div className="font-semibold text-foreground text-right">Value</div>
+          <div className="font-semibold text-foreground text-right">Total</div>
+          <div className="font-semibold text-foreground text-right">%</div>
+
+          {/* 1 Peso */}
+          <div>₱1</div>
+          <div className="text-right">
+            {coinValues.coins_1.toLocaleString()}
+          </div>
+          <div className="text-right">₱1</div>
+          <div className="text-right">
+            ₱{coinTotals.coins_1.toLocaleString()}
+          </div>
+          <div className="text-right text-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_1 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+
+          {/* 5 Peso */}
+          <div>₱5</div>
+          <div className="text-right">
+            {coinValues.coins_5.toLocaleString()}
+          </div>
+          <div className="text-right">₱5</div>
+          <div className="text-right">
+            ₱{coinTotals.coins_5.toLocaleString()}
+          </div>
+          <div className="text-right text-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_5 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+
+          {/* 10 Peso */}
+          <div>₱10</div>
+          <div className="text-right">
+            {coinValues.coins_10.toLocaleString()}
+          </div>
+          <div className="text-right">₱10</div>
+          <div className="text-right">
+            ₱{coinTotals.coins_10.toLocaleString()}
+          </div>
+          <div className="text-right text-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_10 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+
+          {/* 20 Peso */}
+          <div>₱20</div>
+          <div className="text-right">
+            {coinValues.coins_20.toLocaleString()}
+          </div>
+          <div className="text-right">₱20</div>
+          <div className="text-right">
+            ₱{coinTotals.coins_20.toLocaleString()}
+          </div>
+          <div className="text-right text-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_20 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+
+          {/* Grand Total Row */}
+          <div className="col-span-3 border-t pt-1 font-semibold">Total</div>
+          <div className="col-span-2 border-t pt-1 text-right font-bold text-green-600">
+            ₱{grandTotal.toLocaleString()}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-xs">
+      <div className="grid grid-cols-4 gap-2 font-mono border-b pb-1 mb-1">
+        <div className="font-semibold text-foreground">Coin Type</div>
+        <div className="font-semibold text-foreground text-right">Quantity</div>
+        <div className="font-semibold text-foreground text-right">
+          Total Value
+        </div>
+        <div className="font-semibold text-foreground text-right">
+          Percentage
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        {/* 1 Peso Row */}
+        <div className="grid grid-cols-4 gap-2">
+          <div>₱1 Coins</div>
+          <div className="text-right">
+            {coinValues.coins_1.toLocaleString()}
+          </div>
+          <div className="text-right">
+            ₱{coinTotals.coins_1.toLocaleString()}
+          </div>
+          <div className="text-right text-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_1 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+        </div>
+
+        {/* 5 Peso Row */}
+        <div className="grid grid-cols-4 gap-2">
+          <div>₱5 Coins</div>
+          <div className="text-right">
+            {coinValues.coins_5.toLocaleString()}
+          </div>
+          <div className="text-right">
+            ₱{coinTotals.coins_5.toLocaleString()}
+          </div>
+          <div className="text-right text-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_5 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+        </div>
+
+        {/* 10 Peso Row */}
+        <div className="grid grid-cols-4 gap-2">
+          <div>₱10 Coins</div>
+          <div className="text-right">
+            {coinValues.coins_10.toLocaleString()}
+          </div>
+          <div className="text-right">
+            ₱{coinTotals.coins_10.toLocaleString()}
+          </div>
+          <div className="text-right text-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_10 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+        </div>
+
+        {/* 20 Peso Row */}
+        <div className="grid grid-cols-4 gap-2">
+          <div>₱20 Coins</div>
+          <div className="text-right">
+            {coinValues.coins_20.toLocaleString()}
+          </div>
+          <div className="text-right">
+            ₱{coinTotals.coins_20.toLocaleString()}
+          </div>
+          <div className="text-right text-foreground">
+            {grandTotal > 0
+              ? ((coinTotals.coins_20 / grandTotal) * 100).toFixed(1)
+              : "0"}
+            %
+          </div>
+        </div>
+
+        {/* Grand Total Row */}
+        <div className="grid grid-cols-4 gap-2 border-t pt-1 font-semibold">
+          <div className="col-span-2">Grand Total</div>
+          <div className="text-right text-green-600">
+            ₱{grandTotal.toLocaleString()}
+          </div>
+          <div className="text-right">100%</div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ========== PARTNER BRANCH HEADER ==========
@@ -95,8 +305,6 @@ const PartnerBranchHeader = React.memo(
     return (
       <>
         <div className="mb-6 relative z-10">
-          {" "}
-          {/* Added relative and z-10 */}
           {/* Back Button */}
           <Button asChild variant="ghost" className="mb-4" size="sm">
             <Link href="/partner">
@@ -119,7 +327,8 @@ const PartnerBranchHeader = React.memo(
                     <div className="flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-green-600" />
                       <span className="font-medium text-green-600">
-                        Your Share: {branch.share}%
+                        Your Share: {branch.share}% • Owner Share:{" "}
+                        {100 - branch.share}%
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -145,8 +354,6 @@ const PartnerBranchHeader = React.memo(
 
             {/* Map */}
             <div className="lg:w-1/2 relative z-0">
-              {" "}
-              {/* Added relative z-0 */}
               <button
                 data-map-trigger
                 onClick={() => setShowMapModal(true)}
@@ -236,7 +443,7 @@ const UnitBreakdown = ({
             </span>
           </div>
           <span className="text-sm font-bold text-green-600">
-            ₱{(unit.total_amount || 0).toFixed(2)}
+            ₱{(unit.total_amount || 0).toLocaleString()}
           </span>
         </div>
         <div className="flex items-center gap-4 text-xs text-foreground">
@@ -250,39 +457,17 @@ const UnitBreakdown = ({
         </div>
       </div>
 
-      {/* Expanded Content */}
       {isExpanded && (
         <div className="px-3 pb-3 border-t">
-          {/* Coin Breakdown */}
-          <div className="grid grid-cols-4 gap-2 mt-3 text-xs">
-            <div className="text-center p-2 bg-muted rounded-lg">
-              <div className="font-bold">{unit.coins_1 || 0}</div>
-              <div className="text-foreground">₱1</div>
-              <div className="text-green-600 font-medium">
-                ₱{(unit.coins_1 || 0).toFixed(2)}
-              </div>
-            </div>
-            <div className="text-center p-2 bg-muted rounded-lg">
-              <div className="font-bold">{unit.coins_5 || 0}</div>
-              <div className="text-foreground">₱5</div>
-              <div className="text-green-600 font-medium">
-                ₱{((unit.coins_5 || 0) * 5).toFixed(2)}
-              </div>
-            </div>
-            <div className="text-center p-2 bg-muted rounded-lg">
-              <div className="font-bold">{unit.coins_10 || 0}</div>
-              <div className="text-foreground">₱10</div>
-              <div className="text-green-600 font-medium">
-                ₱{((unit.coins_10 || 0) * 10).toFixed(2)}
-              </div>
-            </div>
-            <div className="text-center p-2 bg-muted rounded-lg">
-              <div className="font-bold">{unit.coins_20 || 0}</div>
-              <div className="text-foreground">₱20</div>
-              <div className="text-green-600 font-medium">
-                ₱{((unit.coins_20 || 0) * 20).toFixed(2)}
-              </div>
-            </div>
+          {/* Coin Breakdown using tabular format */}
+          <div className="mt-3 p-2 bg-muted/20 rounded-lg">
+            <CoinBreakdownTable
+              coins_1={unit.coins_1}
+              coins_5={unit.coins_5}
+              coins_10={unit.coins_10}
+              coins_20={unit.coins_20}
+              compact={true}
+            />
           </div>
 
           {/* Date Range */}
@@ -371,7 +556,13 @@ const HarvestDataDisplay = React.memo(
         {harvestData.map((harvest) => {
           const dateRange = harvest.date_range || { start: "N/A", end: "N/A" };
           const unitSummaries = harvest.unit_summaries || [];
-          const partnerEarnings = (harvest.total || 0) * (branchShare / 100);
+          const totalRevenue = harvest.total || 0;
+
+          const partnerEarnings = totalRevenue * (branchShare / 100);
+          const ownerEarnings = totalRevenue * ((100 - branchShare) / 100);
+
+          const hasVarianceData = harvest.actualAmountProcessed !== undefined;
+          const isPositiveVariance = (harvest.variance ?? 0) >= 0;
 
           return (
             <div
@@ -387,74 +578,106 @@ const HarvestDataDisplay = React.memo(
                     </h3>
                     <p className="text-sm text-foreground font-mono">
                       {harvest.month || "N/A"} •{" "}
-                      {harvest.aggregates_included || 0} aggregates
+                      {harvest.aggregates_included || 0} aggregates •{" "}
+                      {harvest.sales_count || 0} sales •{" "}
+                      {harvest.units_count || 0} units
                     </p>
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-bold text-green-600">
-                      ₱{partnerEarnings.toFixed(2)}
+                      ₱{totalRevenue.toLocaleString()}
                     </div>
-                    <div className="text-sm text-foreground">
-                      Your Earnings • {harvest.sales_count || 0} sales
-                    </div>
+                    <div className="text-sm text-foreground">Total Revenue</div>
                   </div>
                 </div>
               </div>
 
               <div className="p-4">
-                {/* Summary Stats - Compact */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                  <div className="text-center p-3 bg-muted rounded-xl">
-                    <div className="text-2xl font-bold text-foreground">
-                      {harvest.coins_1 || 0}
-                    </div>
-                    <div className="text-xs text-foreground">₱1 Coins</div>
-                    <div className="text-xs text-green-600 font-medium">
-                      ₱{(harvest.coins_1 || 0).toFixed(2)}
+                {hasVarianceData && (
+                  <div className="mb-4 p-3 bg-muted/20 rounded-xl border text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <span className="text-foreground">
+                          Expected: ₱{totalRevenue.toLocaleString()}
+                        </span>
+                        <span className="text-blue-600 font-medium">
+                          Actual: ₱
+                          {(
+                            harvest.actualAmountProcessed || 0
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {isPositiveVariance ? (
+                          <TrendingUp className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 text-red-600" />
+                        )}
+                        <span
+                          className={`font-bold ${
+                            isPositiveVariance
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {isPositiveVariance ? "+" : ""}₱
+                          {(harvest.variance || 0).toLocaleString()}
+                        </span>
+                        <span
+                          className={`${
+                            isPositiveVariance
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          ({isPositiveVariance ? "+" : ""}
+                          {harvest.variancePercentage?.toFixed(2) || "0.00"}%)
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-center p-3 bg-muted rounded-xl">
-                    <div className="text-2xl font-bold text-foreground">
-                      {harvest.coins_5 || 0}
-                    </div>
-                    <div className="text-xs text-foreground">₱5 Coins</div>
-                    <div className="text-xs text-green-600 font-medium">
-                      ₱{((harvest.coins_5 || 0) * 5).toFixed(2)}
-                    </div>
+                )}
+
+                {/* Coin Summary - Tabular Format */}
+                <div className="mb-4 p-3 bg-muted/20 rounded-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-semibold text-sm text-foreground">
+                      Coin Breakdown
+                    </span>
                   </div>
-                  <div className="text-center p-3 bg-muted rounded-xl">
-                    <div className="text-2xl font-bold text-foreground">
-                      {harvest.coins_10 || 0}
-                    </div>
-                    <div className="text-xs text-foreground">₱10 Coins</div>
-                    <div className="text-xs text-green-600 font-medium">
-                      ₱{((harvest.coins_10 || 0) * 10).toFixed(2)}
-                    </div>
-                  </div>
-                  <div className="text-center p-3 bg-muted rounded-xl">
-                    <div className="text-2xl font-bold text-foreground">
-                      {harvest.coins_20 || 0}
-                    </div>
-                    <div className="text-xs text-foreground">₱20 Coins</div>
-                    <div className="text-xs text-green-600 font-medium">
-                      ₱{((harvest.coins_20 || 0) * 20).toFixed(2)}
-                    </div>
-                  </div>
+                  <CoinBreakdownTable
+                    coins_1={harvest.coins_1}
+                    coins_5={harvest.coins_5}
+                    coins_10={harvest.coins_10}
+                    coins_20={harvest.coins_20}
+                    compact={true}
+                  />
                 </div>
 
-                {/* Revenue Share - Partner Focused */}
-                <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-xl border border-green-200 dark:border-green-800">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 text-sm">
-                    <span className="font-medium text-green-700">
-                      Your Revenue Share
-                    </span>
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-                      <span className="text-green-600 font-bold">
-                        Your Earnings ({branchShare}%): ₱
-                        {partnerEarnings.toFixed(2)}
+                <div className="mb-4 grid grid-cols-2 gap-2">
+                  <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-xl border border-green-200 dark:border-green-800">
+                    <div className="text-xs font-medium text-green-700 mb-1">
+                      Your Earnings
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <div className="text-xl font-bold text-green-600">
+                        ₱{partnerEarnings.toLocaleString()}
+                      </div>
+                      <span className="text-xs text-green-600">
+                        ({branchShare}%)
                       </span>
-                      <span className="text-foreground">
-                        Total Revenue: ₱{(harvest.total || 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                    <div className="text-xs font-medium text-blue-700 mb-1">
+                      Owner Share
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <div className="text-xl font-bold text-blue-600">
+                        ₱{ownerEarnings.toLocaleString()}
+                      </div>
+                      <span className="text-xs text-blue-600">
+                        ({100 - branchShare}%)
                       </span>
                     </div>
                   </div>

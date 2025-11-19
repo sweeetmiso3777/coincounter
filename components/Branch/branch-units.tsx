@@ -188,7 +188,7 @@ export function BranchUnitsStatus({ branchId }: BranchUnitsStatusProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      {/* <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-foreground">Branch Units</h2>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-sm">
@@ -200,7 +200,7 @@ export function BranchUnitsStatus({ branchId }: BranchUnitsStatusProps) {
             </Badge>
           )}
         </div>
-      </div>
+      </div> */}
 
       {/* Status Error Banner */}
       {statusError && (

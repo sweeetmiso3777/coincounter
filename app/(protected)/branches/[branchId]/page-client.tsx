@@ -620,16 +620,16 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
               <span className="font-medium text-muted-foreground mr-2">
                 Revenue:
               </span>
-              <span className="text-green-600 font-medium">
-                Branch ({harvest.branchSharePercentage}%): ₱
+              <span className="text-foreground font-medium">
+                Branch Share({harvest.branchSharePercentage}%): ₱
                 {(
                   (harvest.total || 0) *
                   (harvest.branchSharePercentage / 100)
                 ).toLocaleString()}
               </span>
-              <span className="text-muted-foreground/60 mx-2">•</span>
-              <span className="text-muted-foreground">
-                Company ({100 - harvest.branchSharePercentage}%): ₱
+              <span className="text-green-600 mx-2">•</span>
+              <span className="text-green-600">
+                Your Share ({100 - harvest.branchSharePercentage}%): ₱
                 {(
                   (harvest.total || 0) *
                   ((100 - harvest.branchSharePercentage) / 100)
@@ -783,9 +783,12 @@ const BranchHeader = React.memo(
               {/* Share Percentage - Top Right */}
               {branch?.share && (
                 <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg text-xs">
+                  <span className="font-semibold text-blue-700 dark:text-blue-300">
+                    This branches share:
+                  </span>
                   <Percent className="h-3 w-3 text-blue-600" />
                   <span className="font-semibold text-blue-700 dark:text-blue-300">
-                    {branch.share}% Share
+                    {branch.share}
                   </span>
                 </div>
               )}
@@ -847,7 +850,7 @@ const BranchHeader = React.memo(
               <button
                 data-map-trigger
                 onClick={() => setShowMapModal(true)}
-                className="w-full h-40 rounded-lg border border-border overflow-hidden hover:shadow-lg transition-all bg-card hover:scale-[1.02]"
+                className="w-full h-50 rounded-lg border border-border overflow-hidden hover:shadow-lg transition-all bg-card hover:scale-[1.02]"
               >
                 {branch?.latitude && branch?.longitude ? (
                   <div className="w-full h-full pointer-events-none">

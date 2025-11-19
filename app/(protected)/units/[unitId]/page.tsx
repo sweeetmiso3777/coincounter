@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useUnitAggregates } from "@/hooks/use-unit-aggregates";
 import {
   Calendar,
@@ -17,6 +17,11 @@ import {
   CheckCircle,
   Circle,
   Scissors,
+  Trophy,
+  BarChart3,
+  PieChart,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -64,6 +69,60 @@ interface UnitAggregate {
   isPartial?: boolean;
   partialHarvestTime?: string;
 }
+
+// Updated metrics calculation function
+const calculateMetrics = (data: UnitAggregate[]) => {
+  if (!data.length) return null;
+
+  const grandTotal = data.reduce((sum, agg) => sum + agg.total, 0);
+  const totalSales = data.reduce((sum, agg) => sum + agg.sales_count, 0);
+  const uniqueDays = new Set(
+    data.map((agg) => new Date(agg.timestamp).toLocaleDateString())
+  ).size;
+
+  // Average Daily Revenue
+  const averageDailyRevenue = grandTotal / uniqueDays;
+
+  // Peak Day - now tracking both value and date
+  let peakDayValue = 0;
+  let peakDayDate = "";
+
+  data.forEach((agg) => {
+    if (agg.total > peakDayValue) {
+      peakDayValue = agg.total;
+      peakDayDate = new Date(agg.timestamp).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+  });
+
+  // Coin Distribution
+  const totalCoins1 = data.reduce((sum, agg) => sum + agg.coins_1, 0);
+  const totalCoins5 = data.reduce((sum, agg) => sum + agg.coins_5, 0);
+  const totalCoins10 = data.reduce((sum, agg) => sum + agg.coins_10, 0);
+  const totalCoins20 = data.reduce((sum, agg) => sum + agg.coins_20, 0);
+
+  const totalCoins = totalCoins1 + totalCoins5 + totalCoins10 + totalCoins20;
+
+  const coinDistribution = {
+    coins1: totalCoins > 0 ? (totalCoins1 / totalCoins) * 100 : 0,
+    coins5: totalCoins > 0 ? (totalCoins5 / totalCoins) * 100 : 0,
+    coins10: totalCoins > 0 ? (totalCoins10 / totalCoins) * 100 : 0,
+    coins20: totalCoins > 0 ? (totalCoins20 / totalCoins) * 100 : 0,
+  };
+
+  return {
+    grandTotal,
+    totalSales,
+    uniqueDays,
+    averageDailyRevenue,
+    peakDayValue,
+    peakDayDate,
+    coinDistribution,
+  };
+};
 
 const UnitHeader = ({
   deviceId,
@@ -126,7 +185,7 @@ const UnitHeader = ({
   </div>
 );
 
-const SummaryCards = ({
+const MetricsCards = ({
   data,
   currentBranchId,
   branchMap,
@@ -135,11 +194,9 @@ const SummaryCards = ({
   currentBranchId?: string;
   branchMap: Record<string, string>;
 }) => {
-  const grandTotal = data.reduce((sum, agg) => sum + agg.total, 0);
-  const totalSales = data.reduce((sum, agg) => sum + agg.sales_count, 0);
-  const uniqueDays = new Set(
-    data.map((agg) => new Date(agg.timestamp).toLocaleDateString())
-  ).size;
+  const metrics = useMemo(() => calculateMetrics(data), [data]);
+
+  if (!metrics) return null;
 
   const currentBranchLocation = currentBranchId
     ? branchMap[currentBranchId]
@@ -148,7 +205,7 @@ const SummaryCards = ({
   const allSameBranch = data.every((agg) => agg.branchId === currentBranchId);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+    <div className="space-y-4">
       {/* Branch Info Card */}
       {currentBranchLocation && (
         <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
@@ -175,8 +232,8 @@ const SummaryCards = ({
         </Card>
       )}
 
-      {/* Total Earnings Card */}
-      <Card className="border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800 md:col-span-2">
+      {/* Main Summary Card */}
+      <Card className="border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800">
         <CardContent className="p-3">
           <div className="flex items-center justify-between">
             <div>
@@ -187,20 +244,95 @@ const SummaryCards = ({
                 </span>
               </div>
               <p className="text-lg font-bold text-green-700 dark:text-green-400">
-                ₱<AnimatedNumber value={grandTotal} decimals={2} />
+                ₱<AnimatedNumber value={metrics.grandTotal} decimals={2} />
               </p>
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground">
-                {totalSales} {totalSales === 1 ? "Transaction" : "Transactions"}
+                {metrics.totalSales}{" "}
+                {metrics.totalSales === 1 ? "Transaction" : "Transactions"}
               </p>
               <p className="text-xs text-muted-foreground">
-                {uniqueDays} {uniqueDays === 1 ? "day" : "days"}
+                {metrics.uniqueDays} {metrics.uniqueDays === 1 ? "day" : "days"}
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* New Metrics Grid - Only 3 cards now */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        {/* Average Daily Revenue */}
+        <Card className="border-border/50 bg-card">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">
+                Avg Daily
+              </span>
+            </div>
+            <p className="text-lg font-bold text-foreground">
+              ₱{metrics.averageDailyRevenue.toFixed(2)}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Peak Day */}
+        <Card className="border-border/50 bg-card">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Trophy className="h-4 w-4 text-amber-600" />
+              <span className="text-sm font-medium text-foreground">
+                Peak Day
+              </span>
+            </div>
+            <p className="text-lg font-bold text-foreground">
+              ₱{metrics.peakDayValue.toFixed(2)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {metrics.peakDayDate}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Coin Distribution Summary */}
+        <Card className="border-border/50 bg-card">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <PieChart className="h-4 w-4 text-indigo-600" />
+              <span className="text-sm font-medium text-foreground">
+                Coin Distribution
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">₱1:</span>
+                <span className="font-semibold">
+                  {metrics.coinDistribution.coins1.toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">₱5:</span>
+                <span className="font-semibold">
+                  {metrics.coinDistribution.coins5.toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">₱10:</span>
+                <span className="font-semibold">
+                  {metrics.coinDistribution.coins10.toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">₱20:</span>
+                <span className="font-semibold">
+                  {metrics.coinDistribution.coins20.toFixed(0)}%
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
@@ -215,11 +347,91 @@ const UnitAggregatesTable = ({
   branchMap: Record<string, string>;
 }) => {
   const allSameBranch = data.every((agg) => agg.branchId === currentBranchId);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
+  // Calculate pagination
+  const totalPages = Math.ceil(data.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentData = data.slice(startIndex, startIndex + itemsPerPage);
+
+  // Pagination controls
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const goToPrevious = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const goToNext = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 mt-6">
       <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-900 dark:text-yellow-100 rounded-md text-xs text-center">
         Summary Today will be generated at exactly 11:49 PM
+      </div>
+
+      {/* Pagination Info */}
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-muted-foreground">
+          Showing {startIndex + 1}-
+          {Math.min(startIndex + itemsPerPage, data.length)} of {data.length}{" "}
+          days
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToPrevious}
+              disabled={currentPage === 1}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                // Show pages around current page
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => goToPage(pageNum)}
+                    className="h-8 w-8 p-0 text-xs"
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToNext}
+              disabled={currentPage === totalPages}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Desktop Table */}
@@ -286,7 +498,7 @@ const UnitAggregatesTable = ({
             </tr>
           </thead>
           <tbody>
-            {data.map((agg) => {
+            {currentData.map((agg) => {
               const branchLocation = branchMap[agg.branchId] || agg.branchId;
               const isHarvested = agg.harvested;
               const isPartial = agg.isPartial;
@@ -398,7 +610,7 @@ const UnitAggregatesTable = ({
 
       {/* Mobile Card Version */}
       <div className="md:hidden space-y-2">
-        {data.map((agg) => {
+        {currentData.map((agg) => {
           const branchLocation = branchMap[agg.branchId] || agg.branchId;
           const showBranch = !allSameBranch || agg.branchId !== currentBranchId;
           const isHarvested = agg.harvested;
@@ -524,6 +736,35 @@ const UnitAggregatesTable = ({
           );
         })}
       </div>
+
+      {/* Bottom Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToPrevious}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Previous
+          </Button>
+
+          <div className="text-sm text-muted-foreground mx-4">
+            Page {currentPage} of {totalPages}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToNext}
+            disabled={currentPage === totalPages}
+          >
+            Next
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
@@ -548,7 +789,7 @@ function UnitPageClient() {
   if (aggLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="animate-pulse space-y-4">
             <div className="h-6 bg-muted rounded w-1/3"></div>
             <div className="h-20 bg-muted rounded"></div>
@@ -562,7 +803,7 @@ function UnitPageClient() {
   if (!aggregates || aggregates.length === 0) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <UnitHeader
             deviceId={unitId}
             alias={unitInfo?.alias}
@@ -597,7 +838,7 @@ function UnitPageClient() {
           branchLocation={currentBranchLocation || undefined}
         />
 
-        <SummaryCards
+        <MetricsCards
           data={aggregates}
           currentBranchId={currentBranchId}
           branchMap={branchMap}

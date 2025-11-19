@@ -819,59 +819,99 @@ export function UnitsPageCards({
         )}
       </div>
 
-      {/* Sidebar for unassigned units - now appears below on mobile */}
       {!hideUnassigned && unitsWithoutBranch.length > 0 && (
-        <div className="lg:w-72 lg:sticky lg:top-20 h-fit space-y-2 lg:border-l lg:border-muted p-4 bg-card/90 backdrop-blur-sm">
-          <h2 className="text-lg font-semibold">Unassigned Units</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
-            {unitsWithoutBranch.map((unit) => {
-              const unitStatus = statusData[unit.deviceId] || {
-                status: "unknown" as const,
-                lastPing: "",
-              };
+        <div className="lg:w-64 lg:sticky lg:top-20 h-fit">
+          {/* Simple container with fixed height */}
+          <div className="bg-background border rounded-lg flex flex-col max-h-[400px]">
+            {" "}
+            {/* Fixed height */}
+            {/* Header */}
+            <div className="p-3 border-b flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <h3 className="text-sm font-medium">Unassigned Units</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {unitsWithoutBranch.length} pending
+                  </p>
+                </div>
+              </div>
+            </div>
+            {/* Scrollable content - shows ~5 units, then scrolls */}
+            <div className="flex-1 overflow-y-auto p-2">
+              <div className="space-y-2">
+                {unitsWithoutBranch.map((unit) => {
+                  {
+                    /* No slice - show all but scroll */
+                  }
+                  const unitStatus = statusData[unit.deviceId] || {
+                    status: "unknown" as const,
+                    lastPing: "",
+                  };
 
-              return (
-                <Card key={unit.deviceId} className="p-3 bg-card/80">
-                  <div className="flex items-start justify-between mb-2">
-                    <CardTitle className="text-sm flex items-center gap-1">
-                      <span>{unit.alias || "No Alias Yet"}</span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="w-4 h-4 p-0"
-                        onClick={() => setAliasModalUnitId(unit.deviceId)}
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </Button>
-                    </CardTitle>
-                    {statusLoading ? (
-                      <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
-                    ) : (
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          unitStatus.status === "online"
-                            ? "bg-green-500"
-                            : unitStatus.status === "offline"
-                            ? "bg-red-500"
-                            : "bg-gray-400"
-                        }`}
-                      />
-                    )}
-                  </div>
-                  <CardDescription className="text-xs mb-2">
-                    Device ID: {unit.deviceId}
-                  </CardDescription>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full bg-transparent"
-                    onClick={() => setAssignModalUnitId(unit.deviceId)}
-                  >
-                    Assign to Branch
-                  </Button>
-                </Card>
-              );
-            })}
+                  return (
+                    <div
+                      key={unit.deviceId}
+                      className="p-2 border rounded-md hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="flex-shrink-0 pt-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <Monitor className="w-3 h-3 text-muted-foreground" />
+                            {statusLoading ? (
+                              <Loader2 className="w-1.5 h-1.5 animate-spin text-muted-foreground" />
+                            ) : (
+                              <div
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  unitStatus.status === "online"
+                                    ? "bg-green-500"
+                                    : unitStatus.status === "offline"
+                                    ? "bg-red-500"
+                                    : "bg-yellow-500"
+                                }`}
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1 mb-1">
+                            <p className="text-xs font-medium truncate">
+                              {unit.alias || "No Alias"}
+                            </p>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="w-3 h-3 p-0 hover:bg-background"
+                              onClick={() => setAliasModalUnitId(unit.deviceId)}
+                            >
+                              <Pencil className="w-2.5 h-2.5 text-muted-foreground" />
+                            </Button>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate mb-2">
+                            {unit.deviceId.slice(0, 10)}...
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="w-full text-xs h-7"
+                            onClick={() => setAssignModalUnitId(unit.deviceId)}
+                          >
+                            Assign
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {/* Footer */}
+            <div className="p-2 border-t flex-shrink-0">
+              <p className="text-[10px] text-muted-foreground text-center">
+                Assign them to your branches
+              </p>
+            </div>
           </div>
         </div>
       )}
