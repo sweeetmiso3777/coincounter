@@ -92,48 +92,44 @@ export function BranchPage() {
           </p>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="w-full sm:w-[200px]">
-            <Select value={selectedManager} onValueChange={setSelectedManager}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by Manager" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Managers</SelectItem>
-                {managers.map((manager) => (
-                  <SelectItem key={manager} value={manager}>
-                    {manager}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="w-full sm:w-[200px]">
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="ready">Ready for Harvest</SelectItem>
-                <SelectItem value="harvested">Harvested Recently</SelectItem>
-                <SelectItem value="upcoming">Upcoming Harvest</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Branches Section */}
+        {/* dropdowns */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-mono text-foreground">
-              {selectedManager !== "all" || selectedStatus !== "all" 
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between  mb-6">
+            <h2 className="text-xl font-mono text-foreground whitespace-nowrap">
+              {selectedManager !== "all" || selectedStatus !== "all"
                 ? `Filtered Branches (${filteredBranches.length})`
                 : `All Branches (${branches.length})`}
             </h2>
-            {isAdmin && branches.length > 0 && <AddBranchCard />}
+
+            <div className="flex flex-row items-center gap-1">
+              <Select value={selectedManager} onValueChange={setSelectedManager}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by Manager" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Managers</SelectItem>
+                  {managers.map((manager) => (
+                    <SelectItem key={manager} value={manager}>
+                      {manager}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="ready">Ready for Harvest</SelectItem>
+                  <SelectItem value="harvested">Harvested Recently</SelectItem>
+                  <SelectItem value="upcoming">Upcoming Harvest</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {isAdmin && branches.length > 0 && <AddBranchCard />}
+            </div>
           </div>
 
           {filteredBranches.length === 0 ? (
