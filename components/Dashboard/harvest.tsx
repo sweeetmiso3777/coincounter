@@ -55,26 +55,14 @@ export default function UpcomingHarvests() {
     .sort((a, b) => a.daysUntil - b.daysUntil)
     .slice(0, 3); // Exactly 3 cards
 
-  // Calculate recent harvests (last 30 days)
+  
+  // Calculate recent harvests (based on last_harvest_date)
   const recentHarvests = branches
+    .filter((branch) => branch.last_harvest_date)
     .map((branch) => {
       const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      let harvestDate = new Date(
-        currentYear,
-        currentMonth,
-        branch.harvest_day_of_month
-      );
-
-      if (harvestDate > now) {
-        harvestDate = new Date(
-          currentYear,
-          currentMonth - 1,
-          branch.harvest_day_of_month
-        );
-      }
+      // Ensure we have a valid date object
+      const harvestDate = new Date(branch.last_harvest_date!);
 
       const daysAgo = Math.floor(
         (now.getTime() - harvestDate.getTime()) / (1000 * 60 * 60 * 24)
@@ -93,14 +81,12 @@ export default function UpcomingHarvests() {
             ? `${daysAgo}d`
             : daysAgo <= 30
             ? `${Math.ceil(daysAgo / 7)}w`
-            : null,
+            : `${Math.floor(daysAgo / 30)}mo`,
       };
     })
-    .filter(
-      (branch) =>
-        branch.displayText && branch.daysAgo <= 30 && branch.daysAgo >= 0
-    )
-    .sort((a, b) => b.daysAgo - a.daysAgo)
+    .filter((branch) => branch.daysAgo >= 0) // Show all past harvests, or maybe limit to recent? 
+    
+    .sort((a, b) => a.daysAgo - b.daysAgo) // Ascending: 0 days ago (today) comes before 10 days ago
     .slice(0, 3); // Exactly 3 cards
 
   if (isLoading) {
@@ -198,7 +184,7 @@ export default function UpcomingHarvests() {
         <h3 className="text-sm font-medium text-foreground mb-2 flex items-center justify-between">
           <span className="flex items-center gap-1">
             <Calendar1 className="w-3 h-3" />
-            Recent Harvest
+            Recently Harvested
           </span>
           <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
             {recentHarvests.length}

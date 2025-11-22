@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ModeToggle } from "./ui/ModeToggle";
 import { CompactSlideOutNav } from "./SlideOutNav";
 import { Button } from "@/components/ui/button";
-import { Search, Bell, ChevronDown } from "lucide-react";
+import { Search, Bell, ChevronDown, Clock } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -117,7 +117,7 @@ export function Nav() {
             <div className="ml-auto flex items-center space-x-2">
               <Link href="/changelogs">
                 <Button variant="ghost" size="icon">
-                  <Bell className="h-4 w-4" />
+                  <Clock className="h-4 w-4" />
                 </Button>
               </Link>
               <ModeToggle />
