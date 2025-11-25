@@ -31,7 +31,10 @@ import { formatDateRange, formatDate } from "@/lib/date-utils";
 import { MapModal } from "@/components/Branch/Maps/MapModal";
 import CompactMap from "@/components/Branch/Maps/CompactMap";
 import { BranchUnitsStatus } from "@/components/Branch/branch-units";
-import { generateCompactBranchHarvestPDF } from "@/lib/branch-reports";
+import {
+  generateCompactBranchHarvestPDF,
+  generateBranchHarvestPDF,
+} from "@/lib/branch-reports";
 import type { HarvestResult, BranchInfo } from "@/hooks/use-branch-harvest";
 
 interface UnitSummary {
@@ -348,6 +351,7 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
   const [showUnitPerformance, setShowUnitPerformance] = useState<
     Record<string, boolean>
   >({});
+  const [exportMenuOpen, setExportMenuOpen] = useState<string | null>(null);
 
   const branch = branches?.find((b) => b.id === branchId);
 
@@ -465,8 +469,11 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
     };
   };
 
-  // Generate PDF for a specific harvest with minimal branch info
-  const handleGeneratePDF = (harvest: HarvestData) => {
+  // Generate PDF for a specific harvest with format option
+  const handleGeneratePDF = (
+    harvest: HarvestData,
+    format: "compact" | "detailed" = "compact"
+  ) => {
     const harvestResult = convertToHarvestResult(harvest);
 
     const branchInfo: BranchInfo = {
@@ -477,7 +484,15 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
       sharePercentage: harvest.branchSharePercentage || 0,
     };
 
-    generateCompactBranchHarvestPDF(harvestResult, branchInfo);
+    if (format === "detailed") {
+      // For historical data, we don't have unitAggregates, so pass false to disable detailed tables
+      const hasDetailedData =
+        harvest.unitAggregates &&
+        Object.keys(harvest.unitAggregates).length > 0;
+      generateBranchHarvestPDF(harvestResult, branchInfo, hasDetailedData);
+    } else {
+      generateCompactBranchHarvestPDF(harvestResult, branchInfo);
+    }
   };
 
   if (isLoading) {
@@ -527,6 +542,7 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
     const hasVarianceData = harvest.actualAmountProcessed !== undefined;
     const isPositiveVariance = (harvest.variance ?? 0) >= 0;
     const isUnitPerformanceExpanded = showUnitPerformance[harvest.id] ?? true;
+    const isExportMenuOpen = exportMenuOpen === harvest.id;
 
     return (
       <div className="border rounded-lg bg-card shadow-sm mb-3">
@@ -547,13 +563,45 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
               <div className="text-xl font-bold text-green-600">
                 ₱{(harvest.total || 0).toLocaleString()}
               </div>
-              <button
-                onClick={() => handleGeneratePDF(harvest)}
-                className="p-2 hover:bg-muted rounded-lg transition-colors"
-                title="Download PDF Report"
-              >
-                <Download className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-              </button>
+
+              {/* Export Dropdown Menu */}
+              <div className="relative">
+                <button
+                  onClick={() =>
+                    setExportMenuOpen(isExportMenuOpen ? null : harvest.id)
+                  }
+                  className="p-2 hover:bg-muted rounded-lg transition-colors flex items-center gap-1"
+                  title="Export Options"
+                >
+                  <FileDown className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                </button>
+
+                {isExportMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg z-10 min-w-40 py-1">
+                    <button
+                      onClick={() => {
+                        handleGeneratePDF(harvest, "compact");
+                        setExportMenuOpen(null);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
+                    >
+                      <Download className="h-3 w-3" />
+                      Compact PDF
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleGeneratePDF(harvest, "detailed");
+                        setExportMenuOpen(null);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
+                    >
+                      <FileDown className="h-3 w-3" />
+                      Detailed PDF
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -784,7 +832,7 @@ const BranchHeader = React.memo(
               {branch?.share && (
                 <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg text-xs">
                   <span className="font-semibold text-blue-700 dark:text-blue-300">
-                    This branches share:
+                    Your Share of this Branch:
                   </span>
                   <Percent className="h-3 w-3 text-blue-600" />
                   <span className="font-semibold text-blue-700 dark:text-blue-300">

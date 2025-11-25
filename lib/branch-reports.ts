@@ -377,7 +377,7 @@ unitTableBody.push([
   `${totals.coins_10.toLocaleString()}×10`,   // Added ×10 and fixed property
   `${totals.coins_20.toLocaleString()}×20`,   // Added ×20 and fixed property
   totals.sales.toLocaleString(),
-  `₱${totals.amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+  `P${totals.amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
   ""
 ]);
 

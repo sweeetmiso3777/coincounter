@@ -15,6 +15,59 @@ interface Aggregate {
   harvested: boolean;
 }
 
+interface DailySummary {
+  dateId: string;
+  generatedAt: admin.firestore.Timestamp;
+  
+  // Totals
+  totalRevenue: number;
+  totalSales: number;
+  totalActiveDevices: number;
+  totalUnits: number;
+  
+  // Coin denomination totals
+  coinDenomination: {
+    coins_1: number;
+    coins_5: number; 
+    coins_10: number;
+    coins_20: number;
+    totalValue: number;
+  };
+  
+  // Ranked device list by total coins (value)
+  rankedDevices: Array<{
+    deviceId: string;
+    branchId: string;
+    totalRevenue: number;
+    salesCount: number;
+    coins_1: number;
+    coins_5: number;
+    coins_10: number;
+    coins_20: number;
+    rank: number;
+  }>;
+  
+  // Per unit coin denomination breakdown
+  unitBreakdown: Array<{
+    deviceId: string;
+    branchId: string;
+    coins_1: number;
+    coins_5: number;
+    coins_10: number;
+    coins_20: number;
+    total: number;
+    salesCount: number;
+  }>;
+  
+  // Branch summary
+  branchSummary: Array<{
+    branchId: string;
+    totalRevenue: number;
+    deviceCount: number;
+    activeDeviceCount: number;
+  }>;
+}
+
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(
@@ -105,7 +158,85 @@ export async function GET(request: NextRequest) {
     // COMMIT AGGREGATES FIRST
     await aggregateBatch.commit();
 
-    // PHASE 2: Only delete sales if aggregates were successful
+    // PHASE 2: Generate Daily Summary
+    const dailySummary: DailySummary = {
+      dateId: todayDateId,
+      generatedAt: currentTimestamp,
+      
+      // Calculate totals
+      totalRevenue: Object.values(deviceAggregates).reduce((sum, agg) => sum + agg.total, 0),
+      totalSales: Object.values(deviceAggregates).reduce((sum, agg) => sum + agg.sales_count, 0),
+      totalActiveDevices: Object.keys(deviceAggregates).length,
+      totalUnits: unitsSnapshot.size,
+      
+      // Calculate coin denomination totals
+      coinDenomination: {
+        coins_1: Object.values(deviceAggregates).reduce((sum, agg) => sum + agg.coins_1, 0),
+        coins_5: Object.values(deviceAggregates).reduce((sum, agg) => sum + agg.coins_5, 0),
+        coins_10: Object.values(deviceAggregates).reduce((sum, agg) => sum + agg.coins_10, 0),
+        coins_20: Object.values(deviceAggregates).reduce((sum, agg) => sum + agg.coins_20, 0),
+        totalValue: Object.values(deviceAggregates).reduce((sum, agg) => sum + agg.total, 0)
+      },
+      
+      // Create ranked device list by total revenue
+      rankedDevices: Object.entries(deviceAggregates)
+        .map(([deviceId, agg]) => ({
+          deviceId,
+          branchId: agg.branchId,
+          totalRevenue: agg.total,
+          salesCount: agg.sales_count,
+          coins_1: agg.coins_1,
+          coins_5: agg.coins_5,
+          coins_10: agg.coins_10,
+          coins_20: agg.coins_20,
+          rank: 0 // Will be set after sorting
+        }))
+        .sort((a, b) => b.totalRevenue - a.totalRevenue)
+        .map((device, index) => ({
+          ...device,
+          rank: index + 1
+        })),
+      
+      // Per unit coin denomination breakdown
+      unitBreakdown: Object.entries(deviceAggregates).map(([deviceId, agg]) => ({
+        deviceId,
+        branchId: agg.branchId,
+        coins_1: agg.coins_1,
+        coins_5: agg.coins_5,
+        coins_10: agg.coins_10,
+        coins_20: agg.coins_20,
+        total: agg.total,
+        salesCount: agg.sales_count
+      })),
+      
+      // Branch summary
+      branchSummary: Object.entries(
+        Object.values(deviceAggregates).reduce((acc, agg) => {
+          const branchId = agg.branchId;
+          if (!acc[branchId]) {
+            acc[branchId] = {
+              totalRevenue: 0,
+              deviceCount: 0,
+              activeDeviceCount: 0
+            };
+          }
+          acc[branchId].totalRevenue += agg.total;
+          acc[branchId].activeDeviceCount += 1;
+          return acc;
+        }, {} as Record<string, { totalRevenue: number; deviceCount: number; activeDeviceCount: number }>)
+      ).map(([branchId, data]) => ({
+        branchId,
+        totalRevenue: data.totalRevenue,
+        deviceCount: Object.values(branchMap).filter(id => id === branchId).length,
+        activeDeviceCount: data.activeDeviceCount
+      }))
+    };
+
+    // Save the daily summary to logs collection
+    const summaryRef = db.collection("logs").doc(`summary-${todayDateId}`);
+    await summaryRef.set(dailySummary);
+
+    // PHASE 3: Only delete sales if aggregates were successful
     const deleteBatch = db.batch();
     salesSnapshot.forEach(doc => {
       deleteBatch.delete(doc.ref);
@@ -121,6 +252,8 @@ export async function GET(request: NextRequest) {
         salesProcessed: salesSnapshot.size,
         salesDeleted: salesSnapshot.size,
         branchCoverage: Object.keys(branchMap).length,
+        totalRevenue: dailySummary.totalRevenue,
+        totalSales: dailySummary.totalSales,
         processedAt: currentTimestamp.toDate().toISOString()
       }
     });

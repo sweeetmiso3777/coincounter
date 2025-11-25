@@ -53,11 +53,15 @@ async function seedAggregates() {
 
     console.log(`📦 Found ${unitsSnapshot.size} units`);
 
+    // Define the unit IDs to exclude
+    const excludedUnitIds = ["ESP1", "ESP2", "ESP3", "ESP4", "ESP5"];
+    console.log(`🚫 Excluding units: ${excludedUnitIds.join(", ")}`);
+
     let batch = db.batch();
     let batchCount = 0;
     let totalAggregates = 0;
 
-    // Generate data for past 7 days (excluding today)
+    // Generate data for past 29 days (excluding today)
     for (let day = 1; day <= 29; day++) {
       const date = new Date();
       date.setDate(date.getDate() - day);
@@ -66,8 +70,15 @@ async function seedAggregates() {
       const dateId = date.toISOString().split("T")[0];
 
       for (const unitDoc of unitsSnapshot.docs) {
-        const unitData = unitDoc.data();
         const unitId = unitDoc.id;
+        
+        // Skip excluded unit IDs
+        if (excludedUnitIds.includes(unitId)) {
+          console.log(`⏭️ Skipping excluded unit: ${unitId}`);
+          continue;
+        }
+
+        const unitData = unitDoc.data();
         const branchId = unitData.branchId;
 
         if (!branchId) {
@@ -100,7 +111,7 @@ async function seedAggregates() {
       await batch.commit();
     }
 
-    console.log(`✅ Seeded ${totalAggregates} aggregates for the past 7 days (excluding today)`);
+    console.log(`✅ Seeded ${totalAggregates} aggregates for the past 29 days (excluding today and excluded ESP units)`);
 
   } catch (error) {
     console.error("❌ Seeding failed:", error);

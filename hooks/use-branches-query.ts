@@ -9,7 +9,6 @@ import {
   Timestamp,
   setDoc,
   updateDoc,
-  deleteDoc,
   getDoc,
   DocumentSnapshot,
   QuerySnapshot,
@@ -31,6 +30,7 @@ export interface BranchData {
   latitude?: number | null
   longitude?: number | null
   affiliates?: string[]
+  archived?: boolean // Added archived field
 }
 
 const listenerRefCount = { count: 0 }
@@ -64,6 +64,7 @@ function transformBranchDoc(docSnap: DocumentSnapshot<DocumentData>): BranchData
     latitude: data.latitude as number | null ?? null,
     longitude: data.longitude as number | null ?? null,
     affiliates: data.affiliates as string[] | undefined,
+    archived: data.archived as boolean ?? false, // Default to false if not set
   }
 }
 
@@ -143,6 +144,7 @@ export function useBranches() {
     latitude?: number | null
     longitude?: number | null
     affiliates?: string[]
+    archived?: boolean
   }
 
   const createBranch = useMutation({
@@ -160,6 +162,7 @@ export function useBranches() {
         share: data.share,
         totalUnits: data.totalUnits,
         created_at: Timestamp.now(),
+        archived: false, // New branches are not archived by default
       }
 
       // Handle last_harvest_date conversion to Firestore Timestamp
@@ -184,7 +187,8 @@ export function useBranches() {
       const optimistic: BranchData = { 
         id, 
         ...data, 
-        created_at: new Date() 
+        created_at: new Date(),
+        archived: false, // New branches are not archived by default
       }
       queryClient.setQueryData(["branches"], [optimistic, ...prev])
       return { prev }
@@ -211,6 +215,7 @@ export function useBranches() {
       if (data.harvest_day_of_month !== undefined) updateData.harvest_day_of_month = data.harvest_day_of_month
       if (data.share !== undefined) updateData.share = data.share
       if (data.totalUnits !== undefined) updateData.totalUnits = data.totalUnits
+      if (data.archived !== undefined) updateData.archived = data.archived
       
       // Handle last_harvest_date conversion to Firestore Timestamp
       if (data.last_harvest_date instanceof Date) {
@@ -240,26 +245,61 @@ export function useBranches() {
     },
   })
 
-  const deleteBranch = useMutation({
+  // Archive branch mutation (replaces deleteBranch)
+  const archiveBranch = useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      console.log("%c[useBranches] deleteBranch -> Firestore deleteDoc", "color: orange; font-weight: bold;")
+      console.log("%c[useBranches] archiveBranch -> Firestore updateDoc", "color: orange; font-weight: bold;")
       const ref = doc(db, "Branches", id)
       const existingDoc = await getDoc(ref)
       if (!existingDoc.exists()) throw new Error("Branch does not exist")
-      await deleteDoc(ref)
+      
+      await updateDoc(ref, { archived: true })
     },
     onMutate: async (id: string) => {
-      console.log("%c[useBranches] Optimistic update (deleteBranch)", "color: green; font-weight: bold;")
+      console.log("%c[useBranches] Optimistic update (archiveBranch)", "color: green; font-weight: bold;")
       await queryClient.cancelQueries({ queryKey: ["branches"] })
       const prev = queryClient.getQueryData<BranchData[]>(["branches"]) || []
-      queryClient.setQueryData(["branches"], prev.filter((b) => b.id !== id))
+      queryClient.setQueryData(["branches"], prev.map((b) => 
+        b.id === id ? { ...b, archived: true } : b
+      ))
       return { prev }
     },
     onError: (err: Error, id: string, context: { prev?: BranchData[] } | undefined) => {
-      console.log("%c[useBranches] Rolling back optimistic deleteBranch.", "color: red; font-weight: bold;")
+      console.log("%c[useBranches] Rolling back optimistic archiveBranch.", "color: red; font-weight: bold;")
       if (context?.prev) queryClient.setQueryData(["branches"], context.prev)
     },
   })
 
-  return { ...queryResult, createBranch, updateBranch, deleteBranch }
+  // Restore branch mutation
+  const restoreBranch = useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      console.log("%c[useBranches] restoreBranch -> Firestore updateDoc", "color: orange; font-weight: bold;")
+      const ref = doc(db, "Branches", id)
+      const existingDoc = await getDoc(ref)
+      if (!existingDoc.exists()) throw new Error("Branch does not exist")
+      
+      await updateDoc(ref, { archived: false })
+    },
+    onMutate: async (id: string) => {
+      console.log("%c[useBranches] Optimistic update (restoreBranch)", "color: green; font-weight: bold;")
+      await queryClient.cancelQueries({ queryKey: ["branches"] })
+      const prev = queryClient.getQueryData<BranchData[]>(["branches"]) || []
+      queryClient.setQueryData(["branches"], prev.map((b) => 
+        b.id === id ? { ...b, archived: false } : b
+      ))
+      return { prev }
+    },
+    onError: (err: Error, id: string, context: { prev?: BranchData[] } | undefined) => {
+      console.log("%c[useBranches] Rolling back optimistic restoreBranch.", "color: red; font-weight: bold;")
+      if (context?.prev) queryClient.setQueryData(["branches"], context.prev)
+    },
+  })
+
+  return { 
+    ...queryResult, 
+    createBranch, 
+    updateBranch, 
+    archiveBranch, // Replaced deleteBranch with archiveBranch
+    restoreBranch, // Added restoreBranch mutation
+  }
 }

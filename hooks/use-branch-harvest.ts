@@ -809,6 +809,7 @@ export function useBranchHarvest(): UseBranchHarvest {
         units_count: unitsSnapshot.size,
         branchSharePercentage: branchSharePercentage,
         unit_summaries: [...(existingData.unit_summaries || []), ...unitSummaries],
+        unitAggregates: unitAggregates,
         ...(actualAmountProcessed !== undefined && {
           actualAmountProcessed,
           variance,

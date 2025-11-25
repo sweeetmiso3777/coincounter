@@ -120,6 +120,11 @@ export function Nav() {
                   <Clock className="h-4 w-4" />
                 </Button>
               </Link>
+              <Link href="/logs">
+                <Button variant="ghost" size="icon">
+                  <Bell className="h-4 w-4" />
+                </Button>
+              </Link>
               <ModeToggle />
 
               {/* Avatar + Dropdown */}
