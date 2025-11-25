@@ -120,7 +120,8 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
       const diffTime = currentDate.getTime() - lastHarvest.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      return diffDays > 0 && diffDays <= 30;
+      // CHANGED: Include today (diffDays >= 0) and within last 30 days
+      return diffDays >= 0 && diffDays <= 15;
     } catch (error) {
       console.error("Error checking harvest date:", error);
       return false;
