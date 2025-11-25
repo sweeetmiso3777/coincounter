@@ -9,7 +9,7 @@ import { toast } from "sonner";
 export interface Branch {
   id: string;
   branch_manager: string;
-  created_at: any;
+  created_at: Date;
   harvest_day_of_month: number;
   location: string;
   share: number;
@@ -187,29 +187,58 @@ export function useUnits() {
     },
   });
 
+  
   // mutation for updating alias
-  const updateAlias = useMutation({
-    mutationFn: async ({ deviceId, alias }: { deviceId: string; alias: string }) => {
-      const ref = doc(db, "Units", deviceId);
-      await updateDoc(ref, { alias });
-    },
-    onSuccess: (_data, { deviceId, alias }) => {
-      toast.success("Alias updated successfully!");
-    },
-    onMutate: async ({ deviceId, alias }) => {
-      await queryClient.cancelQueries({ queryKey: ["units"] });
-      const prev = queryClient.getQueryData<Unit[]>(["units"]) || [];
+const updateAlias = useMutation({
+  mutationFn: async ({ deviceId, alias }: { deviceId: string; alias: string }) => {
+    // Check if alias already exists (case-insensitive)
+    const currentUnits = queryClient.getQueryData<Unit[]>(["units"]) || [];
+    const existingUnit = currentUnits.find(
+      (unit) => 
+        unit.deviceId !== deviceId && 
+        unit.alias?.toLowerCase() === alias.toLowerCase().trim()
+    );
+    
+    if (existingUnit) {
+      throw new Error(`Alias "${alias}" is already in use by another unit.`);
+    }
 
-      queryClient.setQueryData<Unit[]>(["units"], (old) =>
-        old?.map((u) => (u.deviceId === deviceId ? { ...u, alias } : u)),
-      );
-      return { prev };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["units"], ctx.prev);
+    const ref = doc(db, "Units", deviceId);
+    await updateDoc(ref, { alias: alias.trim() });
+  },
+  onSuccess: (_data, { deviceId, alias }) => {
+    toast.success("Alias updated successfully!");
+  },
+  onMutate: async ({ deviceId, alias }) => {
+    await queryClient.cancelQueries({ queryKey: ["units"] });
+    const prev = queryClient.getQueryData<Unit[]>(["units"]) || [];
+
+    // Also validate in onMutate for immediate feedback
+    const existingUnit = prev.find(
+      (unit) => 
+        unit.deviceId !== deviceId && 
+        unit.alias?.toLowerCase() === alias.toLowerCase().trim()
+    );
+    
+    if (existingUnit) {
+      throw new Error(`Alias "${alias}" is already in use by another unit.`);
+    }
+
+    queryClient.setQueryData<Unit[]>(["units"], (old) =>
+      old?.map((u) => (u.deviceId === deviceId ? { ...u, alias: alias.trim() } : u)),
+    );
+    return { prev };
+  },
+  onError: (err, _vars, ctx) => {
+    if (ctx?.prev) queryClient.setQueryData(["units"], ctx.prev);
+    
+    if (err instanceof Error) {
+      toast.error(err.message);
+    } else {
       toast.error("Failed to update alias.");
-    },
-  });
+    }
+  },
+});
 
   return {
     ...state,
