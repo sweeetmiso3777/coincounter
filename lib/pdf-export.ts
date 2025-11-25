@@ -51,7 +51,7 @@ export function generateHarvestPDF(
   yPosition += 10;
   doc.setFontSize(16);
   doc.setTextColor(0, 128, 0);
-  doc.text(`Total Harvested: ₱${result.totalHarvested.toFixed(2)}`, 20, yPosition);
+  doc.text(`Total Harvested: P${result.totalHarvested.toFixed(2)}`, 20, yPosition);
   
   yPosition += 15;
   
@@ -65,10 +65,10 @@ export function generateHarvestPDF(
   
   // Coin breakdown in two columns
   const coinData = [
-    { label: '₱1 Coins:', value: result.coins_1 },
-    { label: '₱5 Coins:', value: result.coins_5 },
-    { label: '₱10 Coins:', value: result.coins_10 },
-    { label: '₱20 Coins:', value: result.coins_20 },
+    { label: 'P1 Coins:', value: result.coins_1 },
+    { label: 'P5 Coins:', value: result.coins_5 },
+    { label: 'P10 Coins:', value: result.coins_10 },
+    { label: 'P20 Coins:', value: result.coins_20 },
   ];
   
   coinData.forEach((coin, index) => {
@@ -178,7 +178,7 @@ export function generateCompactHarvestPDF(
   // Total amount highlighted
   doc.setFontSize(16);
   doc.setTextColor(0, 128, 0);
-  doc.text(`TOTAL AMOUNT: ₱${result.totalHarvested.toFixed(2)}`, pageWidth / 2, yPosition, { align: 'center' });
+  doc.text(`TOTAL AMOUNT: P${result.totalHarvested.toFixed(2)}`, pageWidth / 2, yPosition, { align: 'center' });
   
   yPosition += 20;
   
@@ -191,17 +191,17 @@ export function generateCompactHarvestPDF(
   doc.setFontSize(10);
   
   const coins = [
-    { denomination: '₱1', count: result.coins_1 },
-    { denomination: '₱5', count: result.coins_5 },
-    { denomination: '₱10', count: result.coins_10 },
-    { denomination: '₱20', count: result.coins_20 },
+    { denomination: 'P1', count: result.coins_1 },
+    { denomination: 'P5', count: result.coins_5 },
+    { denomination: 'P10', count: result.coins_10 },
+    { denomination: 'P20', count: result.coins_20 },
   ];
   
   coins.forEach((coin, index) => {
     const rowY = yPosition + index * 7;
     doc.text(coin.denomination, 30, rowY);
     doc.text(coin.count.toString(), 80, rowY);
-    doc.text(`₱${(parseInt(coin.denomination.replace('₱', '')) * coin.count).toFixed(2)}`, 120, rowY);
+    doc.text(`P${(parseInt(coin.denomination.replace('P', '')) * coin.count).toFixed(2)}`, 120, rowY);
   });
   
   yPosition += 35;
