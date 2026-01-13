@@ -30,6 +30,19 @@ interface BranchCardProps {
   totalUnits: number;
   onSelect?: () => void;
 }
+function truncateBranchName(location: string, maxLength: number = 20): string {
+  if (location.length <= maxLength) return location;
+
+  // Try to find a natural break point (space) near maxLength
+  const truncated = location.slice(0, maxLength);
+  const lastSpace = truncated.lastIndexOf(" ");
+
+  if (lastSpace > maxLength * 0.7) {
+    return truncated.slice(0, lastSpace) + "...";
+  }
+
+  return truncated + "...";
+}
 
 export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
   const [editing, setEditing] = useState(false);
@@ -287,8 +300,9 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                   <MapPin className="h-5 w-5 text-blue-700 transition-colors flex-shrink-0" />
                   <h3
                     className={`text-lg font-semibold ${goldStyles.text} transition-colors`}
+                    title={branch.location} // Keep the full name as a tooltip
                   >
-                    {branch.location}
+                    {truncateBranchName(branch.location)}
                   </h3>
                 </button>
                 <div className="flex items-center gap-2 mt-1">

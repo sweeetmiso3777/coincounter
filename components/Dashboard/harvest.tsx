@@ -55,7 +55,6 @@ export default function UpcomingHarvests() {
     .sort((a, b) => a.daysUntil - b.daysUntil)
     .slice(0, 3); // Exactly 3 cards
 
-  
   // Calculate recent harvests (based on last_harvest_date)
   const recentHarvests = branches
     .filter((branch) => branch.last_harvest_date)
@@ -84,8 +83,8 @@ export default function UpcomingHarvests() {
             : `${Math.floor(daysAgo / 30)}mo`,
       };
     })
-    .filter((branch) => branch.daysAgo >= 0) // Show all past harvests, or maybe limit to recent? 
-    
+    .filter((branch) => branch.daysAgo >= 0) // Show all past harvests, or maybe limit to recent?
+
     .sort((a, b) => a.daysAgo - b.daysAgo) // Ascending: 0 days ago (today) comes before 10 days ago
     .slice(0, 3); // Exactly 3 cards
 
@@ -194,7 +193,7 @@ export default function UpcomingHarvests() {
           {recentHarvests.map((branch) => (
             <Link
               key={`recent-${branch.id}`}
-              href={`/branch/${branch.id}`}
+              href={`/branches/${branch.id}`}
               className="block bg-muted/30 rounded-lg p-2 hover:bg-muted/50 transition-colors group"
             >
               <div className="flex items-center justify-between">

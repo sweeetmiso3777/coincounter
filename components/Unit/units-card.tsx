@@ -17,7 +17,6 @@ import {
   Monitor,
   MoreVertical,
   Pencil,
-  Filter,
   CircleDollarSign,
   AlertCircle,
 } from "lucide-react";
@@ -40,19 +39,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { UnitHarvestSummary } from "./UnitHarvestSummary";
+import { cn } from "@/lib/utils";
 
 // number animation
 function AnimatedNumber({ value }: { value: number }) {
@@ -65,6 +58,21 @@ function AnimatedNumber({ value }: { value: number }) {
   }, [value, count]);
 
   return <motion.span>{rounded}</motion.span>;
+}
+
+// Helper function to truncate long branch names
+function truncateBranchName(location: string, maxLength: number = 20): string {
+  if (location.length <= maxLength) return location;
+
+  // Try to find a natural break point (space) near maxLength
+  const truncated = location.slice(0, maxLength);
+  const lastSpace = truncated.lastIndexOf(" ");
+
+  if (lastSpace > maxLength * 0.7) {
+    return truncated.slice(0, lastSpace) + "...";
+  }
+
+  return truncated + "...";
 }
 
 // Status badge component
@@ -448,36 +456,93 @@ export function UnitsPageCards({
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">
+      {/* Sidebar - Only show if not hiding filters and we have branches */}
+      {!hideFilters && branches.length > 0 && (
+        <div className="lg:w-40 lg:sticky  h-fit">
+          <div className="bg-background border rounded-lg">
+            <div className="p-4 border-b">
+              <h3 className="text-sm font-medium mb-2">Filter by Branch</h3>
+              <p className="text-xs text-muted-foreground">
+                Click a branch to filter units
+              </p>
+            </div>
+
+            <div className="p-2">
+              <Button
+                variant={selectedBranch === "all" ? "default" : "ghost"}
+                className="w-full justify-start text-sm mb-2 px-3 py-2 h-auto"
+                onClick={() => setSelectedBranch("all")}
+              >
+                All Branches
+                <Badge variant="secondary" className="ml-auto">
+                  {unitsWithBranch.length}
+                </Badge>
+              </Button>
+
+              <div className="space-y-1 max-h-[calc(100vh-250px)] overflow-y-auto">
+                {sortedBranches.map((branch) => {
+                  const branchUnitsCount = unitsWithBranch.filter(
+                    (unit) => unit.branchId === branch.id
+                  ).length;
+
+                  if (branchUnitsCount === 0) return null;
+
+                  return (
+                    <Button
+                      key={branch.id}
+                      variant={
+                        selectedBranch === branch.id ? "default" : "ghost"
+                      }
+                      className={cn(
+                        "w-full justify-start text-left text-sm px-3 py-2 h-auto min-h-0",
+                        "hover:bg-accent hover:text-accent-foreground",
+                        selectedBranch === branch.id &&
+                          "bg-primary text-primary-foreground"
+                      )}
+                      onClick={() => setSelectedBranch(branch.id)}
+                    >
+                      <span className="truncate" title={branch.location}>
+                        {truncateBranchName(branch.location)}
+                      </span>
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "ml-auto flex-shrink-0",
+                          selectedBranch === branch.id &&
+                            "bg-primary-foreground/20 text-primary-foreground"
+                        )}
+                      >
+                        {branchUnitsCount}
+                      </Badge>
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main cards grid */}
       <div className="flex-1">
         {!hideFilters && (
-          <div className="mb-6 flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filter by Branch:</span>
-            </div>
-            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Select a branch" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Branches</SelectItem>
-                {sortedBranches.map((branch) => (
-                  <SelectItem key={branch.id} value={branch.id}>
-                    {branch.location}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Badge variant="secondary" className="ml-2">
+          <div className="mb-6 flex items-center gap-4 lg:hidden">
+            <span className="text-sm font-medium">Filter by Branch:</span>
+            <Badge variant="secondary">
+              {selectedBranch === "all"
+                ? "All Branches"
+                : branches.find((b) => b.id === selectedBranch)?.location ||
+                  "Selected Branch"}
+            </Badge>
+            <Badge variant="outline">
               {filteredUnitsWithBranch.length} unit
               {filteredUnitsWithBranch.length !== 1 ? "s" : ""}
             </Badge>
           </div>
         )}
 
-        {/* Desktop Grid - Unchanged */}
-        <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {/* Desktop Grid */}
+        <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredUnitsWithBranch.map((unit) => {
             const branch = branchMap.get(unit.branchId);
             const branchLocation = branch?.location || "Unknown Location";
@@ -820,7 +885,7 @@ export function UnitsPageCards({
       </div>
 
       {!hideUnassigned && unitsWithoutBranch.length > 0 && (
-        <div className="lg:w-64 lg:sticky lg:top-20 h-fit">
+        <div className="lg:w-64 lg:sticky h-fit">
           {/* Simple container with fixed height */}
           <div className="bg-background border rounded-lg flex flex-col max-h-[400px]">
             {" "}
@@ -876,9 +941,12 @@ export function UnitsPageCards({
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1 mb-1">
-                            <p className="text-xs font-medium truncate">
+                            <Link
+                              href={`/units/${unit.deviceId}`}
+                              className="text-xs font-medium truncate"
+                            >
                               {unit.alias || "No Alias"}
-                            </p>
+                            </Link>
                             <Button
                               size="icon"
                               variant="ghost"

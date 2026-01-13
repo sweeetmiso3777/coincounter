@@ -6,16 +6,14 @@ import { AddBranchCard } from "./CRUDS/add-branch-card";
 import { useBranches } from "@/hooks/use-branches-query";
 import { useUser } from "@/providers/UserProvider";
 import { useState, useMemo } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { BranchData } from "@/hooks/use-branches-query"; // Import the proper type
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Filter, X } from "lucide-react";
+import { BranchData } from "@/hooks/use-branches-query";
+import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function BranchPage() {
   const { user } = useUser();
@@ -23,32 +21,27 @@ export function BranchPage() {
   const [selectedManager, setSelectedManager] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [showArchived, setShowArchived] = useState<boolean>(false);
+  const [showSidebar, setShowSidebar] = useState<boolean>(false);
 
   const isAdmin = user?.role === "admin";
 
-  // Extract unique managers (only from active branches unless showing archived)
+  // Extract unique managers
   const managers = useMemo(() => {
-    const branchesToUse = showArchived
-      ? branches
-      : branches.filter((b) => !b.archived);
     const uniqueManagers = Array.from(
-      new Set(branchesToUse.map((b) => b.branch_manager).filter(Boolean))
+      new Set(branches.map((b) => b.branch_manager).filter(Boolean))
     );
     return uniqueManagers.sort();
-  }, [branches, showArchived]);
+  }, [branches]);
 
-  // Calculate days until next harvest for a branch
+  // Calculate days until next harvest
   const getDaysUntilHarvest = (branch: BranchData): number => {
     const now = new Date();
-
-    // Calculate next harvest date
     let harvestDate = new Date(
       now.getFullYear(),
       now.getMonth(),
       branch.harvest_day_of_month
     );
 
-    // If harvest day has passed this month, move to next month
     if (branch.harvest_day_of_month < now.getDate()) {
       harvestDate = new Date(
         now.getFullYear(),
@@ -57,27 +50,20 @@ export function BranchPage() {
       );
     }
 
-    // Handle cases where the harvest day doesn't exist in the month (e.g., Feb 30)
     if (harvestDate.getDate() !== branch.harvest_day_of_month) {
       harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     }
 
-    const daysUntil = Math.ceil(
+    return Math.ceil(
       (harvestDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
     );
-
-    return daysUntil;
   };
 
   // Filter and sort branches
   const filteredBranches = useMemo(() => {
     const filtered = branches.filter((branch: BranchData) => {
-      // Filter by Archived status
-      if (!showArchived && branch.archived) {
-        return false;
-      }
+      if (!showArchived && branch.archived) return false;
 
-      // Filter by Manager
       if (
         selectedManager !== "all" &&
         branch.branch_manager !== selectedManager
@@ -85,12 +71,10 @@ export function BranchPage() {
         return false;
       }
 
-      // Filter by Status (only apply to non-archived branches)
       if (selectedStatus !== "all" && !branch.archived) {
         const daysUntil = getDaysUntilHarvest(branch);
-
-        // Check if harvested recently
         let isHarvested = false;
+
         if (branch.last_harvest_date) {
           const lastHarvestDate = new Date(branch.last_harvest_date);
           if (!isNaN(lastHarvestDate.getTime())) {
@@ -100,38 +84,29 @@ export function BranchPage() {
           }
         }
 
-        if (selectedStatus === "ready") {
-          return daysUntil <= 3;
-        } else if (selectedStatus === "harvested") {
-          return isHarvested;
-        } else if (selectedStatus === "upcoming") {
-          return daysUntil > 3;
-        }
+        if (selectedStatus === "ready") return daysUntil <= 3;
+        if (selectedStatus === "harvested") return isHarvested;
+        if (selectedStatus === "upcoming") return daysUntil > 3;
       }
 
       return true;
     });
 
-    // Sort by upcoming harvest (closest harvest first)
     return filtered.sort((a: BranchData, b: BranchData) => {
-      // Archived branches go to the bottom
       if (a.archived && !b.archived) return 1;
       if (!a.archived && b.archived) return -1;
 
-      // If both are archived, sort by creation date or name
       if (a.archived && b.archived) {
         return a.branch_manager.localeCompare(b.branch_manager);
       }
 
-      // For active branches, sort by days until harvest
       const daysUntilA = getDaysUntilHarvest(a);
       const daysUntilB = getDaysUntilHarvest(b);
-
       return daysUntilA - daysUntilB;
     });
   }, [branches, selectedManager, selectedStatus, showArchived]);
 
-  // Calculate counts for display
+  // Calculate counts
   const branchCounts = useMemo(() => {
     const activeBranches = branches.filter((b: BranchData) => !b.archived);
     const archivedBranches = branches.filter((b: BranchData) => b.archived);
@@ -144,20 +119,57 @@ export function BranchPage() {
     };
   }, [branches, filteredBranches]);
 
+  // Get active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedManager !== "all") count++;
+    if (selectedStatus !== "all") count++;
+    if (showArchived) count++;
+    return count;
+  }, [selectedManager, selectedStatus, showArchived]);
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSelectedManager("all");
+    setSelectedStatus("all");
+    setShowArchived(false);
+  };
+
   if (isLoading) return <p className="p-4">Loading branches…</p>;
   if (error) return <p className="p-4 text-red-500">Failed to load branches</p>;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl text-foreground">
-            Branch Management Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Manage and monitor all your PISONET branches
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl text-foreground">
+                Branch Management Dashboard
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Manage and monitor all your PISONET branches
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Mobile Filter Toggle */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSidebar(!showSidebar)}
+                className="lg:hidden"
+              >
+                <Filter className="h-4 w-4" />
+                {activeFilterCount > 0 && (
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {activeFilterCount}
+                  </Badge>
+                )}
+              </Button>
+              {isAdmin && branches.length > 0 && <AddBranchCard />}
+            </div>
+          </div>
 
           {/* Branch Count Summary */}
           <div className="flex gap-4 mt-4 text-sm text-muted-foreground">
@@ -167,104 +179,224 @@ export function BranchPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div>
-          <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-6">
-            <h2 className="text-xl font-mono text-foreground whitespace-nowrap">
-              {selectedManager !== "all" ||
-              selectedStatus !== "all" ||
-              showArchived
-                ? `Filtered Branches (${filteredBranches.length})`
-                : `Active Branches (${branchCounts.active})`}
-            </h2>
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-              {/* Show Archived Checkbox */}
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="show-archived"
-                  checked={showArchived}
-                  onCheckedChange={(checked: boolean) =>
-                    setShowArchived(checked)
-                  }
-                />
-                <Label
-                  htmlFor="show-archived"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Show Archived
-                </Label>
+        {/* Main Content */}
+        <div className="relative">
+          {/* Floating Sidebar Toggle (Desktop) - RIGHT SIDE */}
+          <motion.button
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            onClick={() => setShowSidebar(!showSidebar)}
+            className={cn(
+              "fixed right-4 top-50 z-30 bg-background border rounded-l-lg shadow-sm hover:shadow-md transition-all duration-200",
+              "flex items-center justify-center w-10 h-10",
+              showSidebar && "shadow-md"
+            )}
+          >
+            <Filter className="h-4 w-4" />
+            {activeFilterCount > 0 && (
+              <div className="absolute -top-1 -right-1">
+                <Badge className="h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                  {activeFilterCount}
+                </Badge>
               </div>
+            )}
+          </motion.button>
 
-              <div className="flex flex-row items-center gap-2">
-                <Select
-                  value={selectedManager}
-                  onValueChange={(value: string) => setSelectedManager(value)}
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by Manager" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Managers</SelectItem>
-                    {managers.map((manager: string) => (
-                      <SelectItem key={manager} value={manager}>
-                        {manager}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={selectedStatus}
-                  onValueChange={(value: string) => setSelectedStatus(value)}
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="ready">Ready for Harvest</SelectItem>
-                    <SelectItem value="harvested">
-                      Harvested Recently
-                    </SelectItem>
-                    <SelectItem value="upcoming">Upcoming Harvest</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {isAdmin && branches.length > 0 && <AddBranchCard />}
+          {/* Content Grid - NO SHIFTING */}
+          <div>
+            {filteredBranches.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="max-w-md mx-auto">
+                  <h3 className="text-lg font-medium text-foreground mb-2">
+                    No branches found
+                  </h3>
+                  <p className="text-muted-foreground mb-6">
+                    {branches.length === 0
+                      ? "Get started by creating your first branch."
+                      : "No branches match the selected filters."}
+                  </p>
+                  {isAdmin && branches.length === 0 && <AddBranchCard />}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredBranches.map((branch: BranchData) => (
+                  <BranchCard
+                    key={branch.id}
+                    branch={branch}
+                    totalUnits={branch.totalUnits || 0}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-
-          {filteredBranches.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="max-w-md mx-auto">
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  No branches found
-                </h3>
-                <p className="text-muted-foreground mb-6">
-                  {branches.length === 0
-                    ? "Get started by creating your first branch to track harvests and manage operations."
-                    : showArchived
-                    ? "No archived branches match the selected filters."
-                    : "No active branches match the selected filters."}
-                </p>
-                {isAdmin && branches.length === 0 && <AddBranchCard />}
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredBranches.map((branch: BranchData) => (
-                <BranchCard
-                  key={branch.id}
-                  branch={branch}
-                  totalUnits={branch.totalUnits || 0}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Floating Sidebar - RIGHT SIDE */}
+      <AnimatePresence>
+        {showSidebar && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className={cn(
+              "fixed right-0 top-40 z-20 w-64",
+              "bg-background/95 backdrop-blur-sm border-l border rounded-l-lg shadow-xl",
+              "mx-4 my-4"
+            )}
+          >
+            <div className="p-4">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium">Filters</h3>
+                <div className="flex items-center gap-2">
+                  {activeFilterCount > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="h-6 text-xs"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowSidebar(false)}
+                    className="h-6 w-6"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Archived Toggle */}
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="show-archived"
+                    checked={showArchived}
+                    onCheckedChange={(checked: boolean) =>
+                      setShowArchived(checked)
+                    }
+                  />
+                  <Label
+                    htmlFor="show-archived"
+                    className="text-sm cursor-pointer"
+                  >
+                    Show Archived
+                  </Label>
+                </div>
+              </div>
+
+              {/* Manager Filter */}
+              <div className="space-y-2 mb-4">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Manager
+                </Label>
+                <div className="space-y-1">
+                  <Button
+                    variant={selectedManager === "all" ? "default" : "ghost"}
+                    size="sm"
+                    className="w-full justify-start text-xs h-7"
+                    onClick={() => setSelectedManager("all")}
+                  >
+                    All Managers
+                  </Button>
+                  {managers.slice(0, 5).map((manager: string) => (
+                    <Button
+                      key={manager}
+                      variant={
+                        selectedManager === manager ? "default" : "ghost"
+                      }
+                      size="sm"
+                      className="w-full justify-start text-xs h-7"
+                      onClick={() => setSelectedManager(manager)}
+                    >
+                      <span className="truncate">{manager}</span>
+                    </Button>
+                  ))}
+                  {managers.length > 5 && (
+                    <div className="text-xs text-muted-foreground text-center pt-1">
+                      +{managers.length - 5} more
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Status
+                </Label>
+                <div className="space-y-1">
+                  {[
+                    { value: "all", label: "All" },
+                    { value: "ready", label: "Ready" },
+                    { value: "harvested", label: "Harvested" },
+                    { value: "upcoming", label: "Upcoming" },
+                  ].map(({ value, label }) => (
+                    <Button
+                      key={value}
+                      variant={selectedStatus === value ? "default" : "ghost"}
+                      size="sm"
+                      className="w-full justify-start text-xs h-7"
+                      onClick={() => setSelectedStatus(value)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Active Filter Badges */}
+              {activeFilterCount > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <div className="flex flex-wrap gap-1">
+                    {selectedManager !== "all" && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {selectedManager}
+                      </Badge>
+                    )}
+                    {selectedStatus !== "all" && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {selectedStatus}
+                      </Badge>
+                    )}
+                    {showArchived && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        Archived
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Result Count */}
+              <div className="mt-4 text-xs text-muted-foreground">
+                Showing {filteredBranches.length} of {branches.length} branches
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {showSidebar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowSidebar(false)}
+            className="fixed inset-0 bg-black/20 z-10 lg:hidden"
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

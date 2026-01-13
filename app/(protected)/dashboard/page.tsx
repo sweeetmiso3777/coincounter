@@ -34,12 +34,15 @@ export default function DashboardLayout() {
         /* Main Grid Section - Responsive */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {/* Big Line Chart - Full width on mobile, 3/4 on desktop */}
-          <div className="col-span-1 lg:col-span-3 bg-card rounded-2xl p-4 h-48 block items-center justify-center border">
-            <div className="flex-shrink-0 ml-2">
+          <div className="col-span-1 lg:col-span-3 bg-card rounded-2xl p-4 h-48 relative border">
+            {/* Absolute positioned title */}
+            <div className="absolute top-4 left-6 z-10">
               <span className="text-sm font-medium text-foreground">
-                Todays Sale Growth
+                Today&apos;s Sale Growth
               </span>
             </div>
+
+            {/* Chart takes full height */}
             <Charts />
           </div>
 
