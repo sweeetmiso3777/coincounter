@@ -113,7 +113,12 @@ export function Nav() {
             >
               Real-Time
             </Link>
-
+            <Link
+              href="/map"
+              className="px-4 py-2 text-sm font-medium font-mono text-muted-foreground hover:text-foreground hover:bg-accent rounded-md"
+            >
+              Map
+            </Link>
             <div className="ml-auto flex items-center space-x-2">
               <Link href="/changelogs">
                 <Button variant="ghost" size="icon">

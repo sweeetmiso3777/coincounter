@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 // Types
-const MEMBER_IDS = [1, 2, 3, 4, 5, 6] as const;
+const MEMBER_IDS = [1, 2, 3, 4, 5] as const;
 type MemberId = (typeof MEMBER_IDS)[number];
 
 interface TeamMember {
@@ -119,33 +119,13 @@ const teamMembers: TeamMember[] = [
     name: "Jake Cuyugan",
     role: "Technical Writer",
     location: "Natumolan, Tagoloan, Misamis Oriental",
-    age: 16,
+    age: 22,
     image: "/jake.jpg",
     badges: ["Communication", "Guitar", "Writing"],
     quote: "We are what we repeatedly do.",
     themeSong: {
       title: "Oasis - Don't Look Back in Anger",
       url: "https://res.cloudinary.com/dtce1buqy/video/upload/v1763976943/jakemusic_wt7ti9.mp4",
-    },
-    color: {
-      primary: "red",
-      bg: "bg-red-500/20",
-      border: "border-red-400/30",
-      text: "text-red-400",
-    },
-  },
-  {
-    id: 6,
-    name: "Alexis Buscado",
-    role: "Cloud Engineer",
-    location: "Agusan, Cagayan De Oro",
-    age: 21,
-    image: "/alexis.jpg",
-    badges: ["Dota 2", "Roblox", "Sleeping"],
-    quote: "No Alarms and No Surprises.",
-    themeSong: {
-      title: "Kamikazee - Martyr Nyebera",
-      url: "https://res.cloudinary.com/dtce1buqy/video/upload/v1764319533/Untitled_video_-_Made_with_Clipchamp_jjn4ko.mp4",
     },
     color: {
       primary: "red",
@@ -166,7 +146,6 @@ function useAudioPlayer() {
     3: { isPlaying: false },
     4: { isPlaying: false },
     5: { isPlaying: false },
-    6: { isPlaying: false },
   });
 
   const audioRefs: Record<
@@ -178,7 +157,6 @@ function useAudioPlayer() {
     3: useRef<HTMLAudioElement>(null),
     4: useRef<HTMLAudioElement>(null),
     5: useRef<HTMLAudioElement>(null),
-    6: useRef<HTMLAudioElement>(null),
   };
 
   const fadeIntervals: Record<MemberId, NodeJS.Timeout | null> = {
@@ -187,7 +165,6 @@ function useAudioPlayer() {
     3: null,
     4: null,
     5: null,
-    6: null,
   };
 
   const fadeIn = (memberId: MemberId, duration: number = 1000) => {
@@ -215,7 +192,7 @@ function useAudioPlayer() {
   const fadeOut = (
     memberId: MemberId,
     duration: number = 1000,
-    callback?: () => void
+    callback?: () => void,
   ) => {
     const audio = audioRefs[memberId].current;
     if (!audio) return;
@@ -426,7 +403,6 @@ function TeamMember({
         {member.badges.map((badge) => (
           <Badge
             key={badge}
-            variant="secondary"
             className="bg-gray-100 text-gray-700 border-gray-200 text-xs"
           >
             {badge}

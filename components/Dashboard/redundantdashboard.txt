@@ -1,0 +1,819 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useDailySummaries, DailySummaryWithId } from "@/hooks/use-all-logs";
+
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  CartesianGrid,
+} from "recharts";
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function fmt(n: number) {
+  return `₱${n.toLocaleString()}`;
+}
+
+function pct(part: number, total: number) {
+  if (!total) return "0.0";
+  return ((part / total) * 100).toFixed(1);
+}
+
+const COIN_COLORS: Record<string, string> = {
+  "₱1": "#64748b",
+  "₱5": "#3b82f6",
+  "₱10": "#10b981",
+  "₱20": "#f59e0b",
+};
+
+const RANK_BADGE: Record<number, string> = {
+  1: "bg-yellow-400 text-yellow-900",
+  2: "bg-slate-300 text-slate-800",
+  3: "bg-amber-600 text-amber-100",
+};
+
+// ─── Aggregate derived data (ALL summaries) ───────────────────────────────────
+
+function useAggregate(summaries: DailySummaryWithId[]) {
+  return useMemo(() => {
+    if (!summaries.length) return null;
+
+    const sorted = [...summaries].sort((a, b) => a.dateId.localeCompare(b.dateId));
+
+    const totalRevenue = summaries.reduce((s, d) => s + d.totalRevenue, 0);
+    const totalSales = summaries.reduce((s, d) => s + d.totalSales, 0);
+    const totalDays = summaries.length;
+    const avgDailyRevenue = Math.round(totalRevenue / totalDays);
+
+    const allCoins = summaries.reduce(
+      (acc, s) => ({
+        coins_1: acc.coins_1 + s.coinDenomination.coins_1,
+        coins_5: acc.coins_5 + s.coinDenomination.coins_5,
+        coins_10: acc.coins_10 + s.coinDenomination.coins_10,
+        coins_20: acc.coins_20 + s.coinDenomination.coins_20,
+        totalValue: acc.totalValue + s.coinDenomination.totalValue,
+      }),
+      { coins_1: 0, coins_5: 0, coins_10: 0, coins_20: 0, totalValue: 0 }
+    );
+
+    const coinPieData = [
+      { name: "₱1", value: allCoins.coins_1 * 1, count: allCoins.coins_1 },
+      { name: "₱5", value: allCoins.coins_5 * 5, count: allCoins.coins_5 },
+      { name: "₱10", value: allCoins.coins_10 * 10, count: allCoins.coins_10 },
+      { name: "₱20", value: allCoins.coins_20 * 20, count: allCoins.coins_20 },
+    ];
+
+    const revenueTrend = sorted.map((s) => ({
+      date: s.dateId.slice(5),
+      fullDate: s.dateId,
+      revenue: s.totalRevenue,
+      sales: s.totalSales,
+    }));
+
+    const bestDay = [...summaries].sort((a, b) => b.totalRevenue - a.totalRevenue)[0];
+
+    // Aggregate device performance across ALL days
+    const deviceMap = new Map<
+      string,
+      {
+        deviceId: string;
+        branchId: string;
+        totalRevenue: number;
+        totalSales: number;
+        days: number;
+        coins_1: number;
+        coins_5: number;
+        coins_10: number;
+        coins_20: number;
+      }
+    >();
+
+    for (const s of summaries) {
+      for (const d of s.rankedDevices) {
+        const existing = deviceMap.get(d.deviceId);
+        if (existing) {
+          existing.totalRevenue += d.totalRevenue;
+          existing.totalSales += d.salesCount;
+          existing.days += 1;
+          existing.coins_1 += d.coins_1;
+          existing.coins_5 += d.coins_5;
+          existing.coins_10 += d.coins_10;
+          existing.coins_20 += d.coins_20;
+        } else {
+          deviceMap.set(d.deviceId, {
+            deviceId: d.deviceId,
+            branchId: d.branchId,
+            totalRevenue: d.totalRevenue,
+            totalSales: d.salesCount,
+            days: 1,
+            coins_1: d.coins_1,
+            coins_5: d.coins_5,
+            coins_10: d.coins_10,
+            coins_20: d.coins_20,
+          });
+        }
+      }
+    }
+
+    const allDevices = Array.from(deviceMap.values()).sort(
+      (a, b) => b.totalRevenue - a.totalRevenue
+    );
+
+    // Aggregate branch performance across ALL days
+    const branchMap = new Map<
+      string,
+      { branchId: string; totalRevenue: number; days: number; deviceCount: number }
+    >();
+
+    for (const s of summaries) {
+      for (const b of s.branchSummary) {
+        const existing = branchMap.get(b.branchId);
+        if (existing) {
+          existing.totalRevenue += b.totalRevenue;
+          existing.days += 1;
+        } else {
+          branchMap.set(b.branchId, {
+            branchId: b.branchId,
+            totalRevenue: b.totalRevenue,
+            days: 1,
+            deviceCount: b.deviceCount,
+          });
+        }
+      }
+    }
+
+    const branchBarData = Array.from(branchMap.values())
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .map((b) => ({
+        name: b.branchId.replace("branch_", "").slice(-6),
+        fullId: b.branchId,
+        revenue: b.totalRevenue,
+        avgDaily: Math.round(b.totalRevenue / b.days),
+      }));
+
+    const bestBranch = branchBarData[0];
+
+    return {
+      totalRevenue,
+      totalSales,
+      totalDays,
+      avgDailyRevenue,
+      allCoins,
+      coinPieData,
+      revenueTrend,
+      bestDay,
+      allDevices,
+      branchBarData,
+      bestBranch,
+    };
+  }, [summaries]);
+}
+
+// ─── Per-day derived data ─────────────────────────────────────────────────────
+
+function useDayDetail(summary: DailySummaryWithId | undefined) {
+  return useMemo(() => {
+    if (!summary) return null;
+
+    const { coinDenomination, rankedDevices, branchSummary, unitBreakdown } = summary;
+
+    const coinPieData = [
+      { name: "₱1", value: coinDenomination.coins_1 * 1, count: coinDenomination.coins_1 },
+      { name: "₱5", value: coinDenomination.coins_5 * 5, count: coinDenomination.coins_5 },
+      { name: "₱10", value: coinDenomination.coins_10 * 10, count: coinDenomination.coins_10 },
+      { name: "₱20", value: coinDenomination.coins_20 * 20, count: coinDenomination.coins_20 },
+    ];
+
+    const branchBarData = [...branchSummary]
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .map((b) => ({
+        name: b.branchId.replace("branch_", "").slice(-6),
+        fullId: b.branchId,
+        revenue: b.totalRevenue,
+      }));
+
+    const top5 = rankedDevices.slice(0, 5);
+
+    const totalSalesCount = rankedDevices.reduce((s, d) => s + d.salesCount, 0);
+    const avgSalesPerDevice =
+      rankedDevices.length > 0
+        ? (totalSalesCount / rankedDevices.length).toFixed(1)
+        : "0";
+
+    const bestBranch = [...branchSummary].sort(
+      (a, b) => b.totalRevenue - a.totalRevenue
+    )[0];
+
+    const deviceEfficiency = unitBreakdown
+      .filter((d) => d.salesCount > 0)
+      .map((d) => ({ ...d, avgPerSale: Math.round(d.total / d.salesCount) }))
+      .sort((a, b) => b.avgPerSale - a.avgPerSale);
+
+    return { coinPieData, branchBarData, top5, avgSalesPerDevice, bestBranch, deviceEfficiency };
+  }, [summary]);
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function StatCard({
+  title,
+  value,
+  sub,
+  accent,
+}: {
+  title: string;
+  value: string;
+  sub?: string;
+  accent?: string;
+}) {
+  return (
+    <Card className="relative overflow-hidden">
+      {accent && (
+        <span className={`absolute left-0 top-0 h-full w-1 rounded-l-lg ${accent}`} />
+      )}
+      <CardHeader className="pb-1 pl-5">
+        <CardDescription className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {title}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pl-5">
+        <p className="text-2xl font-bold">{value}</p>
+        {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-4 p-6">
+      <Skeleton className="h-8 w-48" />
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-64 rounded-xl" />
+      <Skeleton className="h-64 rounded-xl" />
+    </div>
+  );
+}
+
+// ─── Overview Tab ─────────────────────────────────────────────────────────────
+
+function OverviewTab({ summaries }: { summaries: DailySummaryWithId[] }) {
+  const agg = useAggregate(summaries);
+  if (!agg) return null;
+
+  const {
+    totalRevenue, totalSales, totalDays, avgDailyRevenue,
+    coinPieData, allCoins, revenueTrend, bestDay,
+    allDevices, branchBarData, bestBranch,
+  } = agg;
+
+  return (
+    <div className="space-y-6">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <StatCard title="All-Time Revenue" value={fmt(totalRevenue)} sub={`across ${totalDays} days`} accent="bg-emerald-500" />
+        <StatCard title="Total Sales" value={totalSales.toLocaleString()} sub={`avg ${Math.round(totalSales / totalDays)}/day`} accent="bg-blue-500" />
+        <StatCard title="Avg Daily Revenue" value={fmt(avgDailyRevenue)} sub="per day average" accent="bg-violet-500" />
+        <StatCard title="Best Single Day" value={fmt(bestDay.totalRevenue)} sub={bestDay.dateId} accent="bg-amber-500" />
+      </div>
+
+      {/* Revenue trend */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Daily Revenue Trend</CardTitle>
+          <CardDescription className="text-xs">
+            Revenue per day across all {totalDays} recorded days
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={revenueTrend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="date" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `₱${v}`} width={56} />
+              <Tooltip
+                formatter={(val: number | undefined) => [fmt(val ?? 0), "Revenue"]}
+                labelFormatter={(l: string) =>
+                  revenueTrend.find((d) => d.date === l)?.fullDate ?? l
+                }
+              />
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Branch + Coin */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">All-Time Revenue by Branch</CardTitle>
+            <CardDescription className="text-xs">
+              Cumulative · best: {bestBranch?.fullId}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={branchBarData} barSize={28}>
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₱${v}`} width={56} />
+                <Tooltip
+                  formatter={(val: number | undefined) => [fmt(val ?? 0), "Revenue"]}
+                  labelFormatter={(l: string) =>
+                    branchBarData.find((b) => b.name === l)?.fullId ?? l
+                  }
+                />
+                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">All-Time Coin Denomination</CardTitle>
+            <CardDescription className="text-xs">By total value contributed</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={coinPieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={72}
+                  label={(props) =>
+                    `${props.name ?? ""} ${((props.percent ?? 0) * 100).toFixed(0)}%`
+                  }
+                  labelLine={false}
+                >
+                  {coinPieData.map((entry) => (
+                    <Cell key={entry.name} fill={COIN_COLORS[entry.name]} />
+                  ))}
+                </Pie>
+                <Legend
+                  formatter={(val, entry: any) =>
+                    `${val} — ${entry.payload.count.toLocaleString()} coins`
+                  }
+                  iconType="circle"
+                  iconSize={8}
+                />
+                <Tooltip formatter={(val: number | undefined) => [fmt(val ?? 0), "Value"]} />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Coin strip */}
+      <div className="grid grid-cols-4 gap-3">
+        {coinPieData.map((c) => (
+          <Card key={c.name} className="border-0 bg-muted/50">
+            <CardContent className="py-3 text-center">
+              <p className="text-lg font-bold">{c.count.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">{c.name} coins</p>
+              <p className="text-xs font-medium">{pct(c.value, allCoins.totalValue)}% of value</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Separator />
+
+      {/* All-time device leaderboard */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">All-Time Device Leaderboard</CardTitle>
+          <CardDescription className="text-xs">
+            Cumulative across all days · {allDevices.length} devices
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8">#</TableHead>
+                  <TableHead>Device</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead className="text-right">Days Active</TableHead>
+                  <TableHead className="text-right">Total Sales</TableHead>
+                  <TableHead className="text-right">Avg/Day</TableHead>
+                  <TableHead className="text-right">Total Revenue</TableHead>
+                  <TableHead className="text-right">Share</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allDevices.map((d, i) => (
+                  <TableRow key={d.deviceId}>
+                    <TableCell>
+                      <span
+                        className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
+                          RANK_BADGE[i + 1] ?? "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {i + 1}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs font-medium">{d.deviceId}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{d.branchId.slice(-8)}</TableCell>
+                    <TableCell className="text-right text-xs">{d.days}</TableCell>
+                    <TableCell className="text-right text-xs">{d.totalSales}</TableCell>
+                    <TableCell className="text-right text-xs">{fmt(Math.round(d.totalRevenue / d.days))}</TableCell>
+                    <TableCell className="text-right text-xs font-semibold">{fmt(d.totalRevenue)}</TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">{pct(d.totalRevenue, totalRevenue)}%</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Daily log table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Daily Log</CardTitle>
+          <CardDescription className="text-xs">One row per recorded day, newest first</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Revenue</TableHead>
+                <TableHead className="text-right">Sales</TableHead>
+                <TableHead className="text-right">Active Devices</TableHead>
+                <TableHead className="text-right">₱1</TableHead>
+                <TableHead className="text-right">₱5</TableHead>
+                <TableHead className="text-right">₱10</TableHead>
+                <TableHead className="text-right">₱20</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {summaries.map((s) => (
+                <TableRow key={s.dateId}>
+                  <TableCell className="text-xs font-medium">{s.dateId}</TableCell>
+                  <TableCell className="text-right text-xs font-semibold">{fmt(s.totalRevenue)}</TableCell>
+                  <TableCell className="text-right text-xs">{s.totalSales}</TableCell>
+                  <TableCell className="text-right text-xs">{s.totalActiveDevices}</TableCell>
+                  <TableCell className="text-right text-xs">{s.coinDenomination.coins_1}</TableCell>
+                  <TableCell className="text-right text-xs">{s.coinDenomination.coins_5}</TableCell>
+                  <TableCell className="text-right text-xs">{s.coinDenomination.coins_10}</TableCell>
+                  <TableCell className="text-right text-xs">{s.coinDenomination.coins_20}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Day Detail Tab ───────────────────────────────────────────────────────────
+
+function DayDetailTab({ summary }: { summary: DailySummaryWithId }) {
+  const derived = useDayDetail(summary);
+  if (!derived) return null;
+
+  const { coinPieData, branchBarData, top5, avgSalesPerDevice, bestBranch, deviceEfficiency } = derived;
+
+  return (
+    <div className="space-y-6">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <StatCard title="Day Revenue" value={fmt(summary.totalRevenue)} sub={`${summary.totalSales} sales`} accent="bg-emerald-500" />
+        <StatCard title="Active Units" value={`${summary.totalActiveDevices}`} sub={`of ${summary.totalUnits} registered`} accent="bg-blue-500" />
+        <StatCard title="Avg Sales / Device" value={avgSalesPerDevice} sub="sales per device" accent="bg-violet-500" />
+        <StatCard title="Best Branch" value={fmt(bestBranch?.totalRevenue ?? 0)} sub={bestBranch?.branchId?.slice(-8) ?? "—"} accent="bg-amber-500" />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Revenue by Branch</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={branchBarData} barSize={28}>
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₱${v}`} width={52} />
+                <Tooltip
+                  formatter={(val: number | undefined) => [fmt(val ?? 0), "Revenue"]}
+                  labelFormatter={(l: string) =>
+                    branchBarData.find((b) => b.name === l)?.fullId ?? l
+                  }
+                />
+                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Coin Denomination Breakdown</CardTitle>
+            <CardDescription className="text-xs">By revenue contribution</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={coinPieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={72}
+                  label={(props) =>
+                    `${props.name ?? ""} ${((props.percent ?? 0) * 100).toFixed(0)}%`
+                  }
+                  labelLine={false}
+                >
+                  {coinPieData.map((entry) => (
+                    <Cell key={entry.name} fill={COIN_COLORS[entry.name]} />
+                  ))}
+                </Pie>
+                <Legend
+                  formatter={(val, entry: any) =>
+                    `${val} — ${entry.payload.count} coins`
+                  }
+                  iconType="circle"
+                  iconSize={8}
+                />
+                <Tooltip formatter={(val: number | undefined) => [fmt(val ?? 0), "Value"]} />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Coin strip */}
+      <div className="grid grid-cols-4 gap-3">
+        {coinPieData.map((c) => (
+          <Card key={c.name} className="border-0 bg-muted/50">
+            <CardContent className="py-3 text-center">
+              <p className="text-lg font-bold">{c.count.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">{c.name} coins</p>
+              <p className="text-xs font-medium">{pct(c.value, summary.coinDenomination.totalValue)}% of value</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Separator />
+
+      {/* Tables */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Top 5 Devices by Revenue</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">#</TableHead>
+                  <TableHead>Device</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">Sales</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {top5.map((d) => (
+                  <TableRow key={d.deviceId}>
+                    <TableCell>
+                      <span
+                        className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
+                          RANK_BADGE[d.rank] ?? "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {d.rank}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs font-medium">{d.deviceId}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{d.branchId.slice(-8)}</TableCell>
+                    <TableCell className="text-right text-xs font-semibold">{fmt(d.totalRevenue)}</TableCell>
+                    <TableCell className="text-right text-xs">{d.salesCount}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Device Efficiency (Avg ₱ / Sale)</CardTitle>
+            <CardDescription className="text-xs">All active devices, ranked</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Device</TableHead>
+                  <TableHead className="text-right">Avg/Sale</TableHead>
+                  <TableHead className="text-right">Sales</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {deviceEfficiency.slice(0, 8).map((d) => (
+                  <TableRow key={d.deviceId}>
+                    <TableCell className="font-mono text-xs font-medium">{d.deviceId}</TableCell>
+                    <TableCell className="text-right text-xs font-semibold">{fmt(d.avgPerSale)}</TableCell>
+                    <TableCell className="text-right text-xs">{d.salesCount}</TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">{fmt(d.total)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Full device table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">All Devices — Full Breakdown</CardTitle>
+          <CardDescription className="text-xs">
+            Ranked by revenue · {summary.totalActiveDevices} devices
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8">Rank</TableHead>
+                  <TableHead>Device</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead className="text-right">₱1</TableHead>
+                  <TableHead className="text-right">₱5</TableHead>
+                  <TableHead className="text-right">₱10</TableHead>
+                  <TableHead className="text-right">₱20</TableHead>
+                  <TableHead className="text-right">Sales</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">Share</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {summary.rankedDevices.map((d) => (
+                  <TableRow key={d.deviceId}>
+                    <TableCell className="text-center text-xs text-muted-foreground">{d.rank}</TableCell>
+                    <TableCell className="font-mono text-xs font-medium">{d.deviceId}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{d.branchId.slice(-8)}</TableCell>
+                    <TableCell className="text-right text-xs">{d.coins_1}</TableCell>
+                    <TableCell className="text-right text-xs">{d.coins_5}</TableCell>
+                    <TableCell className="text-right text-xs">{d.coins_10}</TableCell>
+                    <TableCell className="text-right text-xs">{d.coins_20}</TableCell>
+                    <TableCell className="text-right text-xs">{d.salesCount}</TableCell>
+                    <TableCell className="text-right text-xs font-semibold">{fmt(d.totalRevenue)}</TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">{pct(d.totalRevenue, summary.totalRevenue)}%</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Main Dashboard ───────────────────────────────────────────────────────────
+
+export default function BranchRanking() {
+  const { summaries, loading, error } = useDailySummaries();
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  if (loading) return <LoadingSkeleton />;
+  if (error)
+    return (
+      <div className="flex h-64 items-center justify-center text-destructive">
+        Failed to load summaries: {error.message}
+      </div>
+    );
+  if (!summaries.length)
+    return (
+      <div className="flex h-64 items-center justify-center text-muted-foreground">
+        No summary data available.
+      </div>
+    );
+
+  const latestDate = summaries[0]?.dateId;
+  const selectedSummary = selectedDate
+    ? summaries.find((s) => s.dateId === selectedDate)
+    : null;
+
+  return (
+    <div className="min-h-screen bg-background p-6 text-foreground">
+      {/* Header */}
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Coin Slot Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            {summaries.length} days recorded · latest:{" "}
+            <span className="font-medium text-foreground">{latestDate}</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {selectedDate && (
+            <Button variant="ghost" size="sm" onClick={() => setSelectedDate(null)} className="text-xs">
+              ← All-Time Overview
+            </Button>
+          )}
+          <Badge variant="outline" className="text-xs">
+            {selectedDate ? `Viewing: ${selectedDate}` : "All-Time View"}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Date selector pills */}
+      <div className="mb-6 flex flex-wrap gap-2">
+        <button
+          onClick={() => setSelectedDate(null)}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            !selectedDate
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          Overview
+        </button>
+        {summaries.map((s) => (
+          <button
+            key={s.dateId}
+            onClick={() => setSelectedDate(s.dateId)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              selectedDate === s.dateId
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            {s.dateId}
+          </button>
+        ))}
+      </div>
+
+      <Separator className="mb-6" />
+
+      {/* Content */}
+      {!selectedDate ? (
+        <OverviewTab summaries={summaries} />
+      ) : selectedSummary ? (
+        <DayDetailTab summary={selectedSummary} />
+      ) : (
+        <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
+          No data for {selectedDate}
+        </div>
+      )}
+    </div>
+  );
+}
