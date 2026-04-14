@@ -13,13 +13,11 @@ import {
   ChevronRight,
   MapPin,
   Users,
-  DollarSign,
-  Sparkles,
   Coins,
 } from "lucide-react";
 import { CardMenu } from "./CRUDS/card-menu";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import EditBranchModal from "./CRUDS/EditBranchModal";
 import { MapModal } from "./Maps/MapModal";
 import type { BranchInfo } from "@/hooks/use-branch-harvest";
@@ -30,17 +28,14 @@ interface BranchCardProps {
   totalUnits: number;
   onSelect?: () => void;
 }
+
 function truncateBranchName(location: string, maxLength: number = 20): string {
   if (location.length <= maxLength) return location;
-
-  // Try to find a natural break point (space) near maxLength
   const truncated = location.slice(0, maxLength);
   const lastSpace = truncated.lastIndexOf(" ");
-
   if (lastSpace > maxLength * 0.7) {
     return truncated.slice(0, lastSpace) + "...";
   }
-
   return truncated + "...";
 }
 
@@ -51,7 +46,8 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
   const [showHarvestModal, setShowHarvestModal] = useState(false);
   const [isHarvestLoading, setIsHarvestLoading] = useState(false);
 
-  const formatDate = (date: Date | null | undefined) => {
+  // Memoize expensive calculations
+  const formatDate = useCallback((date: Date | null | undefined) => {
     if (!date || !(date instanceof Date) || isNaN(date.getTime()))
       return "Invalid date";
     return new Intl.DateTimeFormat("en-US", {
@@ -59,23 +55,19 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
       month: "short",
       day: "numeric",
     }).format(date);
-  };
+  }, []);
 
-  const getOrdinalSuffix = (day: number) => {
+  const getOrdinalSuffix = useCallback((day: number) => {
     if (day >= 11 && day <= 13) return "th";
     switch (day % 10) {
-      case 1:
-        return "st";
-      case 2:
-        return "nd";
-      case 3:
-        return "rd";
-      default:
-        return "th";
+      case 1: return "st";
+      case 2: return "nd";
+      case 3: return "rd";
+      default: return "th";
     }
-  };
+  }, []);
 
-  const getNextHarvestDate = (harvestDay: number) => {
+  const getNextHarvestDate = useCallback((harvestDay: number) => {
     const now = new Date();
     let harvestDate = new Date(now.getFullYear(), now.getMonth(), harvestDay);
     if (harvestDay < now.getDate())
@@ -83,13 +75,17 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
     if (harvestDate.getDate() !== harvestDay)
       harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     return harvestDate;
-  };
+  }, []);
 
-  const formatHarvestSchedule = (harvestDay: number) => {
-    const nextHarvest = getNextHarvestDate(harvestDay);
-    const ordinal = getOrdinalSuffix(harvestDay);
+  const harvestInfo = useMemo(() => {
+    const nextHarvest = getNextHarvestDate(branch.harvest_day_of_month);
+    const ordinal = getOrdinalSuffix(branch.harvest_day_of_month);
+    const daysUntil = Math.ceil(
+      (nextHarvest.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    );
+    
     return {
-      schedule: `${harvestDay}${ordinal} day of every month`,
+      schedule: `${branch.harvest_day_of_month}${ordinal} day of every month`,
       nextDate: new Intl.DateTimeFormat("en-US", {
         month: "long",
         day: "numeric",
@@ -100,25 +96,17 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
         day: "numeric",
       }).format(nextHarvest),
       isThisMonth: nextHarvest.getMonth() === new Date().getMonth(),
-      daysUntil: Math.ceil(
-        (nextHarvest.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-      ),
+      daysUntil,
     };
-  };
+  }, [branch.harvest_day_of_month, getNextHarvestDate, getOrdinalSuffix]);
 
-  const isHarvested = () => {
+  const isHarvested = useMemo(() => {
     if (!branch.last_harvest_date) return false;
-
     try {
       const lastHarvestDate = new Date(branch.last_harvest_date);
-
-      if (isNaN(lastHarvestDate.getTime())) {
-        console.error("Invalid last_harvest_date:", branch.last_harvest_date);
-        return false;
-      }
-
+      if (isNaN(lastHarvestDate.getTime())) return false;
+      
       const today = new Date();
-
       const lastHarvest = new Date(
         lastHarvestDate.getFullYear(),
         lastHarvestDate.getMonth(),
@@ -129,57 +117,50 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
         today.getMonth(),
         today.getDate()
       );
-
+      
       const diffTime = currentDate.getTime() - lastHarvest.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      // CHANGED: Include today (diffDays >= 0) and within last 30 days
       return diffDays >= 0 && diffDays <= 15;
     } catch (error) {
       console.error("Error checking harvest date:", error);
       return false;
     }
-  };
+  }, [branch.last_harvest_date]);
 
-  const handleHarvestClick = (e: React.MouseEvent) => {
+  const handleHarvestClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsHarvestLoading(true);
     setShowHarvestModal(true);
-  };
+  }, []);
 
-  const getBranchInfo = (): BranchInfo => {
-    return {
-      branchName: branch.location,
-      branchAddress: branch.address || "Address not specified",
-      managerName: branch.branch_manager,
-      contactNumber: branch.contact_number || "Contact not specified",
-      sharePercentage: branch.share,
-    };
-  };
+  const getBranchInfo = useCallback((): BranchInfo => ({
+    branchName: branch.location,
+    branchAddress: branch.address || "Address not specified",
+    managerName: branch.branch_manager,
+    contactNumber: branch.contact_number || "Contact not specified",
+    sharePercentage: branch.share,
+  }), [branch.location, branch.address, branch.branch_manager, branch.contact_number, branch.share]);
 
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     window.location.href = `/branches/${branch.id}`;
-  };
+  }, [branch.id]);
 
-  const handleMapPinClick = (e: React.MouseEvent) => {
+  const handleMapPinClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setShowMapModal(true);
-  };
+  }, []);
 
-  const harvestInfo = formatHarvestSchedule(branch.harvest_day_of_month);
   const affiliateCount = branch.affiliates?.length || 0;
-
   const daysUntil = harvestInfo.daysUntil;
   const isReadyForHarvest = daysUntil <= 3;
   const isHarvestToday = daysUntil === 0;
 
-  // Simple preset gold levels based on days until harvest
-  const getGoldStyles = () => {
-    // Today or overdue - Full yellow gold
+  // Memoize styles to prevent recalculation on every render
+  const goldStyles = useMemo(() => {
     if (daysUntil <= 0) {
       return {
         border: "border-yellow-400 dark:border-yellow-500",
@@ -187,13 +168,10 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
         text: "text-yellow-900 dark:text-yellow-200",
         accent: "text-yellow-700 dark:text-yellow-300",
         folder: "bg-yellow-500",
-        badge:
-          "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300",
+        badge: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300",
         hover: "hover:bg-yellow-100 dark:hover:bg-yellow-900/30",
       };
     }
-
-    // Within 7 days - Slightly gold
     if (daysUntil <= 7) {
       return {
         border: "border-amber-300 dark:border-amber-600",
@@ -201,13 +179,10 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
         text: "text-amber-900 dark:text-amber-200",
         accent: "text-amber-700 dark:text-amber-300",
         folder: "bg-amber-500",
-        badge:
-          "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300",
+        badge: "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300",
         hover: "hover:bg-amber-50 dark:hover:bg-amber-900/20",
       };
     }
-
-    // Within 15 days - Slight tint
     if (daysUntil <= 15) {
       return {
         border: "border-blue-700 dark:border-amber-800",
@@ -215,13 +190,10 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
         text: "text-blue-700 dark:text-white",
         accent: "text-blue-700 dark:text-amber-400",
         folder: "bg-blue-700",
-        badge:
-          "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400",
+        badge: "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400",
         hover: "hover:bg-amber-50/50 dark:hover:bg-amber-950/20",
       };
     }
-
-    // Default - Black and white
     return {
       border: "border-blue-700 dark:border-gray-700",
       background: "bg-card",
@@ -231,19 +203,12 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
       badge: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
       hover: "hover:bg-gray-50 dark:hover:bg-gray-700/50",
     };
-  };
-
-  const goldStyles = getGoldStyles();
+  }, [daysUntil]);
 
   return (
     <>
-      <motion.div
-        className="relative group"
-        whileHover={{ scale: 1.02, y: -2 }}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.15 }}
-      >
+      {/* Changed: Removed 'aspect-square' and replaced with 'h-full' to let the card height adapt to its content or a grid wrapper  */}
+      <div className="relative group h-full">
         {/* Folded Corner Effect */}
         <div className="absolute top-0 right-0 w-8 h-8 z-20 overflow-hidden">
           <div
@@ -252,11 +217,12 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
         </div>
 
         {/* Main Card Container */}
+        {/* Changed: Added 'flex flex-col' so the inner container stretches properly */}
         <div
-          className={`rounded-lg border shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden w-full relative ${goldStyles.background} ${goldStyles.border}`}
+          className={`flex flex-col rounded-lg border shadow-lg hover:shadow-xl transition-shadow duration-200 cursor-pointer overflow-hidden w-full h-full relative ${goldStyles.background} ${goldStyles.border}`}
         >
           {/* Harvested Watermark */}
-          {isHarvested() && (
+          {isHarvested && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
               <div className="text-red-200 dark:text-white-800/40 text-4xl font-bold rotate-[-45deg] opacity-25 select-none tracking-widest">
                 HARVESTED
@@ -264,27 +230,26 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
             </div>
           )}
 
+          {/* Changed: Removed 'overflow-y-auto' to eliminate the scrollbar, added 'flex-1' to push the footer to the bottom  */}
           <div
-            className={`flex flex-col h-full p-4 ${
-              isHarvested() ? "relative z-20" : ""
+            className={`flex flex-col flex-1 p-4 ${
+              isHarvested ? "relative z-20" : ""
             }`}
             onClick={handleCardClick}
           >
-            {/* Harvest Today Notch - Inside card at top */}
+            {/* Harvest Today Notch */}
             {isHarvestToday && (
               <div className="absolute top-0 left-1/2 transform -translate-x-1/2 z-30">
                 <div className="bg-red-500 text-white text-xs font-bold px-4 py-1 rounded-b-lg shadow-lg flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
                   <span>Harvest Today!</span>
                 </div>
               </div>
             )}
 
-            {/* Upcoming Harvest Notch (within 3 days) */}
+            {/* Upcoming Harvest Notch */}
             {isReadyForHarvest && !isHarvestToday && (
               <div className="absolute top-0 left-1/2 transform -translate-x-1/2 z-30">
                 <div className="bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-b-lg shadow-lg flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
                   <span>Harvest in {daysUntil}d</span>
                 </div>
               </div>
@@ -299,31 +264,29 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                 >
                   <MapPin className="h-5 w-5 text-blue-700 transition-colors flex-shrink-0" />
                   <h3
-                    className={`text-lg font-semibold ${goldStyles.text} transition-colors`}
-                    title={branch.location} // Keep the full name as a tooltip
+                    className={`text-base font-semibold ${goldStyles.text} transition-colors`}
+                    title={branch.location}
                   >
-                    {truncateBranchName(branch.location)}
+                    {truncateBranchName(branch.location, 18)}
                   </h3>
                 </button>
-                <div className="flex items-center gap-2 mt-1">
-                  <User className="h-4 w-4 text-blue-700 flex-shrink-0" />
-                  <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <User className="h-3.5 w-3.5 text-blue-700 flex-shrink-0" />
+                  <span className="text-xs text-gray-600 dark:text-gray-400 truncate">
                     {branch.branch_manager}
                   </span>
 
-                  {/* Affiliate Count */}
                   {affiliateCount > 0 && (
                     <div className="relative">
                       <button
                         onMouseEnter={() => setShowAffiliateTooltip(true)}
                         onMouseLeave={() => setShowAffiliateTooltip(false)}
-                        className={`flex items-center gap-1 ${goldStyles.badge} px-2 py-1 rounded-full text-xs font-medium ${goldStyles.hover} transition-colors`}
+                        className={`flex items-center gap-1 ${goldStyles.badge} px-1.5 py-0.5 rounded-full text-xs font-medium ${goldStyles.hover} transition-colors`}
                       >
-                        <Users className="h-3 w-3 text-blue-700" />+
+                        <Users className="h-2.5 w-2.5 text-blue-700" />+
                         {affiliateCount}
                       </button>
 
-                      {/* Affiliate Tooltip */}
                       {showAffiliateTooltip && (
                         <div className="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[200px]">
                           <div className="flex items-center gap-2 mb-2">
@@ -356,24 +319,25 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
             </div>
 
             {/* Share Info */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-blue-700 flex-shrink-0" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <TrendingUp className="h-3.5 w-3.5 text-blue-700 flex-shrink-0" />
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                   Share:
                 </span>
               </div>
               <span
-                className={`inline-flex items-center rounded-full ${goldStyles.badge} px-2.5 py-0.5 text-xs font-semibold`}
+                className={`inline-flex items-center rounded-full ${goldStyles.badge} px-2 py-0.5 text-xs font-semibold`}
               >
                 {branch.share}%
               </span>
             </div>
 
             {/* Body Content */}
-            <div className="space-y-3 flex-1">
+            {/* flex-1 here ensures this container takes up available vertical space, pushing the footer down */}
+            <div className="space-y-2 flex-1 flex flex-col justify-end">
               <div
-                className={`flex items-center justify-between p-2 bg-card border border-gray-200 dark:border-gray-700 rounded-lg ${goldStyles.hover} transition-colors`}
+                className={`flex items-center justify-between p-1.5 bg-card border border-gray-200 dark:border-gray-700 rounded-lg ${goldStyles.hover} transition-colors`}
               >
                 <Link
                   href={`/branches/${branch.id}`}
@@ -382,24 +346,24 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center gap-2">
-                    <Monitor className="h-4 w-4 text-blue-700 flex-shrink-0" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <Monitor className="h-3.5 w-3.5 text-blue-700 flex-shrink-0" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                       See Performance
                     </span>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                  <ChevronRight className="h-3.5 w-3.5 text-gray-600 dark:text-gray-400" />
                 </Link>
               </div>
 
               {/* Last Harvest Date */}
-              <div className="flex items-center justify-between p-2">
+              <div className="flex items-center justify-between p-1.5">
                 <div className="flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4 text-blue-700 flex-shrink-0" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <CalendarDays className="h-3.5 w-3.5 text-blue-700 flex-shrink-0" />
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                     Last Harvest:
                   </span>
                 </div>
-                <span className="text-sm text-gray-600 dark:text-gray-400">
+                <span className="text-xs text-gray-600 dark:text-gray-400">
                   {branch.last_harvest_date
                     ? formatDate(new Date(branch.last_harvest_date))
                     : "Never"}
@@ -408,36 +372,28 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
 
               {/* Harvest Info */}
               <div
-                className={`p-2 rounded-lg ${goldStyles.hover} transition-colors`}
+                className={`p-1.5 rounded-lg ${goldStyles.hover} transition-colors`}
               >
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-blue-700 flex-shrink-0" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <Calendar className="h-3.5 w-3.5 text-blue-700 flex-shrink-0" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                       Harvest:
                     </span>
-                    {isReadyForHarvest && (
-                      <motion.div
-                        animate={{ rotate: [0, 15, -15, 0] }}
-                        transition={{ repeat: Infinity, duration: 2 }}
-                      >
-                        <Sparkles className="h-4 w-4 text-amber-500" />
-                      </motion.div>
-                    )}
                   </div>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">
                     {harvestInfo.shortDate}
                   </span>
                 </div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                       Next:
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <span
-                      className={`text-sm font-medium ${
+                      className={`text-xs font-medium ${
                         harvestInfo.isThisMonth
                           ? "text-green-600 dark:text-green-400"
                           : goldStyles.accent
@@ -447,12 +403,12 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                     </span>
                     {harvestInfo.daysUntil <= 7 &&
                       harvestInfo.daysUntil > 0 && (
-                        <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 px-1 py-0.5 rounded">
                           {harvestInfo.daysUntil}d
                         </span>
                       )}
                     {harvestInfo.daysUntil === 0 && (
-                      <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 px-1 py-0.5 rounded">
                         Today!
                       </span>
                     )}
@@ -463,7 +419,7 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                   <button
                     onClick={handleHarvestClick}
                     disabled={isHarvestLoading}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium border w-full justify-center ${
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium border w-full justify-center ${
                       goldStyles.accent
                     } ${goldStyles.badge} ${
                       goldStyles.hover
@@ -472,7 +428,7 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
                     }`}
                     title="Harvest"
                   >
-                    <Coins className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                    <Coins className="h-3.5 w-3.5 text-yellow-600 dark:text-yellow-400" />
                     {isHarvestLoading ? "Loading..." : "Harvest"}
                   </button>
                 </div>
@@ -480,27 +436,23 @@ export function BranchCard({ branch, totalUnits, onSelect }: BranchCardProps) {
             </div>
 
             {/* Footer - Branch ID */}
-            <div className="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
+            {/* Added 'mt-auto' to ensure the footer always sits at the bottom of the card */}
+            <div className="pt-2 mt-auto border-t border-gray-200 dark:border-gray-700">
               <Link
                 href={`/branches/${branch.id}`}
                 prefetch={true}
                 className="flex items-center justify-between group"
                 onClick={(e) => e.stopPropagation()}
               >
-                <span className="text-xs font-mono text-blue-700 truncate">
+                <span className="text-[10px] font-mono text-blue-700 truncate">
                   ID: {branch.id}
                 </span>
-                <motion.div
-                  animate={{ x: [0, 2, 0] }}
-                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1 }}
-                >
-                  <ChevronRight className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                </motion.div>
+                <ChevronRight className="h-3 w-3 text-gray-600 dark:text-gray-400" />
               </Link>
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Modals */}
       {showMapModal && (

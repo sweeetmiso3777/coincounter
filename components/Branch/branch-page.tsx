@@ -1,6 +1,7 @@
 "use client";
 
 import { BranchCard } from "./branch-card";
+import { BranchListJira } from "./branch-list-jira"
 import { AddBranchCard } from "./CRUDS/add-branch-card";
 import { useBranches } from "@/hooks/use-branches-query";
 import { useUser } from "@/providers/UserProvider";
@@ -9,9 +10,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Filter, X } from "lucide-react";
+import { Filter, X, LayoutGrid, List } from "lucide-react";
 import { BranchData } from "@/hooks/use-branches-query";
 import { cn } from "@/lib/utils";
+
+type ViewMode = "grid" | "list";
 
 export function BranchPage() {
   const { user } = useUser();
@@ -20,17 +23,16 @@ export function BranchPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [showArchived, setShowArchived] = useState<boolean>(false);
   const [showSidebar, setShowSidebar] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   const isAdmin = user?.role === "admin";
 
-  // Extract unique managers - memoized
   const managers = useMemo(() => {
     return Array.from(
       new Set(branches.map((b) => b.branch_manager).filter(Boolean))
     ).sort();
   }, [branches]);
 
-  // Calculate days until next harvest
   const getDaysUntilHarvest = useCallback((branch: BranchData): number => {
     const now = new Date();
     let harvestDate = new Date(
@@ -38,7 +40,6 @@ export function BranchPage() {
       now.getMonth(),
       branch.harvest_day_of_month
     );
-
     if (branch.harvest_day_of_month < now.getDate()) {
       harvestDate = new Date(
         now.getFullYear(),
@@ -46,70 +47,47 @@ export function BranchPage() {
         branch.harvest_day_of_month
       );
     }
-
     if (harvestDate.getDate() !== branch.harvest_day_of_month) {
       harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     }
-
     return Math.ceil(
       (harvestDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
     );
   }, []);
 
-  // Check if branch is recently harvested
   const isRecentlyHarvested = useCallback((branch: BranchData): boolean => {
     if (!branch.last_harvest_date) return false;
-
     const lastHarvestDate = new Date(branch.last_harvest_date);
     if (isNaN(lastHarvestDate.getTime())) return false;
-
-    const diffTime = Date.now() - lastHarvestDate.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil(
+      (Date.now() - lastHarvestDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
     return diffDays > 0 && diffDays <= 30;
   }, []);
 
-  // Filter and sort branches - optimized
   const filteredBranches = useMemo(() => {
     return branches
       .filter((branch: BranchData) => {
-        // Archive filter
         if (!showArchived && branch.archived) return false;
-
-        // Manager filter
-        if (selectedManager !== "all" && branch.branch_manager !== selectedManager) {
-          return false;
-        }
-
-        // Status filter (skip for archived branches)
+        if (selectedManager !== "all" && branch.branch_manager !== selectedManager) return false;
         if (selectedStatus !== "all" && !branch.archived) {
           const daysUntil = getDaysUntilHarvest(branch);
-
           if (selectedStatus === "ready") return daysUntil <= 3;
           if (selectedStatus === "harvested") return isRecentlyHarvested(branch);
           if (selectedStatus === "upcoming") return daysUntil > 3;
         }
-
         return true;
       })
       .sort((a: BranchData, b: BranchData) => {
-        // Archived branches go to bottom
         if (a.archived && !b.archived) return 1;
         if (!a.archived && b.archived) return -1;
-
-        // Archived branches sorted by manager
-        if (a.archived && b.archived) {
-          return a.branch_manager.localeCompare(b.branch_manager);
-        }
-
-        // Active branches sorted by days until harvest
+        if (a.archived && b.archived) return a.branch_manager.localeCompare(b.branch_manager);
         return getDaysUntilHarvest(a) - getDaysUntilHarvest(b);
       });
   }, [branches, selectedManager, selectedStatus, showArchived, getDaysUntilHarvest, isRecentlyHarvested]);
 
-  // Calculate counts - memoized
   const branchCounts = useMemo(() => {
     const activeBranches = branches.filter((b: BranchData) => !b.archived);
-
     return {
       total: branches.length,
       active: activeBranches.length,
@@ -118,7 +96,6 @@ export function BranchPage() {
     };
   }, [branches, filteredBranches]);
 
-  // Active filter count - memoized
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (selectedManager !== "all") count++;
@@ -127,7 +104,6 @@ export function BranchPage() {
     return count;
   }, [selectedManager, selectedStatus, showArchived]);
 
-  // Clear all filters with useCallback
   const clearFilters = useCallback(() => {
     setSelectedManager("all");
     setSelectedStatus("all");
@@ -146,7 +122,7 @@ export function BranchPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                 Branch Management
@@ -155,7 +131,10 @@ export function BranchPage() {
                 Manage and monitor all your PISONET branches
               </p>
             </div>
-            <div className="flex items-center gap-2">
+
+            {/* Right side: filter btn + view toggle + add */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Mobile filter button */}
               <Button
                 variant="outline"
                 size="sm"
@@ -164,24 +143,75 @@ export function BranchPage() {
               >
                 <Filter className="h-4 w-4" />
                 {activeFilterCount > 0 && (
-                  <Badge variant="secondary" className="h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  <Badge
+                    variant="secondary"
+                    className="h-5 w-5 p-0 flex items-center justify-center text-xs"
+                  >
                     {activeFilterCount}
                   </Badge>
                 )}
               </Button>
+
+              {/* View toggle */}
+              <div className="flex items-center gap-1 p-1 rounded-lg border border-border bg-muted/40">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                    viewMode === "grid"
+                      ? "bg-background text-foreground shadow-sm border border-border"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Card view"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  Cards
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                    viewMode === "list"
+                      ? "bg-background text-foreground shadow-sm border border-border"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="List view"
+                >
+                  <List className="w-3.5 h-3.5" />
+                  List
+                </button>
+              </div>
+
               {isAdmin && branches.length > 0 && <AddBranchCard />}
             </div>
           </div>
 
           {/* Branch Count Summary */}
           <div className="flex flex-wrap gap-3 sm:gap-4 mt-4 text-xs sm:text-sm text-muted-foreground">
-            <span>Total: <span className="font-medium text-foreground">{branchCounts.total}</span></span>
-            <span>Active: <span className="font-medium text-foreground">{branchCounts.active}</span></span>
-            <span>Archived: <span className="font-medium text-foreground">{branchCounts.archived}</span></span>
+            <span>
+              Total:{" "}
+              <span className="font-medium text-foreground">{branchCounts.total}</span>
+            </span>
+            <span>
+              Active:{" "}
+              <span className="font-medium text-foreground">{branchCounts.active}</span>
+            </span>
+            <span>
+              Archived:{" "}
+              <span className="font-medium text-foreground">{branchCounts.archived}</span>
+            </span>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearFilters}
+                className="text-blue-600 dark:text-blue-400 hover:underline text-xs"
+              >
+                Clear {activeFilterCount} filter{activeFilterCount !== 1 ? "s" : ""}
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Main Content Grid */}
+        {/* Main Content */}
         {filteredBranches.length === 0 ? (
           <div className="text-center py-12 sm:py-16">
             <div className="max-w-md mx-auto px-4">
@@ -196,7 +226,8 @@ export function BranchPage() {
               {isAdmin && branches.length === 0 && <AddBranchCard />}
             </div>
           </div>
-        ) : (
+        ) : viewMode === "grid" ? (
+          /* Card grid — original layout */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {filteredBranches.map((branch: BranchData) => (
               <BranchCard
@@ -206,14 +237,25 @@ export function BranchPage() {
               />
             ))}
           </div>
+        ) : (
+          /* Jira-style list — passes all filter state so BranchListJira can re-derive groups */
+          <BranchListJira
+            branches={branches}
+            isAdmin={isAdmin}
+            selectedManager={selectedManager}
+            selectedStatus={selectedStatus}
+            showArchived={showArchived}
+          />
         )}
       </div>
 
       {/* Desktop Filter Sidebar */}
-      <div className={cn(
-        "hidden lg:block fixed right-0 top-0 h-screen bg-background border-l overflow-y-auto transition-all duration-300",
-        showSidebar ? "w-72" : "w-0"
-      )}>
+      <div
+        className={cn(
+          "hidden lg:block fixed right-0 top-0 h-screen bg-background border-l overflow-y-auto transition-all duration-300",
+          showSidebar ? "w-72" : "w-0"
+        )}
+      >
         {showSidebar && (
           <FilterSidebar
             managers={managers}
@@ -237,16 +279,10 @@ export function BranchPage() {
         size="icon"
         onClick={toggleSidebar}
         className="hidden lg:flex fixed right-0 top-67 z-40 h-9 w-9 rounded-l-lg border-r-0 transition-all duration-300"
-        style={{
-          right: showSidebar ? "288px" : "0px",
-        }}
+        style={{ right: showSidebar ? "288px" : "0px" }}
         title={showSidebar ? "Hide filters" : "Show filters"}
       >
-        {showSidebar ? (
-          <X className="h-4 w-4" />
-        ) : (
-          <Filter className="h-4 w-4" />
-        )}
+        {showSidebar ? <X className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
       </Button>
 
       {/* Mobile Filter Sidebar */}
@@ -293,7 +329,8 @@ export function BranchPage() {
   );
 }
 
-// Filter Sidebar Component - Extracted for cleanliness
+// ─── Filter Sidebar (unchanged from original) ─────────────────────────────────
+
 interface FilterSidebarProps {
   managers: string[];
   selectedManager: string;
@@ -325,7 +362,6 @@ function FilterSidebar({
 }: FilterSidebarProps) {
   return (
     <div className="p-4 space-y-6">
-      {/* Clear Filters */}
       {activeFilterCount > 0 && (
         <Button
           variant="outline"
@@ -337,7 +373,6 @@ function FilterSidebar({
         </Button>
       )}
 
-      {/* Archived Toggle */}
       <div className="space-y-3">
         <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           View
@@ -354,7 +389,6 @@ function FilterSidebar({
         </div>
       </div>
 
-      {/* Manager Filter */}
       <div className="space-y-3">
         <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Manager
@@ -364,10 +398,7 @@ function FilterSidebar({
             variant={selectedManager === "all" ? "default" : "ghost"}
             size="sm"
             className="w-full justify-start text-xs h-8"
-            onClick={() => {
-              setSelectedManager("all");
-              onClose?.();
-            }}
+            onClick={() => { setSelectedManager("all"); onClose?.(); }}
           >
             All Managers
           </Button>
@@ -377,10 +408,7 @@ function FilterSidebar({
               variant={selectedManager === manager ? "default" : "ghost"}
               size="sm"
               className="w-full justify-start text-xs h-8 truncate"
-              onClick={() => {
-                setSelectedManager(manager);
-                onClose?.();
-              }}
+              onClick={() => { setSelectedManager(manager); onClose?.(); }}
             >
               {manager}
             </Button>
@@ -388,7 +416,6 @@ function FilterSidebar({
         </div>
       </div>
 
-      {/* Status Filter */}
       <div className="space-y-3">
         <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Status
@@ -405,10 +432,7 @@ function FilterSidebar({
               variant={selectedStatus === value ? "default" : "ghost"}
               size="sm"
               className="w-full justify-start text-xs h-8"
-              onClick={() => {
-                setSelectedStatus(value);
-                onClose?.();
-              }}
+              onClick={() => { setSelectedStatus(value); onClose?.(); }}
             >
               {label}
             </Button>
@@ -416,9 +440,9 @@ function FilterSidebar({
         </div>
       </div>
 
-      {/* Result Count */}
       <div className="pt-4 border-t text-xs text-muted-foreground">
-        Showing <span className="font-medium text-foreground">{filteredCount}</span> of{" "}
+        Showing{" "}
+        <span className="font-medium text-foreground">{filteredCount}</span> of{" "}
         <span className="font-medium text-foreground">{totalCount}</span> branches
       </div>
     </div>

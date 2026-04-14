@@ -35,5 +35,5 @@ export interface BranchData {
   contactNumber?: string;
   phone?: string;
   sharePercentage?: number;
-
+archived?: boolean;
 }
