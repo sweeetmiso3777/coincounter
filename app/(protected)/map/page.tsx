@@ -73,12 +73,12 @@ export default function BranchesMapPage() {
       )}
 
       {/* ── TOP-LEFT: Page title pill ── */}
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 rounded-xl bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg border border-white/60 dark:border-gray-700/60">
+      {/* <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 rounded-xl bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-lg border border-white/60 dark:border-gray-700/60">
         <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
         <span className="text-sm font-semibold text-gray-800 dark:text-white tracking-tight">
           Branch Map
         </span>
-      </div>
+      </div> */}
 
       {/* ── TOP-RIGHT: Stats chips ── */}
       {!isLoading && !isError && (

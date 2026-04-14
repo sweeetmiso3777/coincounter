@@ -1,8 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Activity,
   BarChart3,
@@ -17,6 +17,9 @@ import {
   Users,
   Calendar,
   Percent,
+  Coins,
+  DollarSign,
+  Layers,
 } from "lucide-react";
 import Link from "next/link";
 import React, { useState, useEffect, useCallback } from "react";
@@ -36,6 +39,9 @@ import {
   generateBranchHarvestPDF,
 } from "@/lib/branch-reports";
 import type { HarvestResult, BranchInfo } from "@/hooks/use-branch-harvest";
+import { cn } from "@/lib/utils";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface UnitSummary {
   unitId: string;
@@ -46,13 +52,25 @@ interface UnitSummary {
   coins_5?: number;
   coins_10?: number;
   coins_20?: number;
-  date_range?: {
-    start: string;
-    end: string;
-  };
+  date_range?: { start: string; end: string };
 }
 
-// ========== COIN BREAKDOWN TABLE COMPONENT ==========
+type TabId = "overview" | "harvests" | "units";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getNextHarvestDate(harvestDay: number): Date {
+  const now = new Date();
+  let d = new Date(now.getFullYear(), now.getMonth(), harvestDay);
+  if (harvestDay < now.getDate())
+    d = new Date(now.getFullYear(), now.getMonth() + 1, harvestDay);
+  if (d.getDate() !== harvestDay)
+    d = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return d;
+}
+
+// ─── Coin Breakdown ───────────────────────────────────────────────────────────
+
 const CoinBreakdownTable = ({
   coins_1 = 0,
   coins_5 = 0,
@@ -66,111 +84,46 @@ const CoinBreakdownTable = ({
   coins_20?: number;
   compact?: boolean;
 }) => {
-  const coinValues = {
-    coins_1: coins_1,
-    coins_5: coins_5,
-    coins_10: coins_10,
-    coins_20: coins_20,
-  };
-
-  const coinTotals = {
-    coins_1: coins_1 * 1,
-    coins_5: coins_5 * 5,
-    coins_10: coins_10 * 10,
-    coins_20: coins_20 * 20,
-  };
-
-  const grandTotal = Object.values(coinTotals).reduce(
-    (sum, total) => sum + total,
-    0
-  );
+  const rows = [
+    { label: compact ? "₱1" : "₱1 Coins", qty: coins_1, val: 1 },
+    { label: compact ? "₱5" : "₱5 Coins", qty: coins_5, val: 5 },
+    { label: compact ? "₱10" : "₱10 Coins", qty: coins_10, val: 10 },
+    { label: compact ? "₱20" : "₱20 Coins", qty: coins_20, val: 20 },
+  ];
+  const grandTotal = rows.reduce((s, r) => s + r.qty * r.val, 0);
 
   if (compact) {
     return (
-      <div className="text-xs">
-        <div className="grid grid-cols-5 gap-1 font-mono">
-          {/* Headers */}
-          <div className="font-semibold text-muted-foreground">Coin</div>
-          <div className="font-semibold text-muted-foreground text-right">
-            Qty
-          </div>
-          <div className="font-semibold text-muted-foreground text-right">
-            Value
-          </div>
-          <div className="font-semibold text-muted-foreground text-right">
-            Total
-          </div>
-          <div className="font-semibold text-muted-foreground text-right">
-            %
-          </div>
-
-          {/* 1 Peso */}
-          <div>₱1</div>
-          <div className="text-right">
-            {coinValues.coins_1.toLocaleString()}
-          </div>
-          <div className="text-right">₱1</div>
-          <div className="text-right">
-            ₱{coinTotals.coins_1.toLocaleString()}
-          </div>
-          <div className="text-right text-muted-foreground">
-            {grandTotal > 0
-              ? ((coinTotals.coins_1 / grandTotal) * 100).toFixed(1)
-              : "0"}
-            %
-          </div>
-
-          {/* 5 Peso */}
-          <div>₱5</div>
-          <div className="text-right">
-            {coinValues.coins_5.toLocaleString()}
-          </div>
-          <div className="text-right">₱5</div>
-          <div className="text-right">
-            ₱{coinTotals.coins_5.toLocaleString()}
-          </div>
-          <div className="text-right text-muted-foreground">
-            {grandTotal > 0
-              ? ((coinTotals.coins_5 / grandTotal) * 100).toFixed(1)
-              : "0"}
-            %
-          </div>
-
-          {/* 10 Peso */}
-          <div>₱10</div>
-          <div className="text-right">
-            {coinValues.coins_10.toLocaleString()}
-          </div>
-          <div className="text-right">₱10</div>
-          <div className="text-right">
-            ₱{coinTotals.coins_10.toLocaleString()}
-          </div>
-          <div className="text-right text-muted-foreground">
-            {grandTotal > 0
-              ? ((coinTotals.coins_10 / grandTotal) * 100).toFixed(1)
-              : "0"}
-            %
-          </div>
-
-          {/* 20 Peso */}
-          <div>₱20</div>
-          <div className="text-right">
-            {coinValues.coins_20.toLocaleString()}
-          </div>
-          <div className="text-right">₱20</div>
-          <div className="text-right">
-            ₱{coinTotals.coins_20.toLocaleString()}
-          </div>
-          <div className="text-right text-muted-foreground">
-            {grandTotal > 0
-              ? ((coinTotals.coins_20 / grandTotal) * 100).toFixed(1)
-              : "0"}
-            %
-          </div>
-
-          {/* Grand Total Row */}
-          <div className="col-span-3 border-t pt-1 font-semibold">Total</div>
-          <div className="col-span-2 border-t pt-1 text-right font-bold text-green-600">
+      <div className="font-mono text-xs">
+        <div className="grid grid-cols-5 gap-1 mb-1">
+          {["Coin", "Qty", "Val", "Total", "%"].map((h) => (
+            <div
+              key={h}
+              className={cn(
+                "text-[10px] font-medium text-muted-foreground",
+                h !== "Coin" && "text-right"
+              )}
+            >
+              {h}
+            </div>
+          ))}
+        </div>
+        {rows.map((r) => {
+          const total = r.qty * r.val;
+          const pct = grandTotal > 0 ? ((total / grandTotal) * 100).toFixed(1) : "0";
+          return (
+            <div key={r.label} className="grid grid-cols-5 gap-1">
+              <div>{r.label}</div>
+              <div className="text-right">{r.qty.toLocaleString()}</div>
+              <div className="text-right">₱{r.val}</div>
+              <div className="text-right">₱{total.toLocaleString()}</div>
+              <div className="text-right text-muted-foreground">{pct}%</div>
+            </div>
+          );
+        })}
+        <div className="grid grid-cols-5 gap-1 border-t mt-1 pt-1 font-semibold">
+          <div className="col-span-3 text-muted-foreground">Total</div>
+          <div className="col-span-2 text-right text-emerald-600 dark:text-emerald-400">
             ₱{grandTotal.toLocaleString()}
           </div>
         </div>
@@ -179,101 +132,50 @@ const CoinBreakdownTable = ({
   }
 
   return (
-    <div className="text-xs">
-      <div className="grid grid-cols-4 gap-2 font-mono border-b pb-1 mb-1">
-        <div className="font-semibold text-muted-foreground">Coin Type</div>
-        <div className="font-semibold text-muted-foreground text-right">
-          Quantity
-        </div>
-        <div className="font-semibold text-muted-foreground text-right">
-          Total Value
-        </div>
-        <div className="font-semibold text-muted-foreground text-right">
-          Percentage
-        </div>
-      </div>
-
-      <div className="space-y-1">
-        {/* 1 Peso Row */}
-        <div className="grid grid-cols-4 gap-2">
-          <div>₱1 Coins</div>
-          <div className="text-right">
-            {coinValues.coins_1.toLocaleString()}
-          </div>
-          <div className="text-right">
-            ₱{coinTotals.coins_1.toLocaleString()}
-          </div>
-          <div className="text-right text-muted-foreground">
-            {grandTotal > 0
-              ? ((coinTotals.coins_1 / grandTotal) * 100).toFixed(1)
-              : "0"}
-            %
-          </div>
-        </div>
-
-        {/* 5 Peso Row */}
-        <div className="grid grid-cols-4 gap-2">
-          <div>₱5 Coins</div>
-          <div className="text-right">
-            {coinValues.coins_5.toLocaleString()}
-          </div>
-          <div className="text-right">
-            ₱{coinTotals.coins_5.toLocaleString()}
-          </div>
-          <div className="text-right text-muted-foreground">
-            {grandTotal > 0
-              ? ((coinTotals.coins_5 / grandTotal) * 100).toFixed(1)
-              : "0"}
-            %
-          </div>
-        </div>
-
-        {/* 10 Peso Row */}
-        <div className="grid grid-cols-4 gap-2">
-          <div>₱10 Coins</div>
-          <div className="text-right">
-            {coinValues.coins_10.toLocaleString()}
-          </div>
-          <div className="text-right">
-            ₱{coinTotals.coins_10.toLocaleString()}
-          </div>
-          <div className="text-right text-muted-foreground">
-            {grandTotal > 0
-              ? ((coinTotals.coins_10 / grandTotal) * 100).toFixed(1)
-              : "0"}
-            %
-          </div>
-        </div>
-
-        {/* 20 Peso Row */}
-        <div className="grid grid-cols-4 gap-2">
-          <div>₱20 Coins</div>
-          <div className="text-right">
-            {coinValues.coins_20.toLocaleString()}
-          </div>
-          <div className="text-right">
-            ₱{coinTotals.coins_20.toLocaleString()}
-          </div>
-          <div className="text-right text-muted-foreground">
-            {grandTotal > 0
-              ? ((coinTotals.coins_20 / grandTotal) * 100).toFixed(1)
-              : "0"}
-            %
-          </div>
-        </div>
-
-        {/* Grand Total Row */}
-        <div className="grid grid-cols-4 gap-2 border-t pt-1 font-semibold">
-          <div className="col-span-2">Grand Total</div>
-          <div className="text-right text-green-600">
+    <table className="w-full text-xs font-mono">
+      <thead>
+        <tr className="border-b border-border/50">
+          {["Coin type", "Quantity", "Total value", "Share"].map((h) => (
+            <th
+              key={h}
+              className={cn(
+                "pb-1.5 text-[11px] font-medium text-muted-foreground",
+                h !== "Coin type" && "text-right"
+              )}
+            >
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-border/30">
+        {rows.map((r) => {
+          const total = r.qty * r.val;
+          const pct = grandTotal > 0 ? ((total / grandTotal) * 100).toFixed(1) : "0";
+          return (
+            <tr key={r.label}>
+              <td className="py-1.5">{r.label}</td>
+              <td className="py-1.5 text-right">{r.qty.toLocaleString()}</td>
+              <td className="py-1.5 text-right">₱{total.toLocaleString()}</td>
+              <td className="py-1.5 text-right text-muted-foreground">{pct}%</td>
+            </tr>
+          );
+        })}
+      </tbody>
+      <tfoot>
+        <tr className="border-t border-border font-semibold">
+          <td colSpan={2} className="pt-1.5">Grand total</td>
+          <td className="pt-1.5 text-right text-emerald-600 dark:text-emerald-400">
             ₱{grandTotal.toLocaleString()}
-          </div>
-          <div className="text-right">100%</div>
-        </div>
-      </div>
-    </div>
+          </td>
+          <td className="pt-1.5 text-right">100%</td>
+        </tr>
+      </tfoot>
+    </table>
   );
 };
+
+// ─── Unit breakdown row ───────────────────────────────────────────────────────
 
 const UnitBreakdown = ({
   unit,
@@ -286,145 +188,276 @@ const UnitBreakdown = ({
   onToggle: () => void;
   unitAlias: string;
 }) => {
-  const unitDateRange = unit.date_range || { start: "N/A", end: "N/A" };
-
+  const dateRange = unit.date_range || { start: "N/A", end: "N/A" };
   return (
-    <div className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
-      {/* Unit Header - More Compact */}
+    <div className="border-b border-border/40 last:border-b-0">
       <div
-        className="flex items-center justify-between p-2 cursor-pointer"
+        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors"
         onClick={onToggle}
       >
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-          <span className="font-medium text-sm">{unitAlias}</span>
-          <span className="text-xs text-muted-foreground font-mono">
-            ({unit.unitId})
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+          <span className="text-xs font-medium text-foreground truncate">{unitAlias}</span>
+          <span className="text-[10px] text-muted-foreground font-mono hidden sm:inline">
+            {unit.unitId}
           </span>
-          <span className="text-sm font-bold text-green-600 ml-2">
+          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 ml-1">
             ₱{(unit.total_amount || 0).toLocaleString()}
           </span>
         </div>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span>{unit.aggregates_count || 0} sum</span>
-          <span>{unit.total_sales || 0} sales</span>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="text-[11px] text-muted-foreground hidden sm:inline">
+            {unit.aggregates_count || 0} sums · {unit.total_sales || 0} sales
+          </span>
           {isExpanded ? (
-            <ChevronUp className="h-3 w-3" />
+            <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
           ) : (
-            <ChevronDown className="h-3 w-3" />
+            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
           )}
         </div>
       </div>
-
-      {/* Expanded Content - Tabular Coin Breakdown */}
       {isExpanded && (
-        <div className="px-2 pb-2 pl-8">
-          <div className="text-xs text-muted-foreground space-y-2">
-            <CoinBreakdownTable
-              coins_1={unit.coins_1}
-              coins_5={unit.coins_5}
-              coins_10={unit.coins_10}
-              coins_20={unit.coins_20}
-              compact={true}
-            />
-            <div className="text-muted-foreground/80">
-              {formatDateRange(unitDateRange.start, unitDateRange.end)}
-            </div>
-          </div>
+        <div className="px-3 pb-3 pl-8 space-y-2">
+          <CoinBreakdownTable
+            coins_1={unit.coins_1}
+            coins_5={unit.coins_5}
+            coins_10={unit.coins_10}
+            coins_20={unit.coins_20}
+            compact
+          />
+          <p className="text-[11px] text-muted-foreground">
+            {formatDateRange(dateRange.start, dateRange.end)}
+          </p>
         </div>
       )}
     </div>
   );
 };
 
-// ========== HARVEST DATA DISPLAY ==========
-const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
-  const {
-    data: harvestData,
-    isLoading,
-    error,
-  } = useBranchHarvestData(branchId);
+// ─── Export dropdown ──────────────────────────────────────────────────────────
 
+const ExportDropdown = ({
+  onCompact,
+  onDetailed,
+}: {
+  onCompact: () => void;
+  onDetailed: () => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 text-xs px-2.5 py-1.5 border border-border rounded-md hover:bg-muted transition-colors"
+      >
+        <FileDown className="w-3.5 h-3.5" />
+        Export
+        <ChevronDown className="w-3 h-3" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-background border border-border rounded-lg shadow-lg z-10 min-w-[140px] py-1">
+          <button
+            onClick={() => { onCompact(); setOpen(false); }}
+            className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
+          >
+            <Download className="w-3 h-3" />
+            Compact PDF
+          </button>
+          <button
+            onClick={() => { onDetailed(); setOpen(false); }}
+            className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2 transition-colors"
+          >
+            <FileDown className="w-3 h-3" />
+            Detailed PDF
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Harvest card ─────────────────────────────────────────────────────────────
+
+const HarvestCard = ({
+  harvest,
+  getUnitAlias,
+  onExportCompact,
+  onExportDetailed,
+}: {
+  harvest: HarvestData;
+  getUnitAlias: (id: string) => string;
+  onExportCompact: () => void;
+  onExportDetailed: () => void;
+}) => {
+  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
+  const [showUnits, setShowUnits] = useState(true);
+
+  const dateRange = harvest.date_range || { start: "N/A", end: "N/A" };
+  const unitSummaries = harvest.unit_summaries || [];
+  const hasVariance = harvest.actualAmountProcessed !== undefined;
+  const positiveVariance = (harvest.variance ?? 0) >= 0;
+
+  const toggleUnit = (id: string) =>
+    setExpandedUnits((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  return (
+    <div className="border border-border rounded-lg bg-card overflow-hidden mb-3">
+
+      {/* Card header */}
+      <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-border bg-muted/30">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground leading-tight">
+            {formatDateRange(dateRange.start, dateRange.end)}
+          </p>
+          <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+            {harvest.month || "N/A"} &middot; {harvest.aggregates_included || 0} summaries &middot;{" "}
+            {harvest.sales_count || 0} sales &middot; {harvest.units_count || 0} units
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+            ₱{(harvest.total || 0).toLocaleString()}
+          </span>
+          <ExportDropdown onCompact={onExportCompact} onDetailed={onExportDetailed} />
+        </div>
+      </div>
+
+      <div className="p-4 space-y-4">
+
+        {/* Variance row */}
+        {hasVariance && (
+          <div className="flex items-center justify-between rounded-md border border-border bg-muted/20 px-3 py-2 text-xs flex-wrap gap-2">
+            <div className="flex items-center gap-4">
+              <span className="text-muted-foreground">
+                Expected <span className="font-medium text-foreground">₱{(harvest.total || 0).toLocaleString()}</span>
+              </span>
+              <span className="text-muted-foreground">
+                Actual <span className="font-medium text-blue-600 dark:text-blue-400">₱{(harvest.actualAmountProcessed || 0).toLocaleString()}</span>
+              </span>
+            </div>
+            <div className={cn(
+              "flex items-center gap-1 font-semibold",
+              positiveVariance ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+            )}>
+              {positiveVariance
+                ? <TrendingUp className="w-3.5 h-3.5" />
+                : <TrendingDown className="w-3.5 h-3.5" />}
+              {positiveVariance ? "+" : ""}₱{(harvest.variance || 0).toLocaleString()}
+              <span className="font-normal text-[11px]">
+                ({positiveVariance ? "+" : ""}{harvest.variancePercentage?.toFixed(2) || "0.00"}%)
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Coin breakdown */}
+        <div className="rounded-md border border-border overflow-hidden">
+          <div className="px-3 py-2 bg-muted/30 border-b border-border">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Coin breakdown
+            </p>
+          </div>
+          <div className="p-3">
+            <CoinBreakdownTable
+              coins_1={harvest.coins_1}
+              coins_5={harvest.coins_5}
+              coins_10={harvest.coins_10}
+              coins_20={harvest.coins_20}
+            />
+          </div>
+        </div>
+
+        {/* Revenue share */}
+        {harvest.branchSharePercentage > 0 && (
+          <div className="rounded-md border border-border bg-muted/20 px-3 py-2.5 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="text-muted-foreground font-medium">Revenue split</span>
+            <span className="text-foreground">
+              Branch ({harvest.branchSharePercentage}%) —{" "}
+              <strong>₱{((harvest.total || 0) * (harvest.branchSharePercentage / 100)).toLocaleString()}</strong>
+            </span>
+            <span className="text-emerald-600 dark:text-emerald-400">
+              Your share ({100 - harvest.branchSharePercentage}%) —{" "}
+              <strong>₱{((harvest.total || 0) * ((100 - harvest.branchSharePercentage) / 100)).toLocaleString()}</strong>
+            </span>
+          </div>
+        )}
+
+        {/* Unit performance */}
+        {unitSummaries.length > 0 && (
+          <div className="rounded-md border border-border overflow-hidden">
+            <button
+              onClick={() => setShowUnits((v) => !v)}
+              className="flex items-center justify-between w-full px-3 py-2 bg-muted/30 hover:bg-muted/50 transition-colors border-b border-border"
+            >
+              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Unit performance ({unitSummaries.length})
+              </span>
+              {showUnits
+                ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
+                : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+            </button>
+            {showUnits && (
+              <div>
+                {unitSummaries.map((unit, i) => (
+                  <UnitBreakdown
+                    key={`${unit.unitId}-${i}`}
+                    unit={unit}
+                    unitAlias={getUnitAlias(unit.unitId)}
+                    isExpanded={expandedUnits.has(unit.unitId)}
+                    onToggle={() => toggleUnit(unit.unitId)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
+        <p className="text-[11px] text-muted-foreground">
+          Last updated: {formatDate(harvest.last_harvest_date || "N/A")}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ─── Harvest history tab ──────────────────────────────────────────────────────
+
+const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
+  const { data: harvestData, isLoading, error } = useBranchHarvestData(branchId);
   const { units } = useUnits();
   const { data: branches } = useBranches();
-  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
-  const [showUnitPerformance, setShowUnitPerformance] = useState<
-    Record<string, boolean>
-  >({});
-  const [exportMenuOpen, setExportMenuOpen] = useState<string | null>(null);
-
   const branch = branches?.find((b) => b.id === branchId);
 
-  const toggleUnit = (unitId: string) => {
-    const newExpanded = new Set(expandedUnits);
-    if (newExpanded.has(unitId)) {
-      newExpanded.delete(unitId);
-    } else {
-      newExpanded.add(unitId);
-    }
-    setExpandedUnits(newExpanded);
-  };
-
-  const toggleUnitPerformance = (harvestId: string) => {
-    setShowUnitPerformance((prev) => ({
-      ...prev,
-      [harvestId]: !prev[harvestId],
-    }));
-  };
-
-  // Get unit alias from deviceId
   const getUnitAlias = (deviceId: string) => {
     const unit = units.find((u) => u.deviceId === deviceId);
     return unit?.alias || deviceId;
   };
 
-  // Convert HarvestData to HarvestResult format for PDF generation
   const convertToHarvestResult = (harvest: HarvestData): HarvestResult => {
-    const determineHarvestMode = ():
-      | "normal"
-      | "include_today"
-      | "backdate" => {
-      const hasPartialAggregates = harvest.unit_summaries?.some(
-        (unit) => unit.date_range?.end === harvest.last_harvest_date
-      );
-
+    const determineHarvestMode = (): "normal" | "include_today" | "backdate" => {
       const today = new Date().toISOString().split("T")[0];
-      const harvestDate =
-        harvest.last_harvest_date || harvest.date_range?.end || "";
-
-      if (harvestDate === today) {
-        return "include_today";
-      }
-
-      if (
-        harvest.date_range?.start &&
-        harvest.date_range?.start !== "Beginning"
-      ) {
-        const startDate = new Date(harvest.date_range.start);
-        const endDate = new Date(harvestDate);
-        const daysDiff = Math.floor(
-          (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      const harvestDate = harvest.last_harvest_date || harvest.date_range?.end || "";
+      if (harvestDate === today) return "include_today";
+      if (harvest.date_range?.start && harvest.date_range?.start !== "Beginning") {
+        const diff = Math.floor(
+          (new Date(harvestDate).getTime() - new Date(harvest.date_range.start).getTime()) /
+            86400000
         );
-
-        if (daysDiff < 0) {
-          return "backdate";
-        }
+        if (diff < 0) return "backdate";
       }
-
       return "normal";
     };
 
     return {
       success: true,
-      branchId: branchId,
-      harvestDate:
-        harvest.date_range?.end ||
-        harvest.last_harvest_date ||
-        new Date().toISOString().split("T")[0],
-      previousHarvestDate:
-        harvest.date_range?.start === "Beginning"
-          ? null
-          : harvest.date_range?.start || null,
+      branchId,
+      harvestDate: harvest.date_range?.end || harvest.last_harvest_date || new Date().toISOString().split("T")[0],
+      previousHarvestDate: harvest.date_range?.start === "Beginning" ? null : harvest.date_range?.start || null,
       harvestMode: determineHarvestMode(),
       monthlyAggregate: {
         month: harvest.month || "",
@@ -436,8 +469,7 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
         sales_count: harvest.sales_count || 0,
         units_count: harvest.units_count || 0,
         aggregates_included: harvest.aggregates_included || 0,
-        last_harvest_date:
-          harvest.last_harvest_date || harvest.date_range?.end || "",
+        last_harvest_date: harvest.last_harvest_date || harvest.date_range?.end || "",
         branchSharePercentage: harvest.branchSharePercentage || 0,
         unit_summaries: harvest.unit_summaries || [],
         actualAmountProcessed: harvest.actualAmountProcessed,
@@ -464,18 +496,12 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
         variance: harvest.variance,
         variancePercentage: harvest.variancePercentage,
       },
-
       unitAggregates: harvest.unitAggregates || {},
     };
   };
 
-  // Generate PDF for a specific harvest with format option
-  const handleGeneratePDF = (
-    harvest: HarvestData,
-    format: "compact" | "detailed" = "compact"
-  ) => {
-    const harvestResult = convertToHarvestResult(harvest);
-
+  const handlePDF = (harvest: HarvestData, format: "compact" | "detailed") => {
+    const result = convertToHarvestResult(harvest);
     const branchInfo: BranchInfo = {
       branchName: harvest.location || branch?.location || `Branch ${branchId}`,
       managerName: harvest.branch_manager || branch?.branch_manager || "N/A",
@@ -483,28 +509,21 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
       contactNumber: "N/A",
       sharePercentage: harvest.branchSharePercentage || 0,
     };
-
     if (format === "detailed") {
-      // For historical data, we don't have unitAggregates, so pass false to disable detailed tables
-      const hasDetailedData =
-        harvest.unitAggregates &&
-        Object.keys(harvest.unitAggregates).length > 0;
-      generateBranchHarvestPDF(harvestResult, branchInfo, hasDetailedData);
+      const hasDetailed = harvest.unitAggregates && Object.keys(harvest.unitAggregates).length > 0;
+      generateBranchHarvestPDF(result, branchInfo, hasDetailed);
     } else {
-      generateCompactBranchHarvestPDF(harvestResult, branchInfo);
+      generateCompactBranchHarvestPDF(result, branchInfo);
     }
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-2">
-        {[...Array(2)].map((_, i) => (
-          <div key={i} className="animate-pulse bg-muted rounded-lg p-3">
-            <div className="h-4 bg-muted-foreground/20 rounded w-1/4 mb-2"></div>
-            <div className="space-y-1.5">
-              <div className="h-3 bg-muted-foreground/20 rounded w-3/4"></div>
-              <div className="h-3 bg-muted-foreground/20 rounded w-1/2"></div>
-            </div>
+      <div className="p-5 space-y-3">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="animate-pulse rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+            <div className="h-4 bg-muted rounded w-1/3" />
+            <div className="h-3 bg-muted rounded w-1/2" />
           </div>
         ))}
       </div>
@@ -513,11 +532,10 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
 
   if (error) {
     return (
-      <div className="border border-destructive/20 bg-destructive/5 rounded-lg p-4">
-        <div className="flex items-center gap-2 text-sm">
-          <Activity className="h-4 w-4 text-destructive" />
-          <span className="font-semibold">Error Loading Data:</span>
-          <span className="text-muted-foreground">{error}</span>
+      <div className="p-5">
+        <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
+          <Activity className="w-4 h-4 flex-shrink-0" />
+          <span><strong>Error:</strong> {error}</span>
         </div>
       </div>
     );
@@ -525,457 +543,356 @@ const HarvestDataDisplay = React.memo(({ branchId }: { branchId: string }) => {
 
   if (!harvestData || harvestData.length === 0) {
     return (
-      <div className="border border-dashed rounded-lg p-6 text-center">
-        <BarChart3 className="h-5 w-5 text-muted-foreground mb-2 mx-auto" />
-        <p className="text-sm text-muted-foreground">
-          No harvest records found for this branch.
-        </p>
+      <div className="p-5">
+        <div className="rounded-lg border border-dashed border-border p-12 flex flex-col items-center justify-center text-center">
+          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-3">
+            <BarChart3 className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <p className="text-sm font-medium text-foreground mb-1">No harvest records</p>
+          <p className="text-xs text-muted-foreground">No harvest history found for this branch.</p>
+        </div>
       </div>
     );
   }
 
-  // Render function for each harvest item
-  const renderHarvestItem = (index: number) => {
-    const harvest = harvestData[index];
-    const dateRange = harvest.date_range || { start: "N/A", end: "N/A" };
-    const unitSummaries = harvest.unit_summaries || [];
-    const hasVarianceData = harvest.actualAmountProcessed !== undefined;
-    const isPositiveVariance = (harvest.variance ?? 0) >= 0;
-    const isUnitPerformanceExpanded = showUnitPerformance[harvest.id] ?? true;
-    const isExportMenuOpen = exportMenuOpen === harvest.id;
-
-    return (
-      <div className="border rounded-lg bg-card shadow-sm mb-3">
-        {/* Header - Compact */}
-        <div className="border-b p-3 bg-muted/30">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-base">
-                {formatDateRange(dateRange.start, dateRange.end)}
-              </h3>
-              <p className="text-xs text-muted-foreground font-mono">
-                {harvest.month || "N/A"} • {harvest.aggregates_included || 0}{" "}
-                sum • {harvest.sales_count || 0} sales •{" "}
-                {harvest.units_count || 0} units
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-xl font-bold text-green-600">
-                ₱{(harvest.total || 0).toLocaleString()}
-              </div>
-
-              {/* Export Dropdown Menu */}
-              <div className="relative">
-                <button
-                  onClick={() =>
-                    setExportMenuOpen(isExportMenuOpen ? null : harvest.id)
-                  }
-                  className="p-2 hover:bg-muted rounded-lg transition-colors flex items-center gap-1"
-                  title="Export Options"
-                >
-                  <FileDown className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                </button>
-
-                {isExportMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 bg-background border rounded-lg shadow-lg z-10 min-w-40 py-1">
-                    <button
-                      onClick={() => {
-                        handleGeneratePDF(harvest, "compact");
-                        setExportMenuOpen(null);
-                      }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
-                    >
-                      <Download className="h-3 w-3" />
-                      Compact PDF
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleGeneratePDF(harvest, "detailed");
-                        setExportMenuOpen(null);
-                      }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
-                    >
-                      <FileDown className="h-3 w-3" />
-                      Detailed PDF
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-3">
-          {/* Variance - More Compact */}
-          {hasVarianceData && (
-            <div className="mb-3 p-2 bg-muted/20 rounded-lg border text-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <span className="text-muted-foreground">
-                    Expected: ₱{(harvest.total || 0).toLocaleString()}
-                  </span>
-                  <span className="text-blue-600 font-medium">
-                    Actual: ₱
-                    {(harvest.actualAmountProcessed || 0).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  {isPositiveVariance ? (
-                    <TrendingUp className="h-3 w-3 text-green-600" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3 text-red-600" />
-                  )}
-                  <span
-                    className={`font-bold ${
-                      isPositiveVariance ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {isPositiveVariance ? "+" : ""}₱
-                    {(harvest.variance || 0).toLocaleString()}
-                  </span>
-                  <span
-                    className={`${
-                      isPositiveVariance ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    ({isPositiveVariance ? "+" : ""}
-                    {harvest.variancePercentage?.toFixed(2) || "0.00"}%)
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Coin Summary - Tabular Format */}
-          <div className="mb-3 p-3 bg-muted/20 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-semibold text-sm text-muted-foreground">
-                Coin Breakdown
-              </span>
-            </div>
-            <CoinBreakdownTable
-              coins_1={harvest.coins_1}
-              coins_5={harvest.coins_5}
-              coins_10={harvest.coins_10}
-              coins_20={harvest.coins_20}
-            />
-          </div>
-
-          {/* Revenue Share - Compact */}
-          {harvest.branchSharePercentage > 0 && (
-            <div className="mb-3 p-2 bg-muted/20 rounded-lg text-xs">
-              <span className="font-medium text-muted-foreground mr-2">
-                Revenue:
-              </span>
-              <span className="text-foreground font-medium">
-                Branch Share({harvest.branchSharePercentage}%): ₱
-                {(
-                  (harvest.total || 0) *
-                  (harvest.branchSharePercentage / 100)
-                ).toLocaleString()}
-              </span>
-              <span className="text-green-600 mx-2">•</span>
-              <span className="text-green-600">
-                Your Share ({100 - harvest.branchSharePercentage}%): ₱
-                {(
-                  (harvest.total || 0) *
-                  ((100 - harvest.branchSharePercentage) / 100)
-                ).toLocaleString()}
-              </span>
-            </div>
-          )}
-
-          {/* Unit Summaries - Single Card with Plain Text */}
-          {unitSummaries.length > 0 && (
-            <div className="border rounded-lg bg-muted/10 overflow-hidden">
-              <button
-                onClick={() => toggleUnitPerformance(harvest.id)}
-                className="flex items-center justify-between w-full p-2 text-xs font-semibold hover:bg-muted/30 transition-colors rounded-t-lg"
-              >
-                <span>Unit Performance ({unitSummaries.length})</span>
-                {isUnitPerformanceExpanded ? (
-                  <ChevronUp className="h-3 w-3" />
-                ) : (
-                  <ChevronDown className="h-3 w-3" />
-                )}
-              </button>
-              {isUnitPerformanceExpanded && (
-                <div className="border-t overflow-x-auto">
-                  <div className="min-w-[300px]">
-                    {unitSummaries.map((unit, idx) => (
-                      <UnitBreakdown
-                        key={`${unit.unitId}-${idx}`}
-                        unit={unit}
-                        unitAlias={getUnitAlias(unit.unitId)}
-                        isExpanded={expandedUnits.has(unit.unitId)}
-                        onToggle={() => toggleUnit(unit.unitId)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Footer - Minimal */}
-          <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
-            Last updated: {formatDate(harvest.last_harvest_date || "N/A")}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <Virtuoso
-      data={harvestData}
-      totalCount={harvestData.length}
-      itemContent={renderHarvestItem}
-      style={{
-        height: "600px",
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
-      }}
-      className="[&::-webkit-scrollbar]:hidden"
-    />
+    <div className="p-5">
+      <Virtuoso
+        data={harvestData}
+        totalCount={harvestData.length}
+        itemContent={(_, harvest) => (
+          <HarvestCard
+            harvest={harvest}
+            getUnitAlias={getUnitAlias}
+            onExportCompact={() => handlePDF(harvest, "compact")}
+            onExportDetailed={() => handlePDF(harvest, "detailed")}
+          />
+        )}
+        style={{ height: 600, scrollbarWidth: "none", msOverflowStyle: "none" }}
+        className="[&::-webkit-scrollbar]:hidden"
+      />
+    </div>
   );
 });
 
 HarvestDataDisplay.displayName = "HarvestDataDisplay";
 
-const BranchHeader = React.memo(
-  ({
-    branchId,
-    branch,
-  }: {
-    branchId: string;
-    branch: BranchData | undefined;
-  }) => {
-    const [showMapModal, setShowMapModal] = useState(false);
+// ─── Overview tab ─────────────────────────────────────────────────────────────
 
-    const handleKeyDown = useCallback((event: KeyboardEvent) => {
-      if (event.key === "Escape") setShowMapModal(false);
-    }, []);
+const TabOverview = ({
+  branchId,
+  branch,
+}: {
+  branchId: string;
+  branch: BranchData | undefined;
+}) => {
+  const [showMapModal, setShowMapModal] = useState(false);
 
-    const handleClickOutside = useCallback((event: MouseEvent) => {
-      const modal = document.querySelector("[data-map-modal]");
-      const trigger = document.querySelector("[data-map-trigger]");
-      if (
-        modal &&
-        !modal.contains(event.target as Node) &&
-        trigger &&
-        !trigger.contains(event.target as Node)
-      ) {
-        setShowMapModal(false);
-      }
-    }, []);
+  const handleKey = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") setShowMapModal(false);
+  }, []);
 
-    useEffect(() => {
-      if (showMapModal) {
-        document.addEventListener("keydown", handleKeyDown);
-        document.addEventListener("mousedown", handleClickOutside);
-        document.body.style.overflow = "hidden";
-      } else {
-        document.body.style.overflow = "unset";
-      }
-      return () => {
-        document.removeEventListener("keydown", handleKeyDown);
-        document.removeEventListener("mousedown", handleClickOutside);
-        document.body.style.overflow = "unset";
-      };
-    }, [showMapModal, handleKeyDown, handleClickOutside]);
+  const handleClickOutside = useCallback((e: MouseEvent) => {
+    const modal = document.querySelector("[data-map-modal]");
+    const trigger = document.querySelector("[data-map-trigger]");
+    if (
+      modal &&
+      !modal.contains(e.target as Node) &&
+      trigger &&
+      !trigger.contains(e.target as Node)
+    ) {
+      setShowMapModal(false);
+    }
+  }, []);
 
-    // Get next harvest date
-    const getNextHarvestDate = (harvestDay: number) => {
-      const now = new Date();
-      let harvestDate = new Date(now.getFullYear(), now.getMonth(), harvestDay);
-      if (harvestDay < now.getDate())
-        harvestDate = new Date(
-          now.getFullYear(),
-          now.getMonth() + 1,
-          harvestDay
-        );
-      if (harvestDate.getDate() !== harvestDay)
-        harvestDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      return harvestDate;
+  useEffect(() => {
+    if (showMapModal) {
+      document.addEventListener("keydown", handleKey);
+      document.addEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "unset";
     };
+  }, [showMapModal, handleKey, handleClickOutside]);
 
-    const harvestDate = branch?.harvest_day_of_month
-      ? getNextHarvestDate(branch.harvest_day_of_month)
-      : null;
+  const harvestDate = branch?.harvest_day_of_month
+    ? getNextHarvestDate(branch.harvest_day_of_month)
+    : null;
+  const affiliateCount = branch?.affiliates?.length || 0;
 
-    const affiliateCount = branch?.affiliates?.length || 0;
+  return (
+    <div className="p-5 space-y-5">
+      {/* Info grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="rounded-lg bg-muted/50 p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
+            Branch manager
+          </p>
+          <p className="text-sm font-medium text-foreground">
+            {branch?.branch_manager || "—"}
+          </p>
+        </div>
+        <div className="rounded-lg bg-muted/50 p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
+            Next harvest
+          </p>
+          <p className="text-sm font-medium text-foreground">
+            {harvestDate ? formatDate(harvestDate) : "—"}
+          </p>
+        </div>
+        <div className="rounded-lg bg-muted/50 p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
+            Your share
+          </p>
+          <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+            {branch?.share ? `${branch.share}%` : "—"}
+          </p>
+        </div>
+        <div className="rounded-lg bg-muted/50 p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
+            Affiliates
+          </p>
+          <p className="text-sm font-medium text-foreground">{affiliateCount}</p>
+        </div>
+      </div>
 
-    return (
-      <>
-        <div className="mb-4">
-          {/* Back Button */}
-          <Button asChild variant="ghost" className="mb-3" size="sm">
-            <Link href="/branches">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Branches
-            </Link>
-          </Button>
-
-          {/* Title with Branch Info Squeezed In */}
-          <div className="mb-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-primary" />
-                <h1 className="text-xl font-bold text-primary">
-                  {branch?.location || "Branch"}
-                </h1>
-              </div>
-
-              {/* Share Percentage - Top Right */}
-              {branch?.share && (
-                <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-lg text-xs">
-                  <span className="font-semibold text-blue-700 dark:text-blue-300">
-                    Your Share of this Branch:
-                  </span>
-                  <Percent className="h-3 w-3 text-blue-600" />
-                  <span className="font-semibold text-blue-700 dark:text-blue-300">
-                    {branch.share}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Branch Manager and Additional Info Row */}
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              <span className="font-medium">
-                {branch?.branch_manager || "No Manager"}
+      {/* Affiliates */}
+      {branch?.affiliates && branch.affiliates.length > 0 && (
+        <div className="rounded-lg border border-border/50 p-4">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-3">
+            Affiliates
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {branch.affiliates.map((a, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center px-2.5 py-1 rounded bg-muted text-xs text-muted-foreground"
+              >
+                {a}
               </span>
+            ))}
+          </div>
+        </div>
+      )}
 
-              {/* Harvest Date */}
-              {harvestDate && (
-                <div className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>Harvest: {formatDate(harvestDate)}</span>
-                </div>
-              )}
-
-              {/* Affiliates Count */}
-              {affiliateCount > 0 && (
-                <div className="flex items-center gap-1">
-                  <Users className="h-3 w-3" />
-                  <span>
-                    {affiliateCount} Affiliate{affiliateCount !== 1 ? "s" : ""}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Affiliates List - Compact */}
-            {branch?.affiliates && branch.affiliates.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {branch.affiliates.map((affiliate, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-2 py-1 bg-muted rounded text-xs text-muted-foreground"
-                  >
-                    {affiliate}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <p className="text-muted-foreground text-xs font-mono mt-1">
-              Monthly performance metrics and transaction summaries
+      {/* Units + Map side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="rounded-lg border border-border/50 overflow-hidden">
+          <div className="px-4 py-3 bg-muted/30 border-b border-border">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Unit status
             </p>
           </div>
-
-          {/* FLEX CONTAINER — Units left, Map right */}
-          <div className="flex flex-col lg:flex-row gap-3 items-stretch">
-            {/* Units Status */}
-            <div className="lg:flex-1">
-              <BranchUnitsStatus branchId={branchId} />
-            </div>
-
-            {/* Map - Smaller */}
-            <div className="lg:w-1/2 z-0">
-              <button
-                data-map-trigger
-                onClick={() => setShowMapModal(true)}
-                className="w-full h-50 rounded-lg border border-border overflow-hidden hover:shadow-lg transition-all bg-card hover:scale-[1.02]"
-              >
-                {branch?.latitude && branch?.longitude ? (
-                  <div className="w-full h-full pointer-events-none">
-                    <CompactMap
-                      initialCoords={[branch.latitude, branch.longitude]}
-                      showSearch={false}
-                      showCoordinates={false}
-                      className="h-full"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-muted">
-                    <MapPin className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                )}
-              </button>
-              <p className="text-xs text-muted-foreground text-center mt-1">
-                Click to expand
-              </p>
-            </div>
+          <div className="p-3">
+            <BranchUnitsStatus branchId={branchId} />
           </div>
         </div>
 
-        {/* Full Map Modal */}
-        {showMapModal && branch && (
-          <MapModal
-            open={showMapModal}
-            onClose={() => setShowMapModal(false)}
-            branch={branch}
-            data-map-modal
-          />
-        )}
-      </>
-    );
-  }
+        <div className="rounded-lg border border-border/50 overflow-hidden">
+          <div className="px-4 py-3 bg-muted/30 border-b border-border flex items-center justify-between">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Location
+            </p>
+            <button
+              data-map-trigger
+              onClick={() => setShowMapModal(true)}
+              className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Expand map
+            </button>
+          </div>
+          <button
+            data-map-trigger
+            onClick={() => setShowMapModal(true)}
+            className="w-full h-52 block relative hover:opacity-90 transition-opacity z-0"
+          >
+            {branch?.latitude && branch?.longitude ? (
+              <div className="w-full h-full pointer-events-none">
+                <CompactMap
+                  initialCoords={[branch.latitude, branch.longitude]}
+                  showSearch={false}
+                  showCoordinates={false}
+                  className="h-full"
+                />
+              </div>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-muted">
+                <MapPin className="w-5 h-5 text-muted-foreground" />
+              </div>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {showMapModal && branch && (
+        <MapModal
+          open={showMapModal}
+          onClose={() => setShowMapModal(false)}
+          branch={branch}
+          data-map-modal
+        />
+      )}
+    </div>
+  );
+};
+
+// ─── Units tab ────────────────────────────────────────────────────────────────
+
+const TabUnits = ({ branchId }: { branchId: string }) => (
+  <div className="p-5">
+    <BranchUnitsStatus branchId={branchId} />
+  </div>
 );
 
-BranchHeader.displayName = "BranchHeader";
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
+  { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "harvests", label: "Harvest history", icon: Layers },
+  { id: "units", label: "Units", icon: Activity },
+];
 
 const BranchPage = () => {
   const params = useParams();
   const branchId = params?.branchId;
   const { data: branches } = useBranches();
   const branch = branches?.find((b) => b.id === branchId);
+  const [activeTab, setActiveTab] = useState<TabId>("overview");
 
-  // Type guard: ensure branchId is a string
+  // Invalid branch id guard
   if (!branchId || Array.isArray(branchId)) {
     return (
-      <div className="space-y-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Branch Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="border border-destructive/20 bg-destructive/5 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-sm">
-                <Activity className="h-4 w-4 text-destructive" />
-                <span className="font-semibold">Invalid Branch ID</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
+          <Activity className="w-4 h-4 flex-shrink-0" />
+          <span><strong>Invalid branch ID.</strong> Please go back and select a valid branch.</span>
+        </div>
       </div>
     );
   }
 
+  const harvestDate = branch?.harvest_day_of_month
+    ? getNextHarvestDate(branch.harvest_day_of_month)
+    : null;
+
   return (
-    <div className="space-y-3 px-8 mt-4 sm:px-1 lg:px-32">
-      <BranchHeader branchId={branchId} branch={branch} />
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Harvest History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <HarvestDataDisplay branchId={branchId} />
-        </CardContent>
-      </Card>
+    <div className="min-h-screen bg-muted/20">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Link href="/branches" className="text-blue-600 hover:underline">
+            Branches
+          </Link>
+          <span>/</span>
+          <span className="text-foreground">{branch?.location || branchId}</span>
+        </div>
+
+        {/* Page header card */}
+        <div className="rounded-lg bg-card border border-border p-4 md:p-5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            {/* Identity */}
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+                <MapPin className="w-4 h-4 text-white" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-base font-semibold text-foreground truncate leading-tight">
+                  {branch?.location || "Branch"}
+                </h1>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="text-[11px] text-muted-foreground font-mono">
+                    ID: {branchId}
+                  </span>
+                  {branch?.branch_manager && (
+                    <>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {branch.branch_manager}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {branch?.share && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                  <Percent className="w-3 h-3" />
+                  Your share: {branch.share}%
+                </span>
+              )}
+              <Button asChild variant="ghost" size="sm" className="text-xs h-8 gap-1.5">
+                <Link href="/branches">
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  Back
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          {/* Meta row */}
+          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border flex-wrap">
+            {harvestDate && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Calendar className="w-3 h-3" />
+                Next harvest:{" "}
+                <strong className="text-foreground">{formatDate(harvestDate)}</strong>
+              </div>
+            )}
+            {(branch?.affiliates?.length ?? 0) > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Users className="w-3 h-3" />
+                {branch!.affiliates!.length} affiliate
+                {branch!.affiliates!.length !== 1 ? "s" : ""}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground ml-auto">
+              Monthly performance metrics &amp; transaction summaries
+            </p>
+          </div>
+        </div>
+
+        {/* Tabs + content */}
+        <div className="rounded-lg bg-card border border-border overflow-hidden">
+          {/* Tab bar */}
+          <div className="flex border-b border-border px-1 bg-card">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-4 py-3 text-xs font-medium border-b-2 -mb-px transition-colors",
+                  activeTab === id
+                    ? "border-blue-600 text-blue-600 dark:text-blue-400"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {/* <Icon className="w-3.5 h-3.5" /> */}
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Panels */}
+          {activeTab === "overview" && (
+            <TabOverview branchId={branchId} branch={branch} />
+          )}
+          {activeTab === "harvests" && (
+            <HarvestDataDisplay branchId={branchId} />
+          )}
+          {activeTab === "units" && (
+            <TabUnits branchId={branchId} />
+          )}
+        </div>
+      </div>
     </div>
   );
 };
